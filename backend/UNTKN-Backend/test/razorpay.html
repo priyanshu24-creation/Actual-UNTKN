@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>UNTKN Razorpay Test</title>
+
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 650px;
+            margin: 60px auto;
+            padding: 20px;
+        }
+
+        h1 {
+            margin-bottom: 10px;
+        }
+
+        button {
+            padding: 12px 25px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        #result {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f5f5f5;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>UNTKN Payment Test</h1>
+
+    <p>
+        Test user:
+        <strong>test@untkn.com</strong>
+    </p>
+
+    <p>
+        Product:
+        <strong>Classic Black Oversized T-Shirt</strong>
+    </p>
+
+    <p>
+        Variant ID:
+        <strong>1</strong>
+    </p>
+
+    <button id="payButton">
+        Create Order & Pay
+    </button>
+
+    <pre id="result">Ready for payment...</pre>
+
+
+    <script>
+
+        const payButton =
+            document.getElementById("payButton");
+
+        const result =
+            document.getElementById("result");
+
+
+        payButton.addEventListener(
+            "click",
+            startPayment
+        );
+
+
+        async function startPayment() {
+
+            try {
+
+                payButton.disabled = true;
+
+                result.textContent =
+                    "Logging in...";
+
+
+                // ==========================================
+                // STEP 1: LOGIN
+                // ==========================================
+
+                const loginResponse = await fetch(
+                    "/api/auth/login",
+                    {
+                        method: "POST",
+
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+
+                        credentials: "include",
+
+                        body: JSON.stringify({
+                            email: "test@untkn.com",
+                            password: "Test@123456"
+                        })
+                    }
+                );
+
+
+                const loginData =
+                    await loginResponse.json();
+
+
+                if (!loginResponse.ok) {
+
+                    throw new Error(
+                        loginData.message ||
+                        "Login failed"
+                    );
+                }
+
+
+                result.textContent =
+                    "Login successful.\n\nChecking cart...";
+
+
+                // ==========================================
+                // STEP 2: CHECK CART
+                // ==========================================
+
+                const cartResponse = await fetch(
+                    "/api/cart",
+                    {
+                        method: "GET",
+
+                        credentials: "include"
+                    }
+                );
+
+
+                const cartData =
+                    await cartResponse.json();
+
+
+                if (!cartResponse.ok) {
+
+                    throw new Error(
+                        cartData.message ||
+                        "Failed to fetch cart"
+                    );
+                }
+
+
+                console.log(
+                    "Current cart:",
+                    cartData
+                );
+
+
+                // ==========================================
+                // STEP 3: ADD PRODUCT IF CART IS EMPTY
+                // ==========================================
+
+                let cartItems = [];
+
+
+                if (Array.isArray(cartData.items)) {
+
+                    cartItems = cartData.items;
+
+                } else if (
+                    cartData.cart &&
+                    Array.isArray(cartData.cart.items)
+                ) {
+
+                    cartItems =
+                        cartData.cart.items;
+
+                }
+
+
+                if (cartItems.length === 0) {
+
+                    result.textContent =
+                        "Cart is empty.\n\nAdding product...";
+
+
+                    const addCartResponse =
+                        await fetch(
+                            "/api/cart/items",
+                            {
+                                method: "POST",
+
+                                headers: {
+                                    "Content-Type": "application/json"
+                                },
+
+                                credentials: "include",
+
+                                body: JSON.stringify({
+
+                                    product_id: 1,
+
+                                    variant_id: 1,
+
+                                    quantity: 1
+
+                                })
+                            }
+                        );
+
+
+                    const addCartData =
+                        await addCartResponse.json();
+
+
+                    console.log(
+                        "Add cart:",
+                        addCartData
+                    );
+
+
+                    if (!addCartResponse.ok) {
+
+                        throw new Error(
+                            addCartData.message ||
+                            "Failed to add product to cart"
+                        );
+                    }
+
+                }
+
+
+                result.textContent =
+                    "Cart ready.\n\nCreating UNTKN order...";
+
+
+                // ==========================================
+                // STEP 4: CREATE UNTKN ORDER
+                // ==========================================
+
+                const orderResponse =
+                    await fetch(
+                        "/api/orders",
+                        {
+                            method: "POST",
+
+                            headers: {
+                                "Content-Type": "application/json"
+                            },
+
+                            credentials: "include",
+
+                            body: JSON.stringify({
+
+                                shipping_name:
+                                    "Test User",
+
+                                shipping_phone:
+                                    "9876543210",
+
+                                shipping_email:
+                                    "test@untkn.com",
+
+                                shipping_address_line1:
+                                    "123 Test Street",
+
+                                shipping_address_line2:
+                                    "",
+
+                                shipping_city:
+                                    "Kolkata",
+
+                                shipping_state:
+                                    "West Bengal",
+
+                                shipping_postal_code:
+                                    "700001",
+
+                                shipping_country:
+                                    "India",
+
+                                notes:
+                                    "Razorpay test order"
+
+                            })
+                        }
+                    );
+
+
+                const orderData =
+                    await orderResponse.json();
+
+
+                console.log(
+                    "UNTKN Order:",
+                    orderData
+                );
+
+
+                if (!orderResponse.ok) {
+
+                    throw new Error(
+                        orderData.message ||
+                        "Failed to create UNTKN order"
+                    );
+                }
+
+
+                const orderId =
+                    orderData.order.id;
+
+
+                const orderAmount =
+                    Number(
+                        orderData.order.total_amount
+                    );
+
+
+                result.textContent =
+                    "UNTKN order created.\n\n" +
+                    "Order ID: " +
+                    orderId +
+                    "\n" +
+                    "Amount: ₹" +
+                    orderAmount +
+                    "\n\n" +
+                    "Creating Razorpay order...";
+
+
+                // ==========================================
+                // STEP 5: CREATE RAZORPAY ORDER
+                // ==========================================
+
+                const paymentOrderResponse =
+                    await fetch(
+                        "/api/payments/create-order",
+                        {
+                            method: "POST",
+
+                            headers: {
+                                "Content-Type": "application/json"
+                            },
+
+                            credentials: "include",
+
+                            body: JSON.stringify({
+
+                                order_id: orderId
+
+                            })
+                        }
+                    );
+
+
+                const paymentOrderData =
+                    await paymentOrderResponse.json();
+
+
+                console.log(
+                    "Razorpay Order:",
+                    paymentOrderData
+                );
+
+
+                if (!paymentOrderResponse.ok) {
+
+                    throw new Error(
+                        paymentOrderData.message ||
+                        "Failed to create Razorpay order"
+                    );
+                }
+
+
+                // ==========================================
+                // STEP 6: OPEN RAZORPAY CHECKOUT
+                // ==========================================
+
+                result.textContent =
+                    "Razorpay order created.\n\n" +
+                    "Opening Razorpay Checkout...";
+
+
+                const options = {
+
+                    key:
+                        paymentOrderData
+                            .payment
+                            .razorpay_key_id,
+
+                    amount:
+                        paymentOrderData
+                            .payment
+                            .amount,
+
+                    currency:
+                        paymentOrderData
+                            .payment
+                            .currency,
+
+                    name:
+                        "UNTKN",
+
+                    description:
+                        "UNTKN Test Order",
+
+                    order_id:
+                        paymentOrderData
+                            .payment
+                            .razorpay_order_id,
+
+
+                    handler:
+                        async function (
+                            paymentResponse
+                        ) {
+
+                            console.log(
+                                "Razorpay Payment:",
+                                paymentResponse
+                            );
+
+
+                            result.textContent =
+                                "Payment successful.\n\n" +
+                                "Verifying payment...";
+
+
+                            // ==================================
+                            // STEP 7: VERIFY PAYMENT
+                            // ==================================
+
+                            const verifyResponse =
+                                await fetch(
+                                    "/api/payments/verify",
+                                    {
+                                        method: "POST",
+
+                                        headers: {
+                                            "Content-Type":
+                                                "application/json"
+                                        },
+
+                                        credentials:
+                                            "include",
+
+                                        body:
+                                            JSON.stringify({
+
+                                                order_id:
+                                                    orderId,
+
+                                                razorpay_order_id:
+                                                    paymentResponse
+                                                        .razorpay_order_id,
+
+                                                razorpay_payment_id:
+                                                    paymentResponse
+                                                        .razorpay_payment_id,
+
+                                                razorpay_signature:
+                                                    paymentResponse
+                                                        .razorpay_signature
+
+                                            })
+                                    }
+                                );
+
+
+                            const verifyData =
+                                await verifyResponse.json();
+
+
+                            console.log(
+                                "Verification:",
+                                verifyData
+                            );
+
+
+                            if (!verifyResponse.ok) {
+
+                                result.textContent =
+                                    JSON.stringify(
+                                        verifyData,
+                                        null,
+                                        2
+                                    );
+
+                                payButton.disabled = false;
+
+                                return;
+                            }
+
+
+                            result.textContent =
+                                JSON.stringify(
+                                    {
+                                        success:
+                                            true,
+
+                                        order_id:
+                                            orderId,
+
+                                        amount:
+                                            orderAmount,
+
+                                        payment:
+                                            verifyData
+                                    },
+                                    null,
+                                    2
+                                );
+
+
+                            payButton.textContent =
+                                "Payment Completed";
+
+                        },
+
+
+                    prefill: {
+
+                        name:
+                            "Test User",
+
+                        email:
+                            "test@untkn.com",
+
+                        contact:
+                            "9876543210"
+
+                    },
+
+
+                    notes: {
+
+                        order_id:
+                            String(orderId)
+
+                    },
+
+
+                    theme: {
+
+                        color:
+                            "#000000"
+
+                    }
+
+                };
+
+
+                const razorpay =
+                    new Razorpay(options);
+
+
+                // ==========================================
+                // PAYMENT FAILED
+                // ==========================================
+
+                razorpay.on(
+                    "payment.failed",
+                    function (response) {
+
+                        console.error(
+                            "Payment failed:",
+                            response
+                        );
+
+
+                        result.textContent =
+                            JSON.stringify(
+                                {
+                                    success:
+                                        false,
+
+                                    message:
+                                        "Payment failed",
+
+                                    error:
+                                        response.error
+                                },
+                                null,
+                                2
+                            );
+
+
+                        payButton.disabled =
+                            false;
+
+                    }
+                );
+
+
+                razorpay.open();
+
+            } catch (error) {
+
+                console.error(
+                    "Payment test error:",
+                    error
+                );
+
+
+                result.textContent =
+                    JSON.stringify(
+                        {
+                            success:
+                                false,
+
+                            message:
+                                error.message
+                        },
+                        null,
+                        2
+                    );
+
+
+                payButton.disabled =
+                    false;
+            }
+
+        }
+
+    </script>
+
+</body>
+
+</html>
