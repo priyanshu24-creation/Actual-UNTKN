@@ -9,6 +9,7 @@ import {
   Package,
   X,
   Save,
+  ImagePlus,
 } from "lucide-react";
 
 import api from "../../services/api.js";
@@ -62,6 +63,7 @@ function AdminCollections() {
     name: "",
     slug: "",
     description: "",
+    image_url: "",
     is_active: true,
   });
 
@@ -91,7 +93,7 @@ function AdminCollections() {
       }
 
       // -------------------------------------------------
-      // Load product counts for every collection
+      // Load product counts
       // -------------------------------------------------
 
       const collectionsWithProducts =
@@ -214,6 +216,7 @@ function AdminCollections() {
       name: "",
       slug: "",
       description: "",
+      image_url: "",
       is_active: true,
     });
 
@@ -229,6 +232,8 @@ function AdminCollections() {
       slug: collection.slug || "",
       description:
         collection.description || "",
+      image_url:
+        collection.image_url || "",
       is_active:
         Boolean(collection.is_active),
     });
@@ -247,6 +252,7 @@ function AdminCollections() {
       name: "",
       slug: "",
       description: "",
+      image_url: "",
       is_active: true,
     });
   };
@@ -261,6 +267,7 @@ function AdminCollections() {
 
     setFormData((current) => ({
       ...current,
+
       [name]:
         type === "checkbox"
           ? checked
@@ -273,10 +280,57 @@ function AdminCollections() {
 
     setFormData((current) => ({
       ...current,
+
       name: value,
+
       slug: editingCollection
         ? current.slug
         : slugify(value),
+    }));
+  };
+
+  // =====================================================
+  // IMAGE
+  // =====================================================
+
+  const handleImageChange = (event) => {
+    const file = event.target.files?.[0];
+
+    if (!file) return;
+
+    // Basic validation
+    if (!file.type.startsWith("image/")) {
+      setError(
+        "Please select a valid image file."
+      );
+
+      return;
+    }
+
+    // 5 MB limit
+    if (file.size > 5 * 1024 * 1024) {
+      setError(
+        "Collection image must be smaller than 5 MB."
+      );
+
+      return;
+    }
+
+    const imageUrl =
+      URL.createObjectURL(file);
+
+    setFormData((current) => ({
+      ...current,
+      image_url: imageUrl,
+    }));
+
+    setError("");
+  };
+
+  const handleRemoveImage = () => {
+    setFormData((current) => ({
+      ...current,
+      image_url: "",
     }));
   };
 
@@ -316,6 +370,11 @@ function AdminCollections() {
         description:
           formData.description.trim() ||
           null,
+
+        image_url:
+          formData.image_url.trim() ||
+          null,
+
         is_active:
           Boolean(formData.is_active),
       };
@@ -449,7 +508,9 @@ function AdminCollections() {
   return (
     <section className="admin-page admin-collections-page">
 
-      {/* PAGE HEADER */}
+      {/* =================================================
+          PAGE HEADER
+      ================================================= */}
 
       <div className="admin-page-header">
 
@@ -478,12 +539,16 @@ function AdminCollections() {
             size={17}
             strokeWidth={1.5}
           />
+
           ADD COLLECTION
         </button>
 
       </div>
 
-      {/* ERROR */}
+
+      {/* =================================================
+          ERROR
+      ================================================= */}
 
       {error && (
         <div
@@ -499,7 +564,10 @@ function AdminCollections() {
         </div>
       )}
 
-      {/* CREATE / EDIT FORM */}
+
+      {/* =================================================
+          CREATE / EDIT FORM
+      ================================================= */}
 
       {showForm && (
         <div
@@ -511,6 +579,8 @@ function AdminCollections() {
           }}
         >
 
+          {/* FORM HEADER */}
+
           <div
             style={{
               display: "flex",
@@ -521,6 +591,7 @@ function AdminCollections() {
           >
 
             <div>
+
               <p className="admin-eyebrow">
                 COLLECTION
               </p>
@@ -534,6 +605,7 @@ function AdminCollections() {
                   ? "Edit Collection"
                   : "Add Collection"}
               </h2>
+
             </div>
 
             <button
@@ -552,7 +624,10 @@ function AdminCollections() {
 
           </div>
 
+
           <form onSubmit={handleSubmit}>
+
+            {/* NAME + SLUG */}
 
             <div
               style={{
@@ -562,8 +637,6 @@ function AdminCollections() {
                 gap: "20px",
               }}
             >
-
-              {/* NAME */}
 
               <div className="admin-form-group">
 
@@ -583,7 +656,6 @@ function AdminCollections() {
 
               </div>
 
-              {/* SLUG */}
 
               <div className="admin-form-group">
 
@@ -604,6 +676,162 @@ function AdminCollections() {
               </div>
 
             </div>
+
+
+            {/* =================================================
+                IMAGE
+            ================================================= */}
+
+            <div
+              className="admin-form-group"
+              style={{
+                marginTop: "20px",
+              }}
+            >
+
+              <label>
+                Collection Image
+              </label>
+
+              <div
+                style={{
+                  marginTop: "10px",
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: "16px",
+                  alignItems: "flex-start",
+                }}
+              >
+
+                {/* PREVIEW */}
+
+                <div
+                  style={{
+                    width: "220px",
+                    height: "160px",
+                    border: "1px solid #ddd",
+                    background: "#f5f5f5",
+                    overflow: "hidden",
+                    position: "relative",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+
+                  {formData.image_url ? (
+                    <img
+                      src={formData.image_url}
+                      alt={
+                        formData.name ||
+                        "Collection preview"
+                      }
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                        display: "block",
+                      }}
+                    />
+                  ) : (
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "8px",
+                        color: "#777",
+                        fontSize: "11px",
+                        letterSpacing: "0.08em",
+                      }}
+                    >
+                      <ImagePlus size={28} />
+
+                      <span>
+                        NO IMAGE
+                      </span>
+                    </div>
+                  )}
+
+                </div>
+
+
+                {/* IMAGE ACTIONS */}
+
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "10px",
+                  }}
+                >
+
+                  <label
+                    className="admin-primary-button"
+                    style={{
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      width: "fit-content",
+                    }}
+                  >
+
+                    <ImagePlus
+                      size={16}
+                      strokeWidth={1.5}
+                    />
+
+                    {formData.image_url
+                      ? "CHANGE IMAGE"
+                      : "UPLOAD IMAGE"}
+
+                    <input
+                      type="file"
+                      accept="image/*"
+                      hidden
+                      onChange={handleImageChange}
+                    />
+
+                  </label>
+
+
+                  {formData.image_url && (
+                    <button
+                      type="button"
+                      onClick={handleRemoveImage}
+                      disabled={saving}
+                      style={{
+                        padding: "11px 16px",
+                        border:
+                          "1px solid #ddd",
+                        background: "#fff",
+                        cursor: "pointer",
+                        fontSize: "10px",
+                        letterSpacing:
+                          "0.08em",
+                      }}
+                    >
+                      REMOVE IMAGE
+                    </button>
+                  )}
+
+                  <small
+                    style={{
+                      maxWidth: "220px",
+                      color: "#777",
+                      lineHeight: "1.5",
+                    }}
+                  >
+                    Recommended: JPG, PNG or WebP.
+                    Maximum file size: 5 MB.
+                  </small>
+
+                </div>
+
+              </div>
+
+            </div>
+
 
             {/* DESCRIPTION */}
 
@@ -628,6 +856,7 @@ function AdminCollections() {
               />
 
             </div>
+
 
             {/* ACTIVE */}
 
@@ -658,6 +887,7 @@ function AdminCollections() {
 
             </div>
 
+
             {/* ACTIONS */}
 
             <div
@@ -677,11 +907,13 @@ function AdminCollections() {
                 CANCEL
               </button>
 
+
               <button
                 type="submit"
                 className="admin-primary-button"
                 disabled={saving}
               >
+
                 <Save
                   size={16}
                   strokeWidth={1.5}
@@ -692,6 +924,7 @@ function AdminCollections() {
                   : editingCollection
                     ? "SAVE CHANGES"
                     : "CREATE COLLECTION"}
+
               </button>
 
             </div>
@@ -701,7 +934,10 @@ function AdminCollections() {
         </div>
       )}
 
-      {/* SUMMARY */}
+
+      {/* =================================================
+          SUMMARY
+      ================================================= */}
 
       <div className="admin-collection-summary">
 
@@ -715,6 +951,7 @@ function AdminCollections() {
           </div>
 
           <div>
+
             <span>
               Total Collections
             </span>
@@ -722,9 +959,11 @@ function AdminCollections() {
             <strong>
               {collections.length}
             </strong>
+
           </div>
 
         </div>
+
 
         <div className="admin-collection-summary-card">
 
@@ -736,6 +975,7 @@ function AdminCollections() {
           </div>
 
           <div>
+
             <span>
               Active
             </span>
@@ -743,9 +983,11 @@ function AdminCollections() {
             <strong>
               {activeCollections}
             </strong>
+
           </div>
 
         </div>
+
 
         <div className="admin-collection-summary-card">
 
@@ -757,6 +999,7 @@ function AdminCollections() {
           </div>
 
           <div>
+
             <span>
               Assigned Products
             </span>
@@ -764,13 +1007,17 @@ function AdminCollections() {
             <strong>
               {assignedProducts}
             </strong>
+
           </div>
 
         </div>
 
       </div>
 
-      {/* TOOLBAR */}
+
+      {/* =================================================
+          TOOLBAR
+      ================================================= */}
 
       <div className="admin-toolbar admin-collections-toolbar">
 
@@ -794,6 +1041,7 @@ function AdminCollections() {
 
         </div>
 
+
         <div className="admin-filter-group">
 
           <select
@@ -805,6 +1053,7 @@ function AdminCollections() {
             }
             aria-label="Filter collections by status"
           >
+
             <option value="All">
               All Status
             </option>
@@ -816,20 +1065,27 @@ function AdminCollections() {
             <option value="Draft">
               Draft
             </option>
+
           </select>
 
         </div>
 
+
         <div className="admin-result-count">
+
           {filteredCollections.length} collection
           {filteredCollections.length !== 1
             ? "s"
             : ""}
+
         </div>
 
       </div>
 
-      {/* COLLECTION GRID */}
+
+      {/* =================================================
+          COLLECTION GRID
+      ================================================= */}
 
       {loading ? (
 
@@ -868,16 +1124,77 @@ function AdminCollections() {
                   key={collection.id}
                 >
 
+                  {/* IMAGE */}
+
+                  <div
+                    className="admin-collection-card-image"
+                    style={{
+                      width: "100%",
+                      height: "220px",
+                      background: "#f3f3f3",
+                      overflow: "hidden",
+                    }}
+                  >
+
+                    {collection.image_url ? (
+                      <img
+                        src={collection.image_url}
+                        alt={collection.name}
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover",
+                          display: "block",
+                        }}
+                      />
+                    ) : (
+                      <div
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          flexDirection: "column",
+                          gap: "8px",
+                          color: "#888",
+                        }}
+                      >
+
+                        <ImagePlus
+                          size={28}
+                          strokeWidth={1.2}
+                        />
+
+                        <span
+                          style={{
+                            fontSize: "10px",
+                            letterSpacing:
+                              "0.1em",
+                          }}
+                        >
+                          NO IMAGE
+                        </span>
+
+                      </div>
+                    )}
+
+                  </div>
+
+
                   {/* CARD TOP */}
 
                   <div className="admin-collection-card-top">
 
                     <div className="admin-collection-icon">
+
                       <Layers
                         size={22}
                         strokeWidth={1.4}
                       />
+
                     </div>
+
 
                     <span
                       className={`admin-status-badge ${
@@ -886,12 +1203,15 @@ function AdminCollections() {
                           : "processing"
                       }`}
                     >
+
                       {active
                         ? "Active"
                         : "Draft"}
+
                     </span>
 
                   </div>
+
 
                   {/* CARD CONTENT */}
 
@@ -906,17 +1226,21 @@ function AdminCollections() {
                     </p>
 
                     <p className="admin-collection-description">
+
                       {collection.description ||
                         "No description provided."}
+
                     </p>
 
                   </div>
+
 
                   {/* CARD META */}
 
                   <div className="admin-collection-meta">
 
                     <div>
+
                       <span>
                         PRODUCTS
                       </span>
@@ -927,9 +1251,12 @@ function AdminCollections() {
                             0
                         )}
                       </strong>
+
                     </div>
 
+
                     <div>
+
                       <span>
                         CREATED
                       </span>
@@ -939,9 +1266,11 @@ function AdminCollections() {
                           collection.created_at
                         )}
                       </strong>
+
                     </div>
 
                   </div>
+
 
                   {/* ACTIONS */}
 
@@ -955,12 +1284,16 @@ function AdminCollections() {
                         )
                       }
                     >
+
                       <Pencil
                         size={15}
                         strokeWidth={1.5}
                       />
+
                       EDIT
+
                     </button>
+
 
                     <button
                       type="button"
@@ -970,6 +1303,7 @@ function AdminCollections() {
                         )
                       }
                     >
+
                       <Eye
                         size={15}
                         strokeWidth={1.5}
@@ -978,7 +1312,9 @@ function AdminCollections() {
                       {active
                         ? "HIDE"
                         : "ACTIVATE"}
+
                     </button>
+
 
                     <button
                       type="button"
@@ -990,10 +1326,12 @@ function AdminCollections() {
                       }
                       aria-label={`Delete ${collection.name}`}
                     >
+
                       <Trash2
                         size={15}
                         strokeWidth={1.5}
                       />
+
                     </button>
 
                   </div>

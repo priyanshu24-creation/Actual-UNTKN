@@ -195,6 +195,16 @@ function Navbar() {
               >
                 ABOUT
               </Link>
+              <Link
+  to="/contact"
+  className={
+    isActive("/contact")
+      ? "active"
+      : ""
+  }
+>
+  CONTACT
+</Link>
 
             </nav>
 
@@ -355,18 +365,33 @@ function Navbar() {
             </Link>
 
             {/* ABOUT */}
-            <Link
-              to="/about"
-              onClick={closeMenu}
-              className={
-                isActive("/about")
-                  ? "active"
-                  : ""
-              }
-            >
-              <span>05</span>
-              ABOUT
-            </Link>
+           {/* ABOUT */}
+<Link
+  to="/about"
+  onClick={closeMenu}
+  className={
+    isActive("/about")
+      ? "active"
+      : ""
+  }
+>
+  <span>05</span>
+  ABOUT
+</Link>
+
+{/* CONTACT */}
+<Link
+  to="/contact"
+  onClick={closeMenu}
+  className={
+    isActive("/contact")
+      ? "active"
+      : ""
+  }
+>
+  <span>06</span>
+  CONTACT
+</Link>
 
           </nav>
 

@@ -1,4 +1,5 @@
-import { Menu, Bell, User } from "lucide-react";
+import { Menu, Bell } from "lucide-react";
+import logo from "../../assets/images/logo.png";
 
 function AdminHeader({ openSidebar }) {
   return (
@@ -26,6 +27,7 @@ function AdminHeader({ openSidebar }) {
       {/* Right Side */}
       <div className="admin-header-actions">
 
+        {/* Notification */}
         <button
           type="button"
           className="admin-header-button"
@@ -37,12 +39,13 @@ function AdminHeader({ openSidebar }) {
           />
         </button>
 
+        {/* UNTKN Logo instead of User Circle */}
         <div className="admin-user">
 
-          <div className="admin-user-icon">
-            <User
-              size={17}
-              strokeWidth={1.5}
+          <div className="admin-user-logo">
+            <img
+              src={logo}
+              alt="UNTKN"
             />
           </div>
 

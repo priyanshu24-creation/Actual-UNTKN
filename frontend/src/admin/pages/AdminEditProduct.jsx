@@ -56,11 +56,9 @@ function AdminEditProduct() {
     active: true,
   });
 
-  const [editingVariantId, setEditingVariantId] =
-    useState(null);
+  const [editingVariantId, setEditingVariantId] = useState(null);
 
-  const [variantSaving, setVariantSaving] =
-    useState(false);
+  const [variantSaving, setVariantSaving] = useState(false);
 
   // ==========================================
   // IMAGES
@@ -73,17 +71,12 @@ function AdminEditProduct() {
   // ==========================================
 
   const [loading, setLoading] = useState(true);
-  const [loadingOptions, setLoadingOptions] =
-    useState(true);
-
+  const [loadingOptions, setLoadingOptions] = useState(true);
   const [saving, setSaving] = useState(false);
 
   const [error, setError] = useState("");
-  const [variantError, setVariantError] =
-    useState("");
-
-  const [successMessage, setSuccessMessage] =
-    useState("");
+  const [variantError, setVariantError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
 
   // ==========================================
   // LOAD OPTIONS
@@ -106,17 +99,10 @@ function AdminEditProduct() {
           api.get("/colors"),
         ]);
 
-        const categoryData =
-          categoriesResponse.data;
-
-        const collectionData =
-          collectionsResponse.data;
-
-        const sizeData =
-          sizesResponse.data;
-
-        const colorData =
-          colorsResponse.data;
+        const categoryData = categoriesResponse.data;
+        const collectionData = collectionsResponse.data;
+        const sizeData = sizesResponse.data;
+        const colorData = colorsResponse.data;
 
         const loadedCategories =
           categoryData?.categories ||
@@ -200,26 +186,24 @@ function AdminEditProduct() {
           !Number.isInteger(numericId) ||
           numericId <= 0
         ) {
-          throw new Error(
-            "Invalid product ID."
-          );
+          throw new Error("Invalid product ID.");
         }
 
         // --------------------------------------
         // LOAD PRODUCT LIST
         // --------------------------------------
 
-        const productsResponse =
-          await api.get("/products", {
+        const productsResponse = await api.get(
+          "/products",
+          {
             params: {
               page: 1,
               limit: 100,
             },
-          });
+          }
+        );
 
-        if (
-          !productsResponse.data?.success
-        ) {
+        if (!productsResponse.data?.success) {
           throw new Error(
             productsResponse.data?.message ||
               "Failed to load products."
@@ -231,16 +215,12 @@ function AdminEditProduct() {
           productsResponse.data.data ||
           [];
 
-        const basicProduct =
-          products.find(
-            (item) =>
-              Number(item.id) === numericId
-          );
+        const basicProduct = products.find(
+          (item) => Number(item.id) === numericId
+        );
 
         if (!basicProduct) {
-          throw new Error(
-            "Product not found."
-          );
+          throw new Error("Product not found.");
         }
 
         // --------------------------------------
@@ -251,14 +231,11 @@ function AdminEditProduct() {
 
         if (basicProduct.slug) {
           try {
-            const productResponse =
-              await api.get(
-                `/products/${basicProduct.slug}`
-              );
+            const productResponse = await api.get(
+              `/products/${basicProduct.slug}`
+            );
 
-            if (
-              productResponse.data?.success
-            ) {
+            if (productResponse.data?.success) {
               fullProduct =
                 productResponse.data.product ||
                 productResponse.data.data ||
@@ -278,27 +255,17 @@ function AdminEditProduct() {
 
         let productImages = [];
 
-        if (
-          Array.isArray(
-            fullProduct.images
-          )
-        ) {
-          productImages =
-            fullProduct.images;
+        if (Array.isArray(fullProduct.images)) {
+          productImages = fullProduct.images;
         }
 
-        if (
-          productImages.length === 0
-        ) {
+        if (productImages.length === 0) {
           try {
-            const imageResponse =
-              await api.get(
-                `/products/${numericId}/images`
-              );
+            const imageResponse = await api.get(
+              `/products/${numericId}/images`
+            );
 
-            if (
-              imageResponse.data?.success
-            ) {
+            if (imageResponse.data?.success) {
               productImages =
                 imageResponse.data.images ||
                 imageResponse.data.data ||
@@ -312,38 +279,33 @@ function AdminEditProduct() {
           }
         }
 
-        const normalizedImages =
-          productImages
-            .map((image) => {
-              if (
-                typeof image === "string"
-              ) {
-                return {
-                  id: null,
-                  preview: image,
-                  existing: true,
-                  file: null,
-                };
-              }
-
+        const normalizedImages = productImages
+          .map((image) => {
+            if (typeof image === "string") {
               return {
-                id: image.id || null,
-                preview:
-                  image.image_url ||
-                  image.image ||
-                  image.url ||
-                  "",
+                id: null,
+                preview: image,
                 existing: true,
                 file: null,
               };
-            })
-            .filter(
-              (image) =>
-                image.preview &&
-                !image.preview.includes(
-                  "example.com"
-                )
-            );
+            }
+
+            return {
+              id: image.id || null,
+              preview:
+                image.image_url ||
+                image.image ||
+                image.url ||
+                "",
+              existing: true,
+              file: null,
+            };
+          })
+          .filter(
+            (image) =>
+              image.preview &&
+              !image.preview.includes("example.com")
+          );
 
         // --------------------------------------
         // LOAD VARIANTS
@@ -352,14 +314,11 @@ function AdminEditProduct() {
         let productVariants = [];
 
         try {
-          const variantResponse =
-            await api.get(
-              `/products/${numericId}/variants`
-            );
+          const variantResponse = await api.get(
+            `/products/${numericId}/variants`
+          );
 
-          if (
-            variantResponse.data?.success
-          ) {
+          if (variantResponse.data?.success) {
             productVariants =
               variantResponse.data.variants ||
               variantResponse.data.data ||
@@ -376,51 +335,36 @@ function AdminEditProduct() {
         // NORMALIZE VARIANTS
         // --------------------------------------
 
-        const normalizedVariants =
-          Array.isArray(productVariants)
-            ? productVariants.map(
-                (variant) => ({
-                  ...variant,
+        const normalizedVariants = Array.isArray(
+          productVariants
+        )
+          ? productVariants.map((variant) => ({
+              ...variant,
 
-                  id: Number(
-                    variant.id
-                  ),
+              id: Number(variant.id),
 
-                  size_id:
-                    variant.size_id
-                      ? Number(
-                          variant.size_id
-                        )
-                      : null,
+              size_id: variant.size_id
+                ? Number(variant.size_id)
+                : null,
 
-                  color_id:
-                    variant.color_id
-                      ? Number(
-                          variant.color_id
-                        )
-                      : null,
+              color_id: variant.color_id
+                ? Number(variant.color_id)
+                : null,
 
-                  price:
-                    Number(
-                      variant.price || 0
-                    ),
+              price: Number(
+                variant.price || 0
+              ),
 
-                  stock_quantity:
-                    Number(
-                      variant.stock_quantity ||
-                        0
-                    ),
+              stock_quantity: Number(
+                variant.stock_quantity || 0
+              ),
 
-                  active:
-                    variant.active !==
-                    false,
-                })
-              )
-            : [];
+              active:
+                variant.active !== false,
+            }))
+          : [];
 
-        setVariants(
-          normalizedVariants
-        );
+        setVariants(normalizedVariants);
 
         // --------------------------------------
         // CALCULATE STOCK
@@ -429,14 +373,11 @@ function AdminEditProduct() {
         const totalStock =
           normalizedVariants.reduce(
             (total, variant) => {
-              if (
-                variant.active !== false
-              ) {
+              if (variant.active !== false) {
                 return (
                   total +
                   Number(
-                    variant.stock_quantity ||
-                      0
+                    variant.stock_quantity || 0
                   )
                 );
               }
@@ -458,13 +399,9 @@ function AdminEditProduct() {
         );
 
         const salePrice =
-          fullProduct.sale_price !==
-            null &&
-          fullProduct.sale_price !==
-            undefined
-            ? Number(
-                fullProduct.sale_price
-              )
+          fullProduct.sale_price !== null &&
+          fullProduct.sale_price !== undefined
+            ? Number(fullProduct.sale_price)
             : basePrice;
 
         // --------------------------------------
@@ -494,8 +431,7 @@ function AdminEditProduct() {
 
           id: numericId,
 
-          name:
-            fullProduct.name || "",
+          name: fullProduct.name || "",
 
           categoryId,
 
@@ -506,53 +442,39 @@ function AdminEditProduct() {
           salePrice,
 
           description:
-            fullProduct.description ||
-            "",
+            fullProduct.description || "",
 
           stock: totalStock,
 
-          variants:
-            normalizedVariants,
+          variants: normalizedVariants,
 
-          images:
-            normalizedImages,
+          images: normalizedImages,
         };
 
-        setProduct(
-          normalizedProduct
-        );
+        setProduct(normalizedProduct);
 
         // --------------------------------------
         // FORM
         // --------------------------------------
 
         setFormData({
-          name:
-            normalizedProduct.name,
+          name: normalizedProduct.name,
 
-          category:
-            String(
-              categoryId || ""
-            ),
+          category: String(categoryId || ""),
 
-          collection:
-            String(
-              collectionId || ""
-            ),
+          collection: String(
+            collectionId || ""
+          ),
 
-          price:
-            salePrice,
+          price: salePrice,
 
-          oldPrice:
-            basePrice,
+          oldPrice: basePrice,
 
           description:
             normalizedProduct.description,
         });
 
-        setImages(
-          normalizedImages
-        );
+        setImages(normalizedImages);
       } catch (requestError) {
         console.error(
           "Failed to load product:",
@@ -560,8 +482,7 @@ function AdminEditProduct() {
         );
 
         setError(
-          requestError?.response?.data
-            ?.message ||
+          requestError?.response?.data?.message ||
             requestError?.message ||
             "Unable to load product."
         );
@@ -582,14 +503,11 @@ function AdminEditProduct() {
   const totalStock = useMemo(() => {
     return variants.reduce(
       (total, variant) => {
-        if (
-          variant.active !== false
-        ) {
+        if (variant.active !== false) {
           return (
             total +
             Number(
-              variant.stock_quantity ||
-                0
+              variant.stock_quantity || 0
             )
           );
         }
@@ -605,37 +523,25 @@ function AdminEditProduct() {
   // ==========================================
 
   const handleChange = (event) => {
-    const {
-      name,
-      value,
-    } = event.target;
+    const { name, value } = event.target;
 
-    setFormData(
-      (current) => ({
-        ...current,
-        [name]: value,
-      })
-    );
+    setFormData((current) => ({
+      ...current,
+      [name]: value,
+    }));
   };
 
   // ==========================================
   // VARIANT FORM CHANGE
   // ==========================================
 
-  const handleVariantChange = (
-    event
-  ) => {
-    const {
-      name,
-      value,
-    } = event.target;
+  const handleVariantChange = (event) => {
+    const { name, value } = event.target;
 
-    setVariantForm(
-      (current) => ({
-        ...current,
-        [name]: value,
-      })
-    );
+    setVariantForm((current) => ({
+      ...current,
+      [name]: value,
+    }));
   };
 
   // ==========================================
@@ -647,8 +553,7 @@ function AdminEditProduct() {
       size_id: "",
       color_id: "",
       sku: "",
-      price:
-        formData.price || "",
+      price: formData.price || "",
       stock_quantity: "",
       active: true,
     });
@@ -662,56 +567,39 @@ function AdminEditProduct() {
   // ==========================================
 
   const generateSku = () => {
-    const size =
-      sizes.find(
-        (item) =>
-          Number(item.id) ===
-          Number(
-            variantForm.size_id
-          )
-      );
+    const size = sizes.find(
+      (item) =>
+        Number(item.id) ===
+        Number(variantForm.size_id)
+    );
 
-    const color =
-      colors.find(
-        (item) =>
-          Number(item.id) ===
-          Number(
-            variantForm.color_id
-          )
-      );
+    const color = colors.find(
+      (item) =>
+        Number(item.id) ===
+        Number(variantForm.color_id)
+    );
 
-    const productPart =
-      formData.name
-        .trim()
-        .toUpperCase()
-        .replace(
-          /[^A-Z0-9]+/g,
-          "-"
-        )
-        .replace(
-          /^-+|-+$/g,
-          "");
+    const productPart = formData.name
+      .trim()
+      .toUpperCase()
+      .replace(/[^A-Z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
 
     const sizePart =
       size?.name
         ?.toUpperCase()
-        .replace(
-          /[^A-Z0-9]+/g,
-          ""
-        ) || "SIZE";
+        .replace(/[^A-Z0-9]+/g, "") ||
+      "SIZE";
 
     const colorPart =
       color?.name
         ?.toUpperCase()
-        .replace(
-          /[^A-Z0-9]+/g,
-          ""
-        ) || "COLOR";
+        .replace(/[^A-Z0-9]+/g, "") ||
+      "COLOR";
 
-    const randomPart =
-      Date.now()
-        .toString()
-        .slice(-6);
+    const randomPart = Date.now()
+      .toString()
+      .slice(-6);
 
     return `${productPart}-${sizePart}-${colorPart}-${randomPart}`;
   };
@@ -720,40 +608,26 @@ function AdminEditProduct() {
   // START EDIT VARIANT
   // ==========================================
 
-  const startEditVariant = (
-    variant
-  ) => {
-    setEditingVariantId(
-      Number(variant.id)
-    );
+  const startEditVariant = (variant) => {
+    setEditingVariantId(Number(variant.id));
 
     setVariantForm({
-      size_id:
-        variant.size_id
-          ? String(
-              variant.size_id
-            )
-          : "",
+      size_id: variant.size_id
+        ? String(variant.size_id)
+        : "",
 
-      color_id:
-        variant.color_id
-          ? String(
-              variant.color_id
-            )
-          : "",
+      color_id: variant.color_id
+        ? String(variant.color_id)
+        : "",
 
-      sku:
-        variant.sku || "",
+      sku: variant.sku || "",
 
-      price:
-        variant.price ?? "",
+      price: variant.price ?? "",
 
       stock_quantity:
-        variant.stock_quantity ??
-        "",
+        variant.stock_quantity ?? "",
 
-      active:
-        variant.active !== false,
+      active: variant.active !== false,
     });
 
     setVariantError("");
@@ -768,11 +642,7 @@ function AdminEditProduct() {
   // SAVE VARIANT
   // ==========================================
 
-  const handleVariantSubmit = async (
-    event
-  ) => {
-    event.preventDefault();
-
+  const handleVariantSubmit = async () => {
     if (variantSaving) return;
 
     setVariantError("");
@@ -782,9 +652,7 @@ function AdminEditProduct() {
     // VALIDATION
     // --------------------------------------
 
-    if (
-      !variantForm.size_id
-    ) {
+    if (!variantForm.size_id) {
       setVariantError(
         "Please select a size."
       );
@@ -793,9 +661,7 @@ function AdminEditProduct() {
 
     if (
       !variantForm.price ||
-      Number(
-        variantForm.price
-      ) < 0
+      Number(variantForm.price) < 0
     ) {
       setVariantError(
         "Please enter a valid variant price."
@@ -805,9 +671,7 @@ function AdminEditProduct() {
 
     if (
       variantForm.stock_quantity === "" ||
-      Number(
-        variantForm.stock_quantity
-      ) < 0
+      Number(variantForm.stock_quantity) < 0
     ) {
       setVariantError(
         "Please enter a valid stock quantity."
@@ -818,8 +682,7 @@ function AdminEditProduct() {
     try {
       setVariantSaving(true);
 
-      let sku =
-        variantForm.sku.trim();
+      let sku = variantForm.sku.trim();
 
       if (!sku) {
         sku = generateSku();
@@ -828,54 +691,42 @@ function AdminEditProduct() {
       const payload = {
         sku,
 
-        size_id:
-          Number(
-            variantForm.size_id
-          ),
+        size_id: Number(
+          variantForm.size_id
+        ),
 
-        color_id:
-          variantForm.color_id
-            ? Number(
-                variantForm.color_id
-              )
-            : null,
+        color_id: variantForm.color_id
+          ? Number(variantForm.color_id)
+          : null,
 
-        price:
-          Number(
-            variantForm.price
-          ),
+        price: Number(
+          variantForm.price
+        ),
 
-        stock_quantity:
-          Number(
-            variantForm.stock_quantity
-          ),
+        stock_quantity: Number(
+          variantForm.stock_quantity
+        ),
 
-        active:
-          Boolean(
-            variantForm.active
-          ),
+        active: Boolean(
+          variantForm.active
+        ),
       };
 
       // --------------------------------------
       // UPDATE EXISTING VARIANT
       // --------------------------------------
 
-      if (
-        editingVariantId
-      ) {
-        const response =
-          await api.put(
-            `/products/${Number(
-              id
-            )}/variants/${Number(
-              editingVariantId
-            )}`,
-            payload
-          );
+      if (editingVariantId) {
+        const response = await api.put(
+          `/products/${Number(
+            id
+          )}/variants/${Number(
+            editingVariantId
+          )}`,
+          payload
+        );
 
-        if (
-          !response.data?.success
-        ) {
+        if (!response.data?.success) {
           throw new Error(
             response.data?.message ||
               "Failed to update variant."
@@ -886,50 +737,38 @@ function AdminEditProduct() {
           response.data.variant ||
           response.data.data;
 
-        setVariants(
-          (current) =>
-            current.map(
-              (variant) => {
-                if (
-                  Number(
-                    variant.id
-                  ) !==
-                  Number(
-                    editingVariantId
-                  )
-                ) {
-                  return variant;
-                }
+        setVariants((current) =>
+          current.map((variant) => {
+            if (
+              Number(variant.id) !==
+              Number(editingVariantId)
+            ) {
+              return variant;
+            }
 
-                return {
-                  ...variant,
+            return {
+              ...variant,
 
-                  ...payload,
+              ...payload,
 
-                  id: Number(
-                    editingVariantId
-                  ),
+              id: Number(
+                editingVariantId
+              ),
 
-                  size_id:
-                    payload.size_id,
+              size_id: payload.size_id,
 
-                  color_id:
-                    payload.color_id,
+              color_id: payload.color_id,
 
-                  price:
-                    payload.price,
+              price: payload.price,
 
-                  stock_quantity:
-                    payload.stock_quantity,
+              stock_quantity:
+                payload.stock_quantity,
 
-                  active:
-                    payload.active,
+              active: payload.active,
 
-                  ...(updatedVariant ||
-                    {}),
-                };
-              }
-            )
+              ...(updatedVariant || {}),
+            };
+          })
         );
 
         setSuccessMessage(
@@ -942,17 +781,14 @@ function AdminEditProduct() {
       // --------------------------------------
 
       else {
-        const response =
-          await api.post(
-            `/products/${Number(
-              id
-            )}/variants`,
-            payload
-          );
+        const response = await api.post(
+          `/products/${Number(
+            id
+          )}/variants`,
+          payload
+        );
 
-        if (
-          !response.data?.success
-        ) {
+        if (!response.data?.success) {
           throw new Error(
             response.data?.message ||
               "Failed to create variant."
@@ -969,51 +805,46 @@ function AdminEditProduct() {
           );
         }
 
-        setVariants(
-          (current) => [
-            ...current,
-            {
-              ...createdVariant,
+        setVariants((current) => [
+          ...current,
+          {
+            ...createdVariant,
 
-              id: Number(
-                createdVariant.id
-              ),
+            id: Number(
+              createdVariant.id
+            ),
 
-              size_id:
-                Number(
-                  createdVariant.size_id ??
-                    payload.size_id
-                ),
+            size_id: Number(
+              createdVariant.size_id ??
+                payload.size_id
+            ),
 
-              color_id:
-                createdVariant.color_id
-                  ? Number(
-                      createdVariant.color_id
-                    )
-                  : payload.color_id,
+            color_id:
+              createdVariant.color_id
+                ? Number(
+                    createdVariant.color_id
+                  )
+                : payload.color_id,
 
-              price:
-                Number(
-                  createdVariant.price ??
-                    payload.price
-                ),
+            price: Number(
+              createdVariant.price ??
+                payload.price
+            ),
 
-              stock_quantity:
-                Number(
-                  createdVariant.stock_quantity ??
-                    payload.stock_quantity
-                ),
+            stock_quantity: Number(
+              createdVariant.stock_quantity ??
+                payload.stock_quantity
+            ),
 
-              active:
-                createdVariant.active !==
-                  undefined
-                  ? Boolean(
-                      createdVariant.active
-                    )
-                  : payload.active,
-            },
-          ]
-        );
+            active:
+              createdVariant.active !==
+              undefined
+                ? Boolean(
+                    createdVariant.active
+                  )
+                : payload.active,
+          },
+        ]);
 
         setSuccessMessage(
           "Variant added successfully."
@@ -1028,8 +859,7 @@ function AdminEditProduct() {
       );
 
       setVariantError(
-        requestError?.response?.data
-          ?.message ||
+        requestError?.response?.data?.message ||
           requestError?.message ||
           "Failed to save variant."
       );
@@ -1045,10 +875,11 @@ function AdminEditProduct() {
   const handleDeleteVariant = async (
     variant
   ) => {
-    const confirmed =
-      window.confirm(
-        `Delete variant "${variant.sku || `#${variant.id}`}"?`
-      );
+    const confirmed = window.confirm(
+      `Delete variant "${
+        variant.sku || `#${variant.id}`
+      }"?`
+    );
 
     if (!confirmed) return;
 
@@ -1056,37 +887,32 @@ function AdminEditProduct() {
       setVariantError("");
       setSuccessMessage("");
 
-      const response =
-        await api.delete(
-          `/products/${Number(
-            id
-          )}/variants/${Number(
-            variant.id
-          )}`
-        );
+      const response = await api.delete(
+        `/products/${Number(
+          id
+        )}/variants/${Number(
+          variant.id
+        )}`
+      );
 
-      if (
-        !response.data?.success
-      ) {
+      if (!response.data?.success) {
         throw new Error(
           response.data?.message ||
             "Failed to delete variant."
         );
       }
 
-      setVariants(
-        (current) =>
-          current.filter(
-            (item) =>
-              Number(item.id) !==
-              Number(variant.id)
-          )
+      setVariants((current) =>
+        current.filter(
+          (item) =>
+            Number(item.id) !==
+            Number(variant.id)
+        )
       );
 
       if (
-        Number(
-          editingVariantId
-        ) === Number(variant.id)
+        Number(editingVariantId) ===
+        Number(variant.id)
       ) {
         resetVariantForm();
       }
@@ -1101,8 +927,7 @@ function AdminEditProduct() {
       );
 
       setVariantError(
-        requestError?.response?.data
-          ?.message ||
+        requestError?.response?.data?.message ||
           requestError?.message ||
           "Failed to delete variant."
       );
@@ -1113,132 +938,108 @@ function AdminEditProduct() {
   // TOGGLE VARIANT ACTIVE
   // ==========================================
 
-  const handleToggleVariant =
-    async (variant) => {
-      try {
-        setVariantError("");
-        setSuccessMessage("");
+  const handleToggleVariant = async (
+    variant
+  ) => {
+    try {
+      setVariantError("");
+      setSuccessMessage("");
 
-        const payload = {
-          sku:
-            variant.sku,
+      const payload = {
+        sku: variant.sku,
 
-          size_id:
-            variant.size_id
-              ? Number(
-                  variant.size_id
-                )
-              : null,
+        size_id: variant.size_id
+          ? Number(variant.size_id)
+          : null,
 
-          color_id:
-            variant.color_id
-              ? Number(
-                  variant.color_id
-                )
-              : null,
+        color_id: variant.color_id
+          ? Number(variant.color_id)
+          : null,
 
-          price:
-            Number(
-              variant.price
-            ),
+        price: Number(
+          variant.price
+        ),
 
-          stock_quantity:
-            Number(
-              variant.stock_quantity
-            ),
+        stock_quantity: Number(
+          variant.stock_quantity
+        ),
 
-          active:
-            !Boolean(
-              variant.active
-            ),
-        };
+        active: !Boolean(
+          variant.active
+        ),
+      };
 
-        const response =
-          await api.put(
-            `/products/${Number(
-              id
-            )}/variants/${Number(
-              variant.id
-            )}`,
-            payload
-          );
+      const response = await api.put(
+        `/products/${Number(
+          id
+        )}/variants/${Number(
+          variant.id
+        )}`,
+        payload
+      );
 
-        if (
-          !response.data?.success
-        ) {
-          throw new Error(
-            response.data?.message ||
-              "Failed to update variant status."
-          );
-        }
-
-        setVariants(
-          (current) =>
-            current.map(
-              (item) =>
-                Number(
-                  item.id
-                ) ===
-                Number(
-                  variant.id
-                )
-                  ? {
-                      ...item,
-                      active:
-                        payload.active,
-                    }
-                  : item
-            )
-        );
-
-        setSuccessMessage(
-          payload.active
-            ? "Variant activated."
-            : "Variant deactivated."
-        );
-      } catch (requestError) {
-        console.error(
-          "TOGGLE VARIANT ERROR:",
-          requestError
-        );
-
-        setVariantError(
-          requestError?.response?.data
-            ?.message ||
-            requestError?.message ||
+      if (!response.data?.success) {
+        throw new Error(
+          response.data?.message ||
             "Failed to update variant status."
         );
       }
-    };
+
+      setVariants((current) =>
+        current.map((item) =>
+          Number(item.id) ===
+          Number(variant.id)
+            ? {
+                ...item,
+                active:
+                  payload.active,
+              }
+            : item
+        )
+      );
+
+      setSuccessMessage(
+        payload.active
+          ? "Variant activated."
+          : "Variant deactivated."
+      );
+    } catch (requestError) {
+      console.error(
+        "TOGGLE VARIANT ERROR:",
+        requestError
+      );
+
+      setVariantError(
+        requestError?.response?.data?.message ||
+          requestError?.message ||
+          "Failed to update variant status."
+      );
+    }
+  };
 
   // ==========================================
   // IMAGE CHANGE
   // ==========================================
 
-  const handleImageChange = (
-    event
-  ) => {
+  const handleImageChange = (event) => {
     const files = Array.from(
       event.target.files || []
     );
 
-    const newImages =
-      files.map((file) => ({
+    const newImages = files.map(
+      (file) => ({
         id: null,
         file,
         preview:
-          URL.createObjectURL(
-            file
-          ),
+          URL.createObjectURL(file),
         existing: false,
-      }));
-
-    setImages(
-      (current) => [
-        ...current,
-        ...newImages,
-      ]
+      })
     );
+
+    setImages((current) => [
+      ...current,
+      ...newImages,
+    ]);
 
     event.target.value = "";
   };
@@ -1247,58 +1048,44 @@ function AdminEditProduct() {
   // REMOVE IMAGE
   // ==========================================
 
-  const removeImage = (
-    index
-  ) => {
-    setImages(
-      (current) => {
-        const image =
-          current[index];
+  const removeImage = (index) => {
+    setImages((current) => {
+      const image = current[index];
 
-        if (
-          image &&
-          !image.existing &&
+      if (
+        image &&
+        !image.existing &&
+        image.preview
+      ) {
+        URL.revokeObjectURL(
           image.preview
-        ) {
-          URL.revokeObjectURL(
-            image.preview
-          );
-        }
-
-        return current.filter(
-          (_, imageIndex) =>
-            imageIndex !== index
         );
       }
-    );
+
+      return current.filter(
+        (_, imageIndex) =>
+          imageIndex !== index
+      );
+    });
   };
 
   // ==========================================
   // SLUG
   // ==========================================
 
-  const createSlug = (
-    name
-  ) => {
+  const createSlug = (name) => {
     return name
       .trim()
       .toLowerCase()
-      .replace(
-        /[^a-z0-9]+/g,
-        "-"
-      )
-      .replace(
-        /^-+|-+$/g,
-        "");
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
   };
 
   // ==========================================
   // SAVE PRODUCT
   // ==========================================
 
-  const handleSubmit = async (
-    event
-  ) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
 
     if (saving) return;
@@ -1310,18 +1097,14 @@ function AdminEditProduct() {
     // VALIDATION
     // --------------------------------------
 
-    if (
-      !formData.name.trim()
-    ) {
+    if (!formData.name.trim()) {
       setError(
         "Product name is required."
       );
       return;
     }
 
-    if (
-      !formData.category
-    ) {
+    if (!formData.category) {
       setError(
         "Please select a category."
       );
@@ -1366,56 +1149,43 @@ function AdminEditProduct() {
       // --------------------------------------
 
       const updatePayload = {
-        name:
-          formData.name.trim(),
+        name: formData.name.trim(),
 
-        slug:
-          createSlug(
-            formData.name
-          ),
+        slug: createSlug(
+          formData.name
+        ),
 
-        category_id:
-          formData.category
-            ? Number(
-                formData.category
-              )
-            : null,
+        category_id: formData.category
+          ? Number(formData.category)
+          : null,
 
         collection_id:
           formData.collection
-            ? Number(
-                formData.collection
-              )
+            ? Number(formData.collection)
             : null,
 
         description:
           formData.description.trim() ||
           null,
 
-        base_price:
-          Number(
-            formData.oldPrice
-          ),
+        base_price: Number(
+          formData.oldPrice
+        ),
 
-        sale_price:
-          Number(
-            formData.price
-          ),
+        sale_price: Number(
+          formData.price
+        ),
 
         currency:
-          product?.currency ||
-          "INR",
+          product?.currency || "INR",
       };
 
-      const response =
-        await api.put(
-          `/products/${Number(id)}`,
-          updatePayload
-        );
+      const response = await api.put(
+        `/products/${Number(id)}`,
+        updatePayload
+      );
 
-      if (
-        !response.data?.success
-      ) {
+      if (!response.data?.success) {
         throw new Error(
           response.data?.message ||
             "Failed to update product."
@@ -1426,16 +1196,13 @@ function AdminEditProduct() {
       // UPLOAD NEW IMAGES
       // --------------------------------------
 
-      const newImages =
-        images.filter(
-          (image) =>
-            !image.existing &&
-            image.file
-        );
+      const newImages = images.filter(
+        (image) =>
+          !image.existing &&
+          image.file
+      );
 
-      for (
-        const image of newImages
-      ) {
+      for (const image of newImages) {
         const imageFormData =
           new FormData();
 
@@ -1445,7 +1212,9 @@ function AdminEditProduct() {
         );
 
         await api.post(
-          `/products/${Number(id)}/images`,
+          `/products/${Number(
+            id
+          )}/images`,
           imageFormData,
           {
             headers: {
@@ -1460,46 +1229,45 @@ function AdminEditProduct() {
       // UPDATE LOCAL PRODUCT
       // --------------------------------------
 
-      setProduct(
-        (current) =>
-          current
-            ? {
-                ...current,
-                name:
-                  formData.name.trim(),
-                categoryId:
-                  formData.category,
-                collectionId:
-                  formData.collection,
-                basePrice:
-                  Number(
-                    formData.oldPrice
-                  ),
-                salePrice:
-                  Number(
-                    formData.price
-                  ),
-                description:
-                  formData.description,
-              }
-            : current
+      setProduct((current) =>
+        current
+          ? {
+              ...current,
+
+              name:
+                formData.name.trim(),
+
+              categoryId:
+                formData.category,
+
+              collectionId:
+                formData.collection,
+
+              basePrice: Number(
+                formData.oldPrice
+              ),
+
+              salePrice: Number(
+                formData.price
+              ),
+
+              description:
+                formData.description,
+            }
+          : current
       );
 
       // --------------------------------------
       // CLEAN PREVIEWS
       // --------------------------------------
 
-      newImages.forEach(
-        (image) => {
-          if (
+      newImages.forEach((image) => {
+        if (image.preview) {
+          URL.revokeObjectURL(
             image.preview
-          ) {
-            URL.revokeObjectURL(
-              image.preview
-            );
-          }
+          );
         }
-      );
+      });
 
       setSuccessMessage(
         "Product updated successfully."
@@ -1511,8 +1279,7 @@ function AdminEditProduct() {
       );
 
       setError(
-        requestError?.response?.data
-          ?.message ||
+        requestError?.response?.data?.message ||
           requestError?.message ||
           "Failed to update product."
       );
@@ -1528,7 +1295,6 @@ function AdminEditProduct() {
   if (loading) {
     return (
       <section className="admin-product-not-found">
-
         <Package
           size={38}
           strokeWidth={1.3}
@@ -1538,14 +1304,12 @@ function AdminEditProduct() {
           CATALOGUE
         </p>
 
-        <h1>
-          Loading Product
-        </h1>
+        <h1>Loading Product</h1>
 
         <p>
-          Fetching product information from the database.
+          Fetching product information from
+          the database.
         </p>
-
       </section>
     );
   }
@@ -1557,14 +1321,11 @@ function AdminEditProduct() {
   if (!product) {
     return (
       <section className="admin-product-not-found">
-
         <p className="admin-page-eyebrow">
           CATALOGUE
         </p>
 
-        <h1>
-          Product Not Found
-        </h1>
+        <h1>Product Not Found</h1>
 
         <p>
           {error ||
@@ -1578,7 +1339,6 @@ function AdminEditProduct() {
           <ArrowLeft size={17} />
           Back to Products
         </Link>
-
       </section>
     );
   }
@@ -1593,9 +1353,7 @@ function AdminEditProduct() {
       {/* HEADER */}
 
       <div className="admin-add-product-header">
-
         <div>
-
           <Link
             to="/admin/products"
             className="admin-back-link"
@@ -1608,16 +1366,13 @@ function AdminEditProduct() {
             CATALOGUE
           </p>
 
-          <h1>
-            Edit Product
-          </h1>
+          <h1>Edit Product</h1>
 
           <p>
-            Update product information and inventory.
+            Update product information and
+            inventory.
           </p>
-
         </div>
-
       </div>
 
       {/* PRODUCT ERROR */}
@@ -1629,8 +1384,7 @@ function AdminEditProduct() {
             padding: "14px 16px",
             border:
               "1px solid #e5caca",
-            background:
-              "#fff7f7",
+            background: "#fff7f7",
             color: "#a33",
           }}
         >
@@ -1647,8 +1401,7 @@ function AdminEditProduct() {
             padding: "14px 16px",
             border:
               "1px solid #cfe4d2",
-            background:
-              "#f5fbf6",
+            background: "#f5fbf6",
             color: "#286b35",
           }}
         >
@@ -1656,11 +1409,13 @@ function AdminEditProduct() {
         </div>
       )}
 
+      {/* ======================================
+          ONLY ONE FORM
+      ====================================== */}
+
       <form
         className="admin-product-form"
-        onSubmit={
-          handleSubmit
-        }
+        onSubmit={handleSubmit}
       >
 
         {/* ======================================
@@ -1672,23 +1427,20 @@ function AdminEditProduct() {
           {/* PRODUCT INFORMATION */}
 
           <div className="admin-form-panel">
-
             <div className="admin-form-panel-header">
-
               <h2>
                 Product Information
               </h2>
 
               <p>
-                Update the basic product information.
+                Update the basic product
+                information.
               </p>
-
             </div>
 
             <div className="admin-form-body">
 
               <div className="admin-form-group">
-
                 <label htmlFor="name">
                   Product Name
                 </label>
@@ -1697,21 +1449,17 @@ function AdminEditProduct() {
                   id="name"
                   name="name"
                   type="text"
-                  value={
-                    formData.name
-                  }
-                  onChange={
-                    handleChange
-                  }
+                  value={formData.name}
+                  onChange={handleChange}
                   required
                 />
-
               </div>
 
               <div className="admin-form-grid">
 
-                <div className="admin-form-group">
+                {/* CATEGORY */}
 
+                <div className="admin-form-group">
                   <label htmlFor="category">
                     Category
                   </label>
@@ -1722,15 +1470,12 @@ function AdminEditProduct() {
                     value={
                       formData.category
                     }
-                    onChange={
-                      handleChange
-                    }
+                    onChange={handleChange}
                     required
                     disabled={
                       loadingOptions
                     }
                   >
-
                     <option value="">
                       {loadingOptions
                         ? "Loading categories..."
@@ -1740,24 +1485,19 @@ function AdminEditProduct() {
                     {categories.map(
                       (item) => (
                         <option
-                          key={
-                            item.id
-                          }
-                          value={
-                            item.id
-                          }
+                          key={item.id}
+                          value={item.id}
                         >
                           {item.name}
                         </option>
                       )
                     )}
-
                   </select>
-
                 </div>
 
-                <div className="admin-form-group">
+                {/* COLLECTION */}
 
+                <div className="admin-form-group">
                   <label htmlFor="collection">
                     Collection
                   </label>
@@ -1768,14 +1508,11 @@ function AdminEditProduct() {
                     value={
                       formData.collection
                     }
-                    onChange={
-                      handleChange
-                    }
+                    onChange={handleChange}
                     disabled={
                       loadingOptions
                     }
                   >
-
                     <option value="">
                       {loadingOptions
                         ? "Loading collections..."
@@ -1785,26 +1522,20 @@ function AdminEditProduct() {
                     {collections.map(
                       (item) => (
                         <option
-                          key={
-                            item.id
-                          }
-                          value={
-                            item.id
-                          }
+                          key={item.id}
+                          value={item.id}
                         >
                           {item.name}
                         </option>
                       )
                     )}
-
                   </select>
-
                 </div>
-
               </div>
 
-              <div className="admin-form-group">
+              {/* DESCRIPTION */}
 
+              <div className="admin-form-group">
                 <label htmlFor="description">
                   Description
                 </label>
@@ -1817,15 +1548,11 @@ function AdminEditProduct() {
                   value={
                     formData.description
                   }
-                  onChange={
-                    handleChange
-                  }
+                  onChange={handleChange}
                 />
-
               </div>
 
             </div>
-
           </div>
 
           {/* PRICING */}
@@ -1833,20 +1560,21 @@ function AdminEditProduct() {
           <div className="admin-form-panel">
 
             <div className="admin-form-panel-header">
-
               <h2>
                 Pricing & Inventory
               </h2>
 
               <p>
-                Update pricing and manage variant inventory.
+                Update pricing and manage
+                variant inventory.
               </p>
-
             </div>
 
             <div className="admin-form-body">
 
               <div className="admin-form-grid">
+
+                {/* ORIGINAL PRICE */}
 
                 <div className="admin-form-group">
 
@@ -1875,6 +1603,8 @@ function AdminEditProduct() {
                   </div>
 
                 </div>
+
+                {/* SALE PRICE */}
 
                 <div className="admin-form-group">
 
@@ -1916,24 +1646,20 @@ function AdminEditProduct() {
 
                 <input
                   type="number"
-                  value={
-                    totalStock
-                  }
+                  value={totalStock}
                   disabled
                   readOnly
                 />
 
                 <small
                   style={{
-                    display:
-                      "block",
-                    marginTop:
-                      "6px",
-                    opacity:
-                      0.6,
+                    display: "block",
+                    marginTop: "6px",
+                    opacity: 0.6,
                   }}
                 >
-                  Total stock is calculated from active variants.
+                  Total stock is calculated
+                  from active variants.
                 </small>
 
               </div>
@@ -1955,7 +1681,8 @@ function AdminEditProduct() {
               </h2>
 
               <p>
-                Manage sizes, colors, SKU, prices and stock.
+                Manage sizes, colors, SKU,
+                prices and stock.
               </p>
 
             </div>
@@ -1967,52 +1694,41 @@ function AdminEditProduct() {
               {variantError && (
                 <div
                   style={{
-                    marginBottom:
-                      "16px",
-                    padding:
-                      "12px 14px",
+                    marginBottom: "16px",
+                    padding: "12px 14px",
                     border:
                       "1px solid #e5caca",
-                    background:
-                      "#fff7f7",
-                    color:
-                      "#a33",
+                    background: "#fff7f7",
+                    color: "#a33",
                   }}
                 >
-                  {
-                    variantError
-                  }
+                  {variantError}
                 </div>
               )}
 
-              {/* VARIANT FORM */}
+              {/* =================================
+                  VARIANT FORM
+                  IMPORTANT:
+                  This is a DIV, NOT A FORM.
+              ================================= */}
 
-              <form
-                onSubmit={
-                  handleVariantSubmit
-                }
+              <div
                 style={{
                   border:
                     "1px solid #e5e5e5",
-                  padding:
-                    "18px",
-                  marginBottom:
-                    "24px",
-                  background:
-                    "#fafafa",
+                  padding: "18px",
+                  marginBottom: "24px",
+                  background: "#fafafa",
                 }}
               >
 
                 <div
                   style={{
-                    display:
-                      "flex",
+                    display: "flex",
                     justifyContent:
                       "space-between",
-                    alignItems:
-                      "center",
-                    marginBottom:
-                      "18px",
+                    alignItems: "center",
+                    marginBottom: "18px",
                   }}
                 >
 
@@ -2029,14 +1745,11 @@ function AdminEditProduct() {
                         resetVariantForm
                       }
                       style={{
-                        border:
-                          "none",
+                        border: "none",
                         background:
                           "transparent",
-                        cursor:
-                          "pointer",
-                        opacity:
-                          0.7,
+                        cursor: "pointer",
+                        opacity: 0.7,
                       }}
                     >
                       Cancel Edit
@@ -2044,6 +1757,8 @@ function AdminEditProduct() {
                   )}
 
                 </div>
+
+                {/* SIZE + COLOR */}
 
                 <div className="admin-form-grid">
 
@@ -2063,29 +1778,24 @@ function AdminEditProduct() {
                       onChange={
                         handleVariantChange
                       }
-                      required
                       disabled={
                         loadingOptions
                       }
                     >
 
                       <option value="">
-                        Select size
+                        {loadingOptions
+                          ? "Loading sizes..."
+                          : "Select size"}
                       </option>
 
                       {sizes.map(
                         (size) => (
                           <option
-                            key={
-                              size.id
-                            }
-                            value={
-                              size.id
-                            }
+                            key={size.id}
+                            value={size.id}
                           >
-                            {
-                              size.name
-                            }
+                            {size.name}
                           </option>
                         )
                       )}
@@ -2122,16 +1832,10 @@ function AdminEditProduct() {
                       {colors.map(
                         (color) => (
                           <option
-                            key={
-                              color.id
-                            }
-                            value={
-                              color.id
-                            }
+                            key={color.id}
+                            value={color.id}
                           >
-                            {
-                              color.name
-                            }
+                            {color.name}
                           </option>
                         )
                       )}
@@ -2141,6 +1845,8 @@ function AdminEditProduct() {
                   </div>
 
                 </div>
+
+                {/* SKU + PRICE */}
 
                 <div className="admin-form-grid">
 
@@ -2190,7 +1896,6 @@ function AdminEditProduct() {
                         onChange={
                           handleVariantChange
                         }
-                        required
                       />
 
                     </div>
@@ -2198,6 +1903,8 @@ function AdminEditProduct() {
                   </div>
 
                 </div>
+
+                {/* STOCK + STATUS */}
 
                 <div className="admin-form-grid">
 
@@ -2219,7 +1926,6 @@ function AdminEditProduct() {
                       onChange={
                         handleVariantChange
                       }
-                      required
                     />
 
                   </div>
@@ -2239,17 +1945,12 @@ function AdminEditProduct() {
                           ? "true"
                           : "false"
                       }
-                      onChange={(
-                        event
-                      ) =>
+                      onChange={(event) =>
                         setVariantForm(
-                          (
-                            current
-                          ) => ({
+                          (current) => ({
                             ...current,
                             active:
-                              event
-                                .target
+                              event.target
                                 .value ===
                               "true",
                           })
@@ -2271,37 +1972,31 @@ function AdminEditProduct() {
 
                 </div>
 
+                {/* VARIANT BUTTONS */}
+
                 <div
                   style={{
-                    display:
-                      "flex",
-                    gap:
-                      "10px",
-                    marginTop:
-                      "6px",
+                    display: "flex",
+                    gap: "10px",
+                    marginTop: "6px",
                   }}
                 >
 
                   <button
-                    type="submit"
+                    type="button"
                     className="admin-primary-button"
+                    onClick={
+                      handleVariantSubmit
+                    }
                     disabled={
                       variantSaving
                     }
                   >
 
                     {editingVariantId ? (
-                      <Pencil
-                        size={
-                          16
-                        }
-                      />
+                      <Pencil size={16} />
                     ) : (
-                      <Plus
-                        size={
-                          17
-                        }
-                      />
+                      <Plus size={17} />
                     )}
 
                     {variantSaving
@@ -2326,38 +2021,32 @@ function AdminEditProduct() {
 
                 </div>
 
-              </form>
+              </div>
 
-              {/* VARIANT LIST */}
+              {/* =================================
+                  VARIANT LIST
+              ================================= */}
 
-              {variants.length ===
-              0 ? (
+              {variants.length === 0 ? (
+
                 <div
                   style={{
-                    textAlign:
-                      "center",
-                    padding:
-                      "30px 15px",
+                    textAlign: "center",
+                    padding: "30px 15px",
                     border:
                       "1px dashed #ddd",
                   }}
                 >
 
                   <Package
-                    size={
-                      32
-                    }
-                    strokeWidth={
-                      1.3
-                    }
+                    size={32}
+                    strokeWidth={1.3}
                   />
 
                   <p
                     style={{
-                      marginBottom:
-                        "4px",
-                      fontWeight:
-                        600,
+                      marginBottom: "4px",
+                      fontWeight: 600,
                     }}
                   >
                     No variants
@@ -2365,19 +2054,19 @@ function AdminEditProduct() {
 
                   <span
                     style={{
-                      opacity:
-                        0.6,
+                      opacity: 0.6,
                     }}
                   >
                     Add a size variant above.
                   </span>
 
                 </div>
+
               ) : (
+
                 <div
                   style={{
-                    overflowX:
-                      "auto",
+                    overflowX: "auto",
                   }}
                 >
 
@@ -2423,6 +2112,7 @@ function AdminEditProduct() {
 
                       {variants.map(
                         (variant) => (
+
                           <tr
                             key={
                               variant.id
@@ -2430,49 +2120,50 @@ function AdminEditProduct() {
                           >
 
                             <td>
+
                               <strong>
                                 {
                                   variant.sku ||
                                   `#${variant.id}`
                                 }
                               </strong>
+
                             </td>
 
                             <td>
+
                               {variant.size_name ||
                                 sizes.find(
-                                  (
-                                    item
-                                  ) =>
+                                  (item) =>
                                     Number(
                                       item.id
                                     ) ===
                                     Number(
                                       variant.size_id
                                     )
-                                )
-                                  ?.name ||
+                                )?.name ||
                                 "—"}
+
                             </td>
 
                             <td>
+
                               {variant.color_name ||
                                 colors.find(
-                                  (
-                                    item
-                                  ) =>
+                                  (item) =>
                                     Number(
                                       item.id
                                     ) ===
                                     Number(
                                       variant.color_id
                                     )
-                                )
-                                  ?.name ||
+                                )?.name ||
                                 "—"}
+
                             </td>
 
                             <td>
+
                               ₹
                               {Number(
                                 variant.price ||
@@ -2480,6 +2171,7 @@ function AdminEditProduct() {
                               ).toLocaleString(
                                 "en-IN"
                               )}
+
                             </td>
 
                             <td>
@@ -2535,10 +2227,11 @@ function AdminEditProduct() {
                                 style={{
                                   display:
                                     "flex",
-                                  gap:
-                                    "7px",
+                                  gap: "7px",
                                 }}
                               >
+
+                                {/* EDIT */}
 
                                 <button
                                   type="button"
@@ -2550,15 +2243,15 @@ function AdminEditProduct() {
                                   }
                                   aria-label="Edit variant"
                                 >
+
                                   <Pencil
-                                    size={
-                                      15
-                                    }
-                                    strokeWidth={
-                                      1.6
-                                    }
+                                    size={15}
+                                    strokeWidth={1.6}
                                   />
+
                                 </button>
+
+                                {/* DELETE */}
 
                                 <button
                                   type="button"
@@ -2570,14 +2263,12 @@ function AdminEditProduct() {
                                   }
                                   aria-label="Delete variant"
                                 >
+
                                   <Trash2
-                                    size={
-                                      15
-                                    }
-                                    strokeWidth={
-                                      1.6
-                                    }
+                                    size={15}
+                                    strokeWidth={1.6}
                                   />
+
                                 </button>
 
                               </div>
@@ -2585,6 +2276,7 @@ function AdminEditProduct() {
                             </td>
 
                           </tr>
+
                         )
                       )}
 
@@ -2593,6 +2285,7 @@ function AdminEditProduct() {
                   </table>
 
                 </div>
+
               )}
 
             </div>
@@ -2651,15 +2344,12 @@ function AdminEditProduct() {
 
               </label>
 
-              {images.length >
-                0 && (
+              {images.length > 0 && (
                 <div className="admin-image-preview-grid">
 
                   {images.map(
-                    (
-                      image,
-                      index
-                    ) => (
+                    (image, index) => (
+
                       <div
                         className="admin-image-preview"
                         key={`${image.preview}-${index}`}
@@ -2670,8 +2360,7 @@ function AdminEditProduct() {
                             image.preview
                           }
                           alt={`${formData.name} ${
-                            index +
-                            1
+                            index + 1
                           }`}
                         />
 
@@ -2684,14 +2373,13 @@ function AdminEditProduct() {
                           }
                           aria-label="Remove image"
                         >
-                          <X
-                            size={
-                              14
-                            }
-                          />
+
+                          <X size={14} />
+
                         </button>
 
                       </div>
+
                     )
                   )}
 
@@ -2713,7 +2401,8 @@ function AdminEditProduct() {
               </h2>
 
               <p>
-                Update this product in your catalogue.
+                Update this product in your
+                catalogue.
               </p>
 
             </div>
@@ -2751,7 +2440,6 @@ function AdminEditProduct() {
         </div>
 
       </form>
-
     </section>
   );
 }
