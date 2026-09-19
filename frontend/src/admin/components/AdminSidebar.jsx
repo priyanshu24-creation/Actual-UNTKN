@@ -8,10 +8,13 @@ import {
   Layers,
   Heart,
   Mail,
+  Info,
+  BookOpen,
   MessageSquare,
   Settings,
   LogOut,
   X,
+  Truck,
 } from "lucide-react";
 
 import { useAdminAuth } from "../context/AdminAuthContext";
@@ -48,6 +51,11 @@ function AdminSidebar({ sidebarOpen, closeSidebar }) {
       icon: Layers,
     },
     {
+  label: "Lookbook",
+  path: "/admin/lookbook",
+  icon: BookOpen,
+},
+    {
       label: "Wishlist",
       path: "/admin/wishlist",
       icon: Heart,
@@ -62,6 +70,23 @@ function AdminSidebar({ sidebarOpen, closeSidebar }) {
       path: "/admin/inquiries",
       icon: MessageSquare,
     },
+
+    {
+  label: "About",
+  path: "/admin/about",
+  icon: Info,
+},
+
+    // =====================================================
+    // DELIVERY SETTINGS
+    // =====================================================
+
+    {
+      label: "Delivery Settings",
+      path: "/admin/delivery-settings",
+      icon: Truck,
+    },
+
     {
       label: "Settings",
       path: "/admin/settings",
@@ -81,7 +106,9 @@ function AdminSidebar({ sidebarOpen, closeSidebar }) {
 
   return (
     <>
-      {/* Mobile Overlay */}
+      {/* =====================================================
+          MOBILE OVERLAY
+      ===================================================== */}
 
       {sidebarOpen && (
         <div
@@ -97,10 +124,15 @@ function AdminSidebar({ sidebarOpen, closeSidebar }) {
             : "admin-sidebar"
         }
       >
-        {/* Logo */}
+
+        {/* ===================================================
+            LOGO
+        =================================================== */}
 
         <div className="admin-sidebar-top">
+
           <div className="admin-brand">
+
             <span className="admin-brand-name">
               UNTKN
             </span>
@@ -108,6 +140,7 @@ function AdminSidebar({ sidebarOpen, closeSidebar }) {
             <span className="admin-brand-label">
               ADMIN
             </span>
+
           </div>
 
           <button
@@ -121,16 +154,22 @@ function AdminSidebar({ sidebarOpen, closeSidebar }) {
               strokeWidth={1.5}
             />
           </button>
+
         </div>
 
-        {/* Navigation */}
+
+        {/* ===================================================
+            NAVIGATION
+        =================================================== */}
 
         <nav className="admin-navigation">
+
           <p className="admin-navigation-label">
             MANAGEMENT
           </p>
 
           {navigation.map((item) => {
+
             const Icon = item.icon;
 
             return (
@@ -145,37 +184,53 @@ function AdminSidebar({ sidebarOpen, closeSidebar }) {
                     : "admin-nav-item"
                 }
               >
+
                 <Icon
                   size={17}
                   strokeWidth={1.5}
                 />
 
-                <span>{item.label}</span>
+                <span>
+                  {item.label}
+                </span>
+
               </NavLink>
             );
+
           })}
+
         </nav>
 
-        {/* Bottom */}
+
+        {/* ===================================================
+            BOTTOM
+        =================================================== */}
 
         <div className="admin-sidebar-bottom">
+
           <button
             type="button"
             className="admin-signout"
             onClick={handleLogout}
           >
+
             <LogOut
               size={17}
               strokeWidth={1.5}
             />
 
-            <span>SIGN OUT</span>
+            <span>
+              SIGN OUT
+            </span>
+
           </button>
 
           <p className="admin-version">
             UNTKN ADMIN · v1.0
           </p>
+
         </div>
+
       </aside>
     </>
   );

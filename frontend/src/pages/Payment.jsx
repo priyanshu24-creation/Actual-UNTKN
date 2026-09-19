@@ -2,10 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   ChevronLeft,
-  CreditCard,
-  Smartphone,
-  Landmark,
-  Banknote,
   ShieldCheck,
 } from "lucide-react";
 
@@ -35,8 +31,7 @@ function Payment() {
     }
 
     try {
-      const stored =
-        sessionStorage.getItem("untkn_checkout");
+      const stored = sessionStorage.getItem("untkn_checkout");
 
       if (stored) {
         return JSON.parse(stored);
@@ -115,15 +110,11 @@ function Payment() {
   */
 
   const calculatedSubtotal = useMemo(() => {
-    if (
-      Number(subtotal || 0) > 0
-    ) {
+    if (Number(subtotal || 0) > 0) {
       return Number(subtotal);
     }
 
-    if (
-      Number(order?.subtotal || 0) > 0
-    ) {
+    if (Number(order?.subtotal || 0) > 0) {
       return Number(order.subtotal);
     }
 
@@ -142,26 +133,23 @@ function Payment() {
     );
   }, [subtotal, order, checkoutItems]);
 
-  const shipping =
-    Number(
-      order?.shipping_fee ??
-        checkoutData?.shippingFee ??
-        100
-    );
+  const shipping = Number(
+    order?.shipping_fee ??
+      checkoutData?.shippingFee ??
+      100
+  );
 
-  const backendTotal =
-    Number(
-      order?.total_amount || 0
-    );
+  const backendTotal = Number(
+    order?.total_amount || 0
+  );
 
   const frontendTotal =
     calculatedSubtotal + shipping;
 
   /*
   |--------------------------------------------------------------------------
-  | IMPORTANT
+  | BACKEND TOTAL IS AUTHORITATIVE
   |--------------------------------------------------------------------------
-  | The backend amount is the authoritative payment amount.
   */
 
   const total =
@@ -176,9 +164,7 @@ function Payment() {
   */
 
   useEffect(() => {
-    if (
-      window.Razorpay
-    ) {
+    if (window.Razorpay) {
       setScriptLoading(false);
       return;
     }
@@ -200,6 +186,7 @@ function Payment() {
         "error",
         () => {
           setScriptLoading(false);
+
           setError(
             "Failed to load Razorpay Checkout."
           );
@@ -255,7 +242,10 @@ function Payment() {
   |--------------------------------------------------------------------------
   */
 
-  const handlePayment = async (event) => {
+  const handlePayment = async (
+    event,
+    selectedMethod = paymentMethod
+  ) => {
     event.preventDefault();
 
     setError("");
@@ -276,26 +266,41 @@ function Payment() {
 
     /*
     |--------------------------------------------------------------------------
-    | COD
+    | CASH ON DELIVERY
     |--------------------------------------------------------------------------
     */
 
-    if (
-      paymentMethod === "cod"
-    ) {
-      sessionStorage.removeItem(
-        "untkn_checkout"
-      );
+    if (selectedMethod === "cod") {
+      try {
+        setLoading(true);
 
-      navigate(
-        "/order-success",
-        {
-          state: {
-            order,
-            paymentMethod: "cod",
-          },
-        }
-      );
+        sessionStorage.removeItem(
+          "untkn_checkout"
+        );
+
+        navigate(
+          "/order-success",
+          {
+            replace: true,
+
+            state: {
+              order,
+              paymentMethod: "cod",
+            },
+          }
+        );
+      } catch (codError) {
+        console.error(
+          "COD error:",
+          codError
+        );
+
+        setError(
+          "Unable to place COD order."
+        );
+
+        setLoading(false);
+      }
 
       return;
     }
@@ -319,7 +324,7 @@ function Payment() {
 
     /*
     |--------------------------------------------------------------------------
-    | START PAYMENT
+    | START RAZORPAY PAYMENT
     |--------------------------------------------------------------------------
     */
 
@@ -357,9 +362,7 @@ function Payment() {
 
       /*
       |--------------------------------------------------------------------------
-      | YOUR BACKEND RETURNS:
-      |
-      | response.data.payment
+      | GET PAYMENT DATA
       |--------------------------------------------------------------------------
       */
 
@@ -374,7 +377,7 @@ function Payment() {
 
       /*
       |--------------------------------------------------------------------------
-      | GET RAZORPAY VALUES
+      | RAZORPAY VALUES
       |--------------------------------------------------------------------------
       */
 
@@ -512,7 +515,7 @@ function Payment() {
 
               /*
               |--------------------------------------------------------------------------
-              | VERIFY PAYMENT ON BACKEND
+              | VERIFY PAYMENT
               |--------------------------------------------------------------------------
               */
 
@@ -540,11 +543,13 @@ function Payment() {
               );
 
               if (
-                !verifyResponse.data
+                !verifyResponse
+                  .data
                   ?.success
               ) {
                 throw new Error(
-                  verifyResponse.data
+                  verifyResponse
+                    .data
                     ?.message ||
                     "Payment verification failed."
                 );
@@ -578,7 +583,7 @@ function Payment() {
                         ?.payment,
 
                     paymentMethod:
-                      paymentMethod,
+                      selectedMethod,
                   },
                 }
               );
@@ -602,7 +607,7 @@ function Payment() {
 
       /*
       |--------------------------------------------------------------------------
-      | OPEN RAZORPAY
+      | CREATE RAZORPAY INSTANCE
       |--------------------------------------------------------------------------
       */
 
@@ -613,7 +618,7 @@ function Payment() {
 
       /*
       |--------------------------------------------------------------------------
-      | PAYMENT FAILED EVENT
+      | PAYMENT FAILED
       |--------------------------------------------------------------------------
       */
 
@@ -637,7 +642,7 @@ function Payment() {
 
       /*
       |--------------------------------------------------------------------------
-      | OPEN CHECKOUT
+      | OPEN RAZORPAY
       |--------------------------------------------------------------------------
       */
 
@@ -645,7 +650,7 @@ function Payment() {
 
       /*
       |--------------------------------------------------------------------------
-      | Allow Razorpay modal to control the UI.
+      | RAZORPAY MODAL CONTROLS UI
       |--------------------------------------------------------------------------
       */
 
@@ -679,6 +684,7 @@ function Payment() {
   ) {
     return (
       <div className="payment-empty">
+
         <p className="eyebrow">
           PAYMENT
         </p>
@@ -698,6 +704,7 @@ function Payment() {
         <Link to="/checkout">
           RETURN TO CHECKOUT →
         </Link>
+
       </div>
     );
   }
@@ -728,6 +735,7 @@ function Payment() {
         </Link>
 
         <div>
+
           <p className="eyebrow">
             SECURE PAYMENT
           </p>
@@ -735,574 +743,255 @@ function Payment() {
           <h1>
             PAYMENT
           </h1>
+
         </div>
 
       </section>
 
-      {/* PAYMENT FORM */}
+  <form
+  className="payment-layout payment-layout-full"
+  onSubmit={handlePayment}
+>
 
-      <form
-        className="payment-layout"
-        onSubmit={handlePayment}
-      >
+  <section className="payment-summary payment-summary-full">
 
-        {/* MAIN */}
+    {/* SUMMARY HEADER */}
 
-        <main className="payment-main">
+    <div className="payment-summary-header">
 
-          {/* ERROR */}
+      <p className="eyebrow">
+        ORDER SUMMARY
+      </p>
 
-          {error && (
-            <div
-              className="payment-error"
-              style={{
-                border:
-                  "1px solid #000",
-                padding: "16px",
-                marginBottom: "30px",
-                fontSize: "13px",
-                lineHeight: "1.5",
-                background:
-                  "#fff",
-              }}
-            >
-              {error}
-            </div>
-          )}
+      <span>
+        {checkoutItems.length} ITEMS
+      </span>
 
-          {/* PAYMENT METHODS */}
+    </div>
 
-          <section className="payment-method-section">
+    {/* ITEMS */}
 
-            <div className="payment-section-header">
+    <div className="payment-summary-items">
 
-              <div>
-
-                <p className="eyebrow">
-                  SELECT METHOD
-                </p>
-
-                <h2>
-                  PAYMENT OPTIONS
-                </h2>
-
-              </div>
-
-              <ShieldCheck
-                size={21}
-                strokeWidth={1.2}
-              />
-
-            </div>
-
-            <div className="payment-methods">
-
-              {/* UPI */}
-
-              <button
-                type="button"
-                className={
-                  paymentMethod === "upi"
-                    ? "payment-method active"
-                    : "payment-method"
-                }
-                onClick={() =>
-                  setPaymentMethod(
-                    "upi"
-                  )
-                }
-              >
-
-                <Smartphone
-                  size={19}
-                  strokeWidth={1.3}
-                />
-
-                <div>
-                  <strong>
-                    UPI
-                  </strong>
-
-                  <span>
-                    Google Pay, PhonePe,
-                    Paytm
-                  </span>
-                </div>
-
-                <span className="payment-radio">
-                  {paymentMethod ===
-                    "upi" && "✓"}
-                </span>
-
-              </button>
-
-              {/* CARD */}
-
-              <button
-                type="button"
-                className={
-                  paymentMethod === "card"
-                    ? "payment-method active"
-                    : "payment-method"
-                }
-                onClick={() =>
-                  setPaymentMethod(
-                    "card"
-                  )
-                }
-              >
-
-                <CreditCard
-                  size={19}
-                  strokeWidth={1.3}
-                />
-
-                <div>
-                  <strong>
-                    CARD
-                  </strong>
-
-                  <span>
-                    Credit or debit card
-                  </span>
-                </div>
-
-                <span className="payment-radio">
-                  {paymentMethod ===
-                    "card" && "✓"}
-                </span>
-
-              </button>
-
-              {/* NET BANKING */}
-
-              <button
-                type="button"
-                className={
-                  paymentMethod ===
-                  "netbanking"
-                    ? "payment-method active"
-                    : "payment-method"
-                }
-                onClick={() =>
-                  setPaymentMethod(
-                    "netbanking"
-                  )
-                }
-              >
-
-                <Landmark
-                  size={19}
-                  strokeWidth={1.3}
-                />
-
-                <div>
-                  <strong>
-                    NET BANKING
-                  </strong>
-
-                  <span>
-                    Pay through your bank
-                  </span>
-                </div>
-
-                <span className="payment-radio">
-                  {paymentMethod ===
-                    "netbanking" &&
-                    "✓"}
-                </span>
-
-              </button>
-
-              {/* COD */}
-
-              <button
-                type="button"
-                className={
-                  paymentMethod ===
-                  "cod"
-                    ? "payment-method active"
-                    : "payment-method"
-                }
-                onClick={() =>
-                  setPaymentMethod(
-                    "cod"
-                  )
-                }
-              >
-
-                <Banknote
-                  size={19}
-                  strokeWidth={1.3}
-                />
-
-                <div>
-                  <strong>
-                    CASH ON DELIVERY
-                  </strong>
-
-                  <span>
-                    Pay when your order
-                    arrives
-                  </span>
-                </div>
-
-                <span className="payment-radio">
-                  {paymentMethod ===
-                    "cod" && "✓"}
-                </span>
-
-              </button>
-
-            </div>
-
-          </section>
-
-          {/* UPI INFORMATION */}
-
-          {paymentMethod === "upi" && (
-            <section
-              className="payment-form-section"
-            >
-
-              <div className="payment-form-heading">
-
-                <p className="eyebrow">
-                  UPI PAYMENT
-                </p>
-
-                <h2>
-                  RAZORPAY CHECKOUT
-                </h2>
-
-              </div>
-
-              <p className="payment-helper">
-                Click PAY NOW below. Razorpay
-                will securely open its checkout
-                window where you can complete
-                the payment using UPI.
-              </p>
-
-            </section>
-          )}
-
-          {/* CARD INFORMATION */}
-
-          {paymentMethod === "card" && (
-            <section
-              className="payment-form-section"
-            >
-
-              <div className="payment-form-heading">
-
-                <p className="eyebrow">
-                  CARD PAYMENT
-                </p>
-
-                <h2>
-                  RAZORPAY CHECKOUT
-                </h2>
-
-              </div>
-
-              <p className="payment-helper">
-                Your card details will be
-                entered securely inside Razorpay
-                Checkout. UNTKN does not store
-                your card information.
-              </p>
-
-            </section>
-          )}
-
-          {/* NET BANKING */}
-
-          {paymentMethod ===
-            "netbanking" && (
-            <section
-              className="payment-form-section"
-            >
-
-              <div className="payment-form-heading">
-
-                <p className="eyebrow">
-                  NET BANKING
-                </p>
-
-                <h2>
-                  RAZORPAY CHECKOUT
-                </h2>
-
-              </div>
-
-              <p className="payment-helper">
-                Click PAY NOW below and select
-                your bank from Razorpay Checkout.
-              </p>
-
-            </section>
-          )}
-
-          {/* COD */}
-
-          {paymentMethod === "cod" && (
-            <section
-              className="payment-form-section cod-section"
-            >
-
-              <Banknote
-                size={28}
-                strokeWidth={1.2}
-              />
-
-              <p className="eyebrow">
-                CASH ON DELIVERY
-              </p>
-
-              <h2>
-                PAY WHEN IT ARRIVES.
-              </h2>
-
-              <p>
-                Pay the delivery partner in
-                cash when your order reaches
-                you.
-              </p>
-
-            </section>
-          )}
-
-          {/* SECURITY */}
-
-          <div className="payment-security">
-
-            <ShieldCheck
-              size={18}
-              strokeWidth={1.3}
-            />
-
-            <div>
-
-              <strong>
-                YOUR PAYMENT IS SECURE
-              </strong>
-
-              <p>
-                Payment details are securely
-                processed by Razorpay. UNTKN
-                does not store card information.
-              </p>
-
-            </div>
-
-          </div>
-
-        </main>
-
-        {/* SUMMARY */}
-
-        <aside className="payment-summary">
-
-          <div className="payment-summary-header">
-
-            <p className="eyebrow">
-              ORDER SUMMARY
-            </p>
-
-            <span>
-              {checkoutItems.length} ITEMS
-            </span>
-
-          </div>
-
-          {/* ITEMS */}
-
-          <div className="payment-summary-items">
-
-            {checkoutItems.map(
-              (item, index) => (
-                <div
-                  className="payment-summary-item"
-                  key={`${item.product_id || item.id}-${item.variant_id || item.size}-${index}`}
-                >
-
-                  <div className="payment-summary-image">
-
-                    {item.image ? (
-                      <img
-                        src={item.image}
-                        alt={
-                          item.name ||
-                          "UNTKN Product"
-                        }
-                      />
-                    ) : (
-                      <div
-                        style={{
-                          width:
-                            "100%",
-                          height:
-                            "100%",
-                          display:
-                            "flex",
-                          alignItems:
-                            "center",
-                          justifyContent:
-                            "center",
-                          fontSize:
-                            "10px",
-                        }}
-                      >
-                        UNTKN
-                      </div>
-                    )}
-
-                    <span>
-                      {item.quantity}
-                    </span>
-
-                  </div>
-
-                  <div>
-
-                    <h3>
-                      {item.name ||
-                        item.product_name ||
-                        "UNTKN Product"}
-                    </h3>
-
-                    {item.color && (
-                      <p>
-                        {item.color}
-                      </p>
-                    )}
-
-                    {item.size && (
-                      <span>
-                        SIZE{" "}
-                        {item.size}
-                      </span>
-                    )}
-
-                  </div>
-
-                  <strong>
-                    ₹
-                    {formatMoney(
-                      Number(
-                        item.unit_price ??
-                          item.price ??
-                          0
-                      ) *
-                        Number(
-                          item.quantity ||
-                            0
-                        )
-                    )}
-                  </strong>
-
-                </div>
-              )
-            )}
-
-          </div>
-
-          {/* TOTALS */}
-
-          <div className="payment-totals">
-
-            <div>
-
-              <span>
-                SUBTOTAL
-              </span>
-
-              <strong>
-                ₹
-                {formatMoney(
-                  calculatedSubtotal
-                )}
-              </strong>
-
-            </div>
-
-            <div>
-
-              <span>
-                SHIPPING
-              </span>
-
-              <strong>
-                ₹
-                {formatMoney(
-                  shipping
-                )}
-              </strong>
-
-            </div>
-
-            <div className="payment-divider"></div>
-
-            <div className="payment-total">
-
-              <span>
-                TOTAL
-              </span>
-
-              <strong>
-                ₹
-                {formatMoney(total)}
-              </strong>
-
-            </div>
-
-          </div>
-
-          {/* PAY BUTTON */}
-
-          <button
-            type="submit"
-            className="place-order-button"
-            disabled={
-              loading ||
-              scriptLoading
-            }
-            style={{
-              opacity:
-                loading ||
-                scriptLoading
-                  ? 0.6
-                  : 1,
-              cursor:
-                loading ||
-                scriptLoading
-                  ? "not-allowed"
-                  : "pointer",
-            }}
+      {checkoutItems.map(
+        (item, index) => (
+          <div
+            className="payment-summary-item"
+            key={`${
+              item.product_id ||
+              item.id
+            }-${
+              item.variant_id ||
+              item.size
+            }-${index}`}
           >
 
-            {loading
-              ? "PROCESSING..."
-              : scriptLoading
-              ? "LOADING PAYMENT..."
-              : paymentMethod ===
-                "cod"
-              ? "PLACE ORDER →"
-              : "PAY NOW →"}
+            <div className="payment-summary-image">
 
-          </button>
+              {item.image ? (
+                <img
+                  src={item.image}
+                  alt={
+                    item.name ||
+                    "UNTKN Product"
+                  }
+                />
+              ) : (
+                <div
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "10px",
+                  }}
+                >
+                  UNTKN
+                </div>
+              )}
 
-          <p className="payment-note">
-            By placing this order, you
-            agree to our terms and
-            conditions.
-          </p>
+              <span>
+                {item.quantity}
+              </span>
 
-        </aside>
+            </div>
 
-      </form>
+            <div>
 
+              <h3>
+                {item.name ||
+                  item.product_name ||
+                  "UNTKN Product"}
+              </h3>
+
+              {item.color && (
+                <p>
+                  {item.color}
+                </p>
+              )}
+
+              {item.size && (
+                <span>
+                  SIZE {item.size}
+                </span>
+              )}
+
+            </div>
+
+            <strong>
+              ₹
+              {formatMoney(
+                Number(
+                  item.unit_price ??
+                    item.price ??
+                    0
+                ) *
+                  Number(
+                    item.quantity || 0
+                  )
+              )}
+            </strong>
+
+          </div>
+        )
+      )}
+
+    </div>
+
+    {/* TOTALS */}
+
+    <div className="payment-totals">
+
+      <div>
+
+        <span>
+          SUBTOTAL
+        </span>
+
+        <strong>
+          ₹
+          {formatMoney(
+            calculatedSubtotal
+          )}
+        </strong>
+
+      </div>
+
+      <div>
+
+        <span>
+          SHIPPING
+        </span>
+
+        <strong>
+          ₹
+          {formatMoney(shipping)}
+        </strong>
+
+      </div>
+
+      <div className="payment-divider"></div>
+
+      <div className="payment-total">
+
+        <span>
+          TOTAL
+        </span>
+
+        <strong>
+          ₹
+          {formatMoney(total)}
+        </strong>
+
+      </div>
+
+    </div>
+
+    {/* ERROR */}
+
+    {error && (
+      <div className="payment-error">
+        {error}
+      </div>
+    )}
+
+    {/* PAYMENTS */}
+
+    <section className="payment-actions">
+
+      <button
+        type="button"
+        className="payment-action-button"
+        onClick={(event) =>
+          handlePayment(
+            event,
+            "upi"
+          )
+        }
+        disabled={
+          loading ||
+          scriptLoading
+        }
+      >
+        {loading
+          ? "PROCESSING..."
+          : scriptLoading
+          ? "LOADING PAYMENT..."
+          : "PAY NOW →"}
+      </button>
+
+      <button
+        type="button"
+        className="payment-action-button payment-cod-button"
+        onClick={(event) =>
+          handlePayment(
+            event,
+            "cod"
+          )
+        }
+        disabled={loading}
+      >
+        {loading
+          ? "PROCESSING..."
+          : "CASH ON DELIVERY →"}
+      </button>
+
+    </section>
+
+    {/* SECURITY */}
+
+    <div className="payment-security">
+
+      <ShieldCheck
+        size={18}
+        strokeWidth={1.3}
+      />
+
+      <div>
+
+        <strong>
+          YOUR PAYMENT IS SECURE
+        </strong>
+
+        <p>
+          Payment details are securely
+          processed by Razorpay. UNTKN
+          does not store card information.
+        </p>
+
+      </div>
+
+    </div>
+
+    <p className="payment-note">
+      By placing this order, you agree
+      to our terms and conditions.
+    </p>
+
+  </section>
+
+</form>
     </div>
   );
 }

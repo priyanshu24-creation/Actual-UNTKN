@@ -3,7 +3,6 @@ import { Link, useNavigate } from "react-router-dom";
 
 import {
   ChevronLeft,
-  Truck,
   MapPin,
   ShieldCheck,
 } from "lucide-react";
@@ -22,9 +21,53 @@ function Checkout() {
   } = useCart();
 
 
+  // =========================
+  // DELIVERY METHOD
+  // =========================
+
   const [deliveryMethod, setDeliveryMethod] =
     useState("standard");
 
+
+  const deliveryMethods = [
+    {
+      id: "standard",
+      name: "STANDARD DELIVERY",
+      description: "5–7 BUSINESS DAYS",
+      price: 99,
+    },
+    {
+      id: "express",
+      name: "EXPRESS DELIVERY",
+      description: "2–3 BUSINESS DAYS",
+      price: 199,
+    },
+  ];
+
+
+  const selectedDeliveryMethod =
+    deliveryMethods.find(
+      (method) =>
+        method.id === deliveryMethod
+    ) || deliveryMethods[0];
+
+
+  const shipping =
+    selectedDeliveryMethod.price;
+
+
+  // =========================
+  // TOTAL
+  // =========================
+
+  const total =
+    Number(subtotal || 0) +
+    Number(shipping || 0);
+
+
+  // =========================
+  // FORM
+  // =========================
 
   const [formData, setFormData] = useState({
     firstName: "",
@@ -47,16 +90,9 @@ function Checkout() {
     useState("");
 
 
-  const shipping =
-    deliveryMethod === "express"
-      ? 150
-      : 100;
-
-
-  const total =
-    Number(subtotal || 0) +
-    shipping;
-
+  // =========================
+  // INPUT CHANGE
+  // =========================
 
   const handleChange = (event) => {
     const {
@@ -77,6 +113,25 @@ function Checkout() {
   };
 
 
+  // =========================
+  // DELIVERY CHANGE
+  // =========================
+
+  const handleDeliveryChange = (
+    methodId
+  ) => {
+    setDeliveryMethod(methodId);
+
+    if (error) {
+      setError("");
+    }
+  };
+
+
+  // =========================
+  // SUBMIT
+  // =========================
+
   const handleSubmit = async (event) => {
     event.preventDefault();
 
@@ -88,6 +143,10 @@ function Checkout() {
 
     setError("");
 
+
+    // =========================
+    // CLEAN VALUES
+    // =========================
 
     const firstName =
       formData.firstName.trim();
@@ -117,6 +176,10 @@ function Checkout() {
       formData.pincode.trim();
 
 
+    // =========================
+    // REQUIRED VALIDATION
+    // =========================
+
     if (
       !firstName ||
       !lastName ||
@@ -135,6 +198,10 @@ function Checkout() {
     }
 
 
+    // =========================
+    // PINCODE VALIDATION
+    // =========================
+
     if (!/^\d{6}$/.test(pincode)) {
       setError(
         "Please enter a valid 6-digit pincode."
@@ -144,6 +211,10 @@ function Checkout() {
     }
 
 
+    // =========================
+    // PHONE VALIDATION
+    // =========================
+
     if (!/^\d{10}$/.test(phone)) {
       setError(
         "Please enter a valid 10-digit phone number."
@@ -152,6 +223,10 @@ function Checkout() {
       return;
     }
 
+
+    // =========================
+    // CART VALIDATION
+    // =========================
 
     if (
       !cartItems ||
@@ -166,13 +241,20 @@ function Checkout() {
 
 
     try {
-
       setSubmitting(true);
 
+
+      // =========================
+      // SHIPPING NAME
+      // =========================
 
       const shippingName =
         `${firstName} ${lastName}`.trim();
 
+
+      // =========================
+      // ORDER PAYLOAD
+      // =========================
 
       const orderPayload = {
         shipping_name:
@@ -210,6 +292,10 @@ function Checkout() {
       };
 
 
+      // =========================
+      // CREATE ORDER
+      // =========================
+
       const response =
         await api.post(
           "/orders",
@@ -240,6 +326,10 @@ function Checkout() {
       }
 
 
+      // =========================
+      // CHECKOUT DATA
+      // =========================
+
       const checkoutData = {
         customer: {
           firstName,
@@ -259,19 +349,26 @@ function Checkout() {
 
         deliveryMethod,
 
+        deliveryMethodName:
+          selectedDeliveryMethod.name,
+
         shippingFee:
-          shipping,
+          Number(shipping),
 
         subtotal:
           Number(subtotal || 0),
 
         frontendTotal:
-          total,
+          Number(total),
 
         order:
           createdOrder,
       };
 
+
+      // =========================
+      // SAVE CHECKOUT SESSION
+      // =========================
 
       sessionStorage.setItem(
         "untkn_checkout",
@@ -280,6 +377,10 @@ function Checkout() {
         )
       );
 
+
+      // =========================
+      // GO TO PAYMENT
+      // =========================
 
       navigate(
         "/payment",
@@ -312,19 +413,22 @@ function Checkout() {
 
       setError(message);
 
-
     } finally {
 
       setSubmitting(false);
+
     }
   };
 
+
+  // =========================
+  // EMPTY CART
+  // =========================
 
   if (
     !cartLoading &&
     cartItems.length === 0
   ) {
-
     return (
       <div className="checkout-empty">
 
@@ -355,8 +459,11 @@ function Checkout() {
   }
 
 
-  if (cartLoading) {
+  // =========================
+  // LOADING
+  // =========================
 
+  if (cartLoading) {
     return (
       <div
         className="checkout-page"
@@ -371,10 +478,17 @@ function Checkout() {
   }
 
 
+  // =========================
+  // PAGE
+  // =========================
+
   return (
     <div className="checkout-page">
 
-      {/* HEADER */}
+
+      {/* =========================
+          HEADER
+      ========================= */}
 
       <section className="checkout-header">
 
@@ -382,12 +496,14 @@ function Checkout() {
           to="/cart"
           className="checkout-back"
         >
+
           <ChevronLeft
             size={17}
             strokeWidth={1.5}
           />
 
           BACK TO BAG
+
         </Link>
 
 
@@ -406,7 +522,9 @@ function Checkout() {
       </section>
 
 
-      {/* ERROR */}
+      {/* =========================
+          ERROR
+      ========================= */}
 
       {error && (
         <div
@@ -425,16 +543,26 @@ function Checkout() {
       )}
 
 
-      {/* CHECKOUT */}
+      {/* =========================
+          CHECKOUT FORM
+      ========================= */}
 
       <form
         className="checkout-layout"
         onSubmit={handleSubmit}
       >
 
+
+        {/* =========================
+            MAIN
+        ========================= */}
+
         <main className="checkout-main">
 
-          {/* CONTACT */}
+
+          {/* =========================
+              CONTACT
+          ========================= */}
 
           <section className="checkout-section">
 
@@ -466,6 +594,7 @@ function Checkout() {
 
             <div className="checkout-fields">
 
+
               {/* FIRST NAME */}
 
               <div className="checkout-field">
@@ -489,21 +618,6 @@ function Checkout() {
                   autoComplete="given-name"
                   required
                   disabled={submitting}
-                  style={{
-                    display: "block",
-                    width: "100%",
-                    height: "52px",
-                    padding: "0 14px",
-                    marginTop: "8px",
-                    backgroundColor: "#fff",
-                    color: "#000",
-                    border: "1px solid #222",
-                    borderRadius: "0",
-                    outline: "none",
-                    fontSize: "14px",
-                    boxSizing: "border-box",
-                    opacity: 1,
-                  }}
                 />
 
               </div>
@@ -532,21 +646,6 @@ function Checkout() {
                   autoComplete="family-name"
                   required
                   disabled={submitting}
-                  style={{
-                    display: "block",
-                    width: "100%",
-                    height: "52px",
-                    padding: "0 14px",
-                    marginTop: "8px",
-                    backgroundColor: "#fff",
-                    color: "#000",
-                    border: "1px solid #222",
-                    borderRadius: "0",
-                    outline: "none",
-                    fontSize: "14px",
-                    boxSizing: "border-box",
-                    opacity: 1,
-                  }}
                 />
 
               </div>
@@ -575,21 +674,6 @@ function Checkout() {
                   autoComplete="email"
                   required
                   disabled={submitting}
-                  style={{
-                    display: "block",
-                    width: "100%",
-                    height: "52px",
-                    padding: "0 14px",
-                    marginTop: "8px",
-                    backgroundColor: "#fff",
-                    color: "#000",
-                    border: "1px solid #222",
-                    borderRadius: "0",
-                    outline: "none",
-                    fontSize: "14px",
-                    boxSizing: "border-box",
-                    opacity: 1,
-                  }}
                 />
 
               </div>
@@ -620,21 +704,6 @@ function Checkout() {
                   maxLength={10}
                   required
                   disabled={submitting}
-                  style={{
-                    display: "block",
-                    width: "100%",
-                    height: "52px",
-                    padding: "0 14px",
-                    marginTop: "8px",
-                    backgroundColor: "#fff",
-                    color: "#000",
-                    border: "1px solid #222",
-                    borderRadius: "0",
-                    outline: "none",
-                    fontSize: "14px",
-                    boxSizing: "border-box",
-                    opacity: 1,
-                  }}
                 />
 
               </div>
@@ -644,7 +713,9 @@ function Checkout() {
           </section>
 
 
-          {/* SHIPPING ADDRESS */}
+          {/* =========================
+              SHIPPING ADDRESS
+          ========================= */}
 
           <section className="checkout-section">
 
@@ -682,6 +753,7 @@ function Checkout() {
 
             <div className="checkout-fields">
 
+
               {/* ADDRESS */}
 
               <div className="checkout-field full">
@@ -705,21 +777,6 @@ function Checkout() {
                   autoComplete="street-address"
                   required
                   disabled={submitting}
-                  style={{
-                    display: "block",
-                    width: "100%",
-                    height: "52px",
-                    padding: "0 14px",
-                    marginTop: "8px",
-                    backgroundColor: "#fff",
-                    color: "#000",
-                    border: "1px solid #222",
-                    borderRadius: "0",
-                    outline: "none",
-                    fontSize: "14px",
-                    boxSizing: "border-box",
-                    opacity: 1,
-                  }}
                 />
 
               </div>
@@ -747,21 +804,6 @@ function Checkout() {
                   placeholder="Apartment / landmark (optional)"
                   autoComplete="address-line2"
                   disabled={submitting}
-                  style={{
-                    display: "block",
-                    width: "100%",
-                    height: "52px",
-                    padding: "0 14px",
-                    marginTop: "8px",
-                    backgroundColor: "#fff",
-                    color: "#000",
-                    border: "1px solid #222",
-                    borderRadius: "0",
-                    outline: "none",
-                    fontSize: "14px",
-                    boxSizing: "border-box",
-                    opacity: 1,
-                  }}
                 />
 
               </div>
@@ -790,21 +832,6 @@ function Checkout() {
                   autoComplete="address-level2"
                   required
                   disabled={submitting}
-                  style={{
-                    display: "block",
-                    width: "100%",
-                    height: "52px",
-                    padding: "0 14px",
-                    marginTop: "8px",
-                    backgroundColor: "#fff",
-                    color: "#000",
-                    border: "1px solid #222",
-                    borderRadius: "0",
-                    outline: "none",
-                    fontSize: "14px",
-                    boxSizing: "border-box",
-                    opacity: 1,
-                  }}
                 />
 
               </div>
@@ -833,21 +860,6 @@ function Checkout() {
                   autoComplete="address-level1"
                   required
                   disabled={submitting}
-                  style={{
-                    display: "block",
-                    width: "100%",
-                    height: "52px",
-                    padding: "0 14px",
-                    marginTop: "8px",
-                    backgroundColor: "#fff",
-                    color: "#000",
-                    border: "1px solid #222",
-                    borderRadius: "0",
-                    outline: "none",
-                    fontSize: "14px",
-                    boxSizing: "border-box",
-                    opacity: 1,
-                  }}
                 />
 
               </div>
@@ -878,177 +890,104 @@ function Checkout() {
                   maxLength={6}
                   required
                   disabled={submitting}
-                  style={{
-                    display: "block",
-                    width: "100%",
-                    height: "52px",
-                    padding: "0 14px",
-                    marginTop: "8px",
-                    backgroundColor: "#fff",
-                    color: "#000",
-                    border: "1px solid #222",
-                    borderRadius: "0",
-                    outline: "none",
-                    fontSize: "14px",
-                    boxSizing: "border-box",
-                    opacity: 1,
-                  }}
                 />
 
               </div>
 
             </div>
 
-          </section>
 
+            {/* =========================
+                DELIVERY METHOD
+            ========================= */}
 
-          {/* DELIVERY METHOD */}
+            <section className="checkout-delivery">
 
-          <section className="checkout-section">
+              <div className="checkout-section-heading">
 
-            <div className="checkout-section-header">
+                <p className="eyebrow">
+                  DELIVERY
+                </p>
 
-              <div>
-
-                <span>
-                  03
-                </span>
-
-
-                <div>
-
-                  <p className="eyebrow">
-                    SHIPPING
-                  </p>
-
-                  <h2>
-                    DELIVERY METHOD
-                  </h2>
-
-                </div>
+                <h2>
+                  DELIVERY METHOD
+                </h2>
 
               </div>
 
 
-              <Truck
-                size={20}
-                strokeWidth={1.2}
-              />
+              <div className="delivery-methods">
 
-            </div>
+                {deliveryMethods.map(
+                  (method) => {
+
+                    const selected =
+                      deliveryMethod ===
+                      method.id;
 
 
-            <div className="delivery-options">
+                    return (
+                      <button
+                        key={method.id}
+                        type="button"
+                        className={`delivery-method ${
+                          selected
+                            ? "selected"
+                            : ""
+                        }`}
+                        onClick={() =>
+                          handleDeliveryChange(
+                            method.id
+                          )
+                        }
+                        disabled={
+                          submitting
+                        }
+                      >
 
-              {/* STANDARD */}
+                        <div className="delivery-radio">
 
-              <label
-                className={
-                  deliveryMethod ===
-                  "standard"
-                    ? "delivery-option active"
-                    : "delivery-option"
-                }
-              >
+                          <span />
 
-                <input
-                  type="radio"
-                  name="delivery"
-                  value="standard"
-                  checked={
-                    deliveryMethod ===
-                    "standard"
+                        </div>
+
+
+                        <div className="delivery-info">
+
+                          <strong>
+                            {method.name}
+                          </strong>
+
+                          <span>
+                            {method.description}
+                          </span>
+
+                        </div>
+
+
+                        <strong className="delivery-price">
+
+                          {method.price === 0
+                            ? "FREE"
+                            : `₹${method.price}`}
+
+                        </strong>
+
+                      </button>
+                    );
                   }
-                  onChange={(event) =>
-                    setDeliveryMethod(
-                      event.target.value
-                    )
-                  }
-                  disabled={submitting}
-                />
+                )}
 
+              </div>
 
-                <span className="radio-circle"></span>
-
-
-                <div>
-
-                  <strong>
-                    STANDARD DELIVERY
-                  </strong>
-
-
-                  <p>
-                    4–7 business days
-                  </p>
-
-                </div>
-
-
-                <strong>
-                  ₹100
-                </strong>
-
-              </label>
-
-
-              {/* EXPRESS */}
-
-              <label
-                className={
-                  deliveryMethod ===
-                  "express"
-                    ? "delivery-option active"
-                    : "delivery-option"
-                }
-              >
-
-                <input
-                  type="radio"
-                  name="delivery"
-                  value="express"
-                  checked={
-                    deliveryMethod ===
-                    "express"
-                  }
-                  onChange={(event) =>
-                    setDeliveryMethod(
-                      event.target.value
-                    )
-                  }
-                  disabled={submitting}
-                />
-
-
-                <span className="radio-circle"></span>
-
-
-                <div>
-
-                  <strong>
-                    EXPRESS DELIVERY
-                  </strong>
-
-
-                  <p>
-                    1–3 business days
-                  </p>
-
-                </div>
-
-
-                <strong>
-                  ₹150
-                </strong>
-
-              </label>
-
-            </div>
+            </section>
 
           </section>
 
 
-          {/* SECURITY */}
+          {/* =========================
+              SECURITY
+          ========================= */}
 
           <div className="checkout-security">
 
@@ -1077,9 +1016,12 @@ function Checkout() {
         </main>
 
 
-        {/* ORDER SUMMARY */}
+        {/* =========================
+            ORDER SUMMARY
+        ========================= */}
 
         <aside className="checkout-summary">
+
 
           <div className="checkout-summary-header">
 
@@ -1089,6 +1031,7 @@ function Checkout() {
 
 
             <span>
+
               {cartItems.reduce(
                 (count, item) =>
                   count +
@@ -1097,13 +1040,17 @@ function Checkout() {
                   ),
                 0
               )}{" "}
+
               ITEMS
+
             </span>
 
           </div>
 
 
-          {/* ITEMS */}
+          {/* =========================
+              ITEMS
+          ========================= */}
 
           <div className="checkout-items">
 
@@ -1136,6 +1083,7 @@ function Checkout() {
                   key={`${item.cartItemId}-${item.product_id}-${item.variant_id}`}
                 >
 
+
                   <div className="checkout-item-image">
 
                     {imageUrl &&
@@ -1164,7 +1112,8 @@ function Checkout() {
                           justifyContent:
                             "center",
                           fontSize: "10px",
-                          textAlign: "center",
+                          textAlign:
+                            "center",
                           padding: "5px",
                         }}
                       >
@@ -1207,22 +1156,28 @@ function Checkout() {
 
 
                   <strong>
+
                     ₹
                     {itemTotal.toLocaleString(
                       "en-IN"
                     )}
+
                   </strong>
 
                 </div>
               );
+
             })}
 
           </div>
 
 
-          {/* TOTALS */}
+          {/* =========================
+              TOTALS
+          ========================= */}
 
           <div className="checkout-totals">
+
 
             <div>
 
@@ -1230,13 +1185,16 @@ function Checkout() {
                 SUBTOTAL
               </span>
 
+
               <strong>
+
                 ₹
                 {Number(
                   subtotal || 0
                 ).toLocaleString(
                   "en-IN"
                 )}
+
               </strong>
 
             </div>
@@ -1248,11 +1206,15 @@ function Checkout() {
                 SHIPPING
               </span>
 
+
               <strong>
-                ₹
-                {shipping.toLocaleString(
-                  "en-IN"
-                )}
+
+                {shipping === 0
+                  ? "FREE"
+                  : `₹${shipping.toLocaleString(
+                      "en-IN"
+                    )}`}
+
               </strong>
 
             </div>
@@ -1267,11 +1229,14 @@ function Checkout() {
                 TOTAL
               </span>
 
+
               <strong>
+
                 ₹
                 {total.toLocaleString(
                   "en-IN"
                 )}
+
               </strong>
 
             </div>
@@ -1279,22 +1244,28 @@ function Checkout() {
           </div>
 
 
-          {/* SUBMIT */}
+          {/* =========================
+              SUBMIT
+          ========================= */}
 
           <button
             type="submit"
             className="checkout-submit"
             disabled={submitting}
           >
+
             {submitting
               ? "CREATING ORDER..."
               : "CONTINUE TO PAYMENT →"}
+
           </button>
 
 
           <p className="checkout-note">
+
             By continuing, you agree to our
             terms and conditions.
+
           </p>
 
         </aside>

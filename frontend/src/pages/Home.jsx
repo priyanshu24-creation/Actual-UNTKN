@@ -1,4 +1,6 @@
 import { Link } from "react-router-dom";
+import { Heart } from "lucide-react";
+import { useWishlist } from "../context/WishlistContext";
 
 import heroImage from "../assets/images/hero.jpg";
 import product1 from "../assets/images/product-1.jpg";
@@ -9,6 +11,61 @@ import collectionImage from "../assets/images/collection.jpg";
 import aboutImage from "../assets/images/about.jpg";
 
 function Home() {
+  const {
+    toggleWishlist,
+    isInWishlist,
+  } = useWishlist();
+
+  // =========================
+  // WISHLIST
+  // =========================
+
+  const handleWishlist = (event, product) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    toggleWishlist(product);
+  };
+
+  // =========================
+  // HOME PRODUCTS
+  // =========================
+
+  const products = [
+    {
+      id: 1,
+      name: "KARMA",
+      category: "GRAPHIC TEES",
+      price: 549,
+      image: product1,
+      alt: "Karma graphic tee",
+    },
+    {
+      id: 2,
+      name: "HISTORY",
+      category: "GRAPHIC TEES",
+      price: 549,
+      image: product2,
+      alt: "History graphic tee",
+    },
+    {
+      id: 3,
+      name: "DRAGON FLAME",
+      category: "THERMALS",
+      price: 899,
+      image: product4,
+      alt: "Dragon Flame thermal",
+    },
+    {
+      id: 4,
+      name: "MISERY WORLD",
+      category: "THERMALS",
+      price: 899,
+      image: product3,
+      alt: "Misery World thermal",
+    },
+  ];
+
   return (
     <div className="home">
 
@@ -89,195 +146,80 @@ function Home() {
 
         <div className="product-grid">
 
-          {/* PRODUCT 1 */}
+          {products.map((product) => {
 
-          <article className="product-card">
+            const wishlisted = isInWishlist(product.id);
 
-            <Link
-              to="/product/1"
-              className="product-image"
-            >
-              <img
-                src={product1}
-                alt="Karma graphic tee"
-              />
-
-              <button
-                type="button"
-                className="wishlist-button"
-                onClick={(event) =>
-                  event.preventDefault()
-                }
+            return (
+              <article
+                className="product-card"
+                key={product.id}
               >
-                ♡
-              </button>
-            </Link>
 
-            <div className="product-info">
+                <Link
+                  to={`/product/${product.id}`}
+                  className="product-image"
+                >
 
-              <div>
+                  <img
+                    src={product.image}
+                    alt={product.alt}
+                  />
 
-                <h3>
-                  KARMA
-                </h3>
+                  <button
+                    type="button"
+                    className={`wishlist-button ${
+                      wishlisted ? "active" : ""
+                    }`}
+                    onClick={(event) =>
+                      handleWishlist(event, product)
+                    }
+                    aria-label={
+                      wishlisted
+                        ? `Remove ${product.name} from wishlist`
+                        : `Add ${product.name} to wishlist`
+                    }
+                  >
 
-                <p>
-                  GRAPHIC TEES
-                </p>
+                    <Heart
+                      size={18}
+                      strokeWidth={1.6}
+                      fill={
+                        wishlisted
+                          ? "currentColor"
+                          : "none"
+                      }
+                    />
 
-              </div>
+                  </button>
 
-              <span>
-                ₹549
-              </span>
-
-            </div>
-
-          </article>
-
-
-          {/* PRODUCT 2 */}
-
-          <article className="product-card">
-
-            <Link
-              to="/product/2"
-              className="product-image"
-            >
-              <img
-                src={product2}
-                alt="History graphic tee"
-              />
-
-              <button
-                type="button"
-                className="wishlist-button"
-                onClick={(event) =>
-                  event.preventDefault()
-                }
-              >
-                ♡
-              </button>
-
-            </Link>
-
-            <div className="product-info">
-
-              <div>
-
-                <h3>
-                  HISTORY
-                </h3>
-
-                <p>
-                  GRAPHIC TEES
-                </p>
-
-              </div>
-
-              <span>
-                ₹549
-              </span>
-
-            </div>
-
-          </article>
+                </Link>
 
 
-          {/* PRODUCT 3 */}
+                <div className="product-info">
 
-          <article className="product-card">
+                  <div>
 
-            <Link
-              to="/product/3"
-              className="product-image"
-            >
-              <img
-                src={product3}
-                alt="Misery World thermal"
-              />
+                    <h3>
+                      {product.name}
+                    </h3>
 
-              <button
-                type="button"
-                className="wishlist-button"
-                onClick={(event) =>
-                  event.preventDefault()
-                }
-              >
-                ♡
-              </button>
+                    <p>
+                      {product.category}
+                    </p>
 
-            </Link>
+                  </div>
 
-            <div className="product-info">
+                  <span>
+                    ₹{product.price}
+                  </span>
 
-              <div>
+                </div>
 
-                <h3>
-                  MISERY WORLD
-                </h3>
+              </article>
+            );
 
-                <p>
-                  THERMALS
-                </p>
-
-              </div>
-
-              <span>
-                ₹899
-              </span>
-
-            </div>
-
-          </article>
-
-
-          {/* PRODUCT 4 */}
-
-          <article className="product-card">
-
-            <Link
-              to="/product/4"
-              className="product-image"
-            >
-              <img
-                src={product4}
-                alt="Dragon Flame thermal"
-              />
-
-              <button
-                type="button"
-                className="wishlist-button"
-                onClick={(event) =>
-                  event.preventDefault()
-                }
-              >
-                ♡
-              </button>
-
-            </Link>
-
-            <div className="product-info">
-
-              <div>
-
-                <h3>
-                  DRAGON FLAME
-                </h3>
-
-                <p>
-                  THERMALS
-                </p>
-
-              </div>
-
-              <span>
-                ₹899
-              </span>
-
-            </div>
-
-          </article>
+          })}
 
         </div>
 
@@ -383,47 +325,51 @@ function Home() {
       </section>
 
 
-    {/* ================= ABOUT ================= */}
+      {/* ================= ABOUT ================= */}
 
-<section className="about-section">
+      <section className="about-section">
 
-  <div className="about-label">
-    <p>
-      04 / THE LABEL
-    </p>
-  </div>
+        <div className="about-label">
 
-  <div className="about-content">
+          <p>
+            04 / THE LABEL
+          </p>
 
-    <div className="about-text">
+        </div>
 
-      <h2>
-        WE DON'T
-        <br />
-        FOLLOW
-        <br />
-        THE CROWD.
-      </h2>
 
-      <p>
-        A new generation of fashion built around
-        individuality, expression and culture.
-      </p>
+        <div className="about-content">
 
-    </div>
+          <div className="about-text">
 
-    <div className="about-image">
+            <h2>
+              WE DON'T
+              <br />
+              FOLLOW
+              <br />
+              THE CROWD.
+            </h2>
 
-      <img
-  src={aboutImage}
-  alt="UNTKN fashion collection"
-/>
+            <p>
+              A new generation of fashion built around
+              individuality, expression and culture.
+            </p>
 
-    </div>
+          </div>
 
-  </div>
 
-</section>
+          <div className="about-image">
+
+            <img
+              src={aboutImage}
+              alt="UNTKN fashion collection"
+            />
+
+          </div>
+
+        </div>
+
+      </section>
 
 
       {/* ================= NEWSLETTER ================= */}
@@ -439,6 +385,7 @@ function Home() {
           <br />
           THE LOOP.
         </h2>
+
 
         <form
           className="newsletter-form"

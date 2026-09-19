@@ -1,12 +1,32 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
   Circle,
-  Sparkles,
 } from "lucide-react";
 
-function About() {
-  const principles = [
+import logo from "../assets/images/logo.png";
+
+const defaultAbout = {
+  hero: {
+    logo: "",
+    eyebrow: "INDEPENDENT FASHION",
+    heading: "MADE FOR\nTHE\nUNEXPECTED.",
+    description:
+      "An independent fashion label built around individuality, culture and everyday expression.",
+  },
+
+  manifesto: {
+    number: "02",
+    eyebrow: "OUR MANIFESTO",
+    heading: "WE DON'T\nFOLLOW\nTHE CROWD.",
+    paragraph1:
+      "Fashion should feel personal. It should reflect where you've been, where you're going and everything that makes you different.",
+    paragraph2:
+      "We build collections around that idea — combining strong graphics, considered silhouettes and pieces made to be worn your way.",
+  },
+
+  principles: [
     {
       number: "01",
       title: "INDIVIDUALITY",
@@ -31,76 +51,192 @@ function About() {
       description:
         "Experimental ideas meet practical pieces designed to live in your everyday rotation.",
     },
-  ];
+  ],
+
+  statement: {
+    eyebrow: "THE WAY WE WORK",
+    heading: "LESS NOISE.\nMORE MEANING.",
+    description:
+      "From the first sketch to the final piece, every collection starts with an idea and develops through experimentation.",
+  },
+
+  cta: {
+    eyebrow: "EXPLORE THE COLLECTION",
+    heading: "FIND\nYOUR\nPIECE.",
+    buttonText: "SHOP ALL",
+    buttonLink: "/shop",
+    image: "",
+  },
+};
+
+function About() {
+  const [about, setAbout] = useState(defaultAbout);
+
+  useEffect(() => {
+    try {
+      const savedAbout = localStorage.getItem("untkn-about");
+
+      if (savedAbout) {
+        const parsedAbout = JSON.parse(savedAbout);
+
+        setAbout({
+          ...defaultAbout,
+          ...parsedAbout,
+
+          hero: {
+            ...defaultAbout.hero,
+            ...(parsedAbout.hero || {}),
+          },
+
+          manifesto: {
+            ...defaultAbout.manifesto,
+            ...(parsedAbout.manifesto || {}),
+          },
+
+          principles:
+            parsedAbout.principles?.length
+              ? parsedAbout.principles
+              : defaultAbout.principles,
+
+          statement: {
+            ...defaultAbout.statement,
+            ...(parsedAbout.statement || {}),
+          },
+
+          cta: {
+            ...defaultAbout.cta,
+            ...(parsedAbout.cta || {}),
+          },
+        });
+      }
+    } catch (error) {
+      console.error(
+        "Failed to load About content:",
+        error
+      );
+    }
+  }, []);
+
+  const getHeadingLines = (heading = "") => {
+    return heading
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+  };
+
+  const heroHeading = getHeadingLines(
+    about.hero.heading
+  );
+
+  const manifestoHeading = getHeadingLines(
+    about.manifesto.heading
+  );
+
+  const statementHeading = getHeadingLines(
+    about.statement.heading
+  );
+
+  const ctaHeading = getHeadingLines(
+    about.cta.heading
+  );
+
+  const aboutLogo =
+    about.hero.logo || logo;
 
   return (
     <div className="about-page">
-      {/* HERO */}
+
+      {/* =========================
+          HERO
+      ========================= */}
 
       <section className="about-hero">
-        <div className="about-hero-label">
-          <p className="eyebrow">01 / THE LABEL</p>
+
+        <div className="about-number about-logo">
+          <img
+            src={aboutLogo}
+            alt="UNTKN logo"
+          />
         </div>
 
         <div className="about-hero-content">
-          <p className="eyebrow">INDEPENDENT FASHION</p>
+
+          <p className="eyebrow">
+            {about.hero.eyebrow}
+          </p>
 
           <h1>
-            MADE FOR
-            <br />
-            THE
-            <br />
-            UNEXPECTED.
+            {heroHeading.map((line, index) => (
+              <span key={index}>
+                {line}
+
+                {index <
+                  heroHeading.length - 1 && (
+                  <br />
+                )}
+              </span>
+            ))}
           </h1>
 
           <p className="about-hero-description">
-            An independent fashion label built around
-            individuality, culture and everyday
-            expression.
+            {about.hero.description}
           </p>
+
         </div>
       </section>
 
-      {/* MANIFESTO */}
+
+      {/* =========================
+          MANIFESTO
+      ========================= */}
 
       <section className="about-manifesto">
+
         <div className="about-manifesto-number">
-          02
+          {about.manifesto.number}
         </div>
 
         <div className="about-manifesto-content">
+
           <p className="eyebrow">
-            OUR MANIFESTO
+            {about.manifesto.eyebrow}
           </p>
 
           <h2>
-            WE DON'T
-            <br />
-            FOLLOW
-            <br />
-            THE CROWD.
+            {manifestoHeading.map(
+              (line, index) => (
+                <span key={index}>
+                  {line}
+
+                  {index <
+                    manifestoHeading.length - 1 && (
+                    <br />
+                  )}
+                </span>
+              )
+            )}
           </h2>
 
           <p>
-            Fashion should feel personal. It should
-            reflect where you've been, where you're
-            going and everything that makes you
-            different.
+            {about.manifesto.paragraph1}
           </p>
 
           <p>
-            We build collections around that idea —
-            combining strong graphics, considered
-            silhouettes and pieces made to be worn
-            your way.
+            {about.manifesto.paragraph2}
           </p>
+
         </div>
       </section>
 
-      {/* PRINCIPLES */}
+
+      {/* =========================
+          PRINCIPLES
+      ========================= */}
 
       <section className="about-principles">
+
         <div className="about-section-heading">
+
           <p className="eyebrow">
             03 / WHAT WE BELIEVE
           </p>
@@ -110,78 +246,133 @@ function About() {
             <br />
             PRINCIPLES.
           </h2>
+
         </div>
 
         <div className="principles-grid">
-          {principles.map((principle) => (
-            <article
-              className="principle-card"
-              key={principle.number}
-            >
-              <span>
-                {principle.number}
-              </span>
 
-              <h3>{principle.title}</h3>
+          {about.principles.map(
+            (principle, index) => (
+              <article
+                className="principle-card"
+                key={
+                  principle.number ||
+                  index
+                }
+              >
 
-              <p>
-                {principle.description}
-              </p>
-            </article>
-          ))}
+                <span>
+                  {principle.number}
+                </span>
+
+                <h3>
+                  {principle.title}
+                </h3>
+
+                <p>
+                  {principle.description}
+                </p>
+
+              </article>
+            )
+          )}
+
         </div>
       </section>
 
-      {/* STATEMENT */}
+
+      {/* =========================
+          STATEMENT
+      ========================= */}
 
       <section className="about-statement">
+
         <Circle
           size={24}
           strokeWidth={1}
         />
 
         <p className="eyebrow">
-          THE WAY WE WORK
+          {about.statement.eyebrow}
         </p>
 
         <h2>
-          LESS NOISE.
-          <br />
-          MORE MEANING.
+          {statementHeading.map(
+            (line, index) => (
+              <span key={index}>
+                {line}
+
+                {index <
+                  statementHeading.length - 1 && (
+                  <br />
+                )}
+              </span>
+            )
+          )}
         </h2>
 
         <p>
-          From the first sketch to the final piece,
-          every collection starts with an idea and
-          develops through experimentation.
+          {about.statement.description}
         </p>
+
       </section>
 
-      {/* CTA */}
 
-      <section className="about-cta">
+      {/* =========================
+          CTA
+      ========================= */}
+
+      <section
+        className="about-cta"
+        style={
+          about.cta.image
+            ? {
+                backgroundImage: `url("${about.cta.image}")`,
+              }
+            : undefined
+        }
+      >
+
         <div>
+
           <p className="eyebrow">
-            EXPLORE THE COLLECTION
+            {about.cta.eyebrow}
           </p>
 
           <h2>
-            FIND
-            <br />
-            YOUR
-            <br />
-            PIECE.
+            {ctaHeading.map(
+              (line, index) => (
+                <span key={index}>
+                  {line}
+
+                  {index <
+                    ctaHeading.length - 1 && (
+                    <br />
+                  )}
+                </span>
+              )
+            )}
           </h2>
+
         </div>
 
-        <Link to="/shop">
-          SHOP ALL
+        <Link
+          to={
+            about.cta.buttonLink ||
+            "/shop"
+          }
+        >
+          {about.cta.buttonText ||
+            "SHOP ALL"}
+
           <ArrowRight
             size={18}
             strokeWidth={1.5}
           />
         </Link>
+
       </section>
+
     </div>
   );
 }
