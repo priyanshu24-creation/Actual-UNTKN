@@ -243,8 +243,6 @@ export const getAdminCustomers = async (req, res) => {
 
                 registered: customer.created_at,
 
-                // Users table currently has no status column.
-                // Therefore customers are displayed as Active.
                 status: "Active"
             }))
         });
@@ -256,6 +254,239 @@ export const getAdminCustomers = async (req, res) => {
         return res.status(500).json({
             success: false,
             message: "Failed to fetch customers"
+        });
+    }
+};
+
+
+/*
+|--------------------------------------------------------------------------
+| ADMIN CUSTOMER DETAILS
+|--------------------------------------------------------------------------
+*/
+
+export const getAdminCustomerDetails = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        /*
+         * Validate customer ID
+         */
+        if (!id || !/^\d+$/.test(id)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid customer ID"
+            });
+        }
+
+
+        /*
+         * Get customer
+         */
+
+        const [customerRows] = await pool.execute(
+            `
+            SELECT
+                u.id,
+                u.name,
+                u.email,
+                u.phone,
+                u.created_at
+            FROM users u
+            WHERE u.id = ?
+            AND u.role = 'customer'
+            LIMIT 1
+            `,
+            [id]
+        );
+
+
+        /*
+         * Customer not found
+         */
+
+        if (customerRows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "Customer not found"
+            });
+        }
+
+        const customer = customerRows[0];
+
+
+        /*
+         * Get customer's address
+         */
+
+        const [addressRows] = await pool.execute(
+            `
+            SELECT
+                id,
+                full_name,
+                phone,
+                address_line1,
+                address_line2,
+                city,
+                state,
+                postal_code,
+                country,
+                is_default
+            FROM addresses
+            WHERE user_id = ?
+            ORDER BY
+                is_default DESC,
+                created_at DESC
+            LIMIT 1
+            `,
+            [id]
+        );
+
+
+        /*
+         * Get customer's orders
+         *
+         * Only use columns confirmed by the existing
+         * orders queries in this project.
+         */
+
+        const [orderRows] = await pool.execute(
+            `
+            SELECT
+                id,
+                order_number,
+                total_amount,
+                currency,
+                payment_status,
+                order_status,
+                created_at
+            FROM orders
+            WHERE user_id = ?
+            ORDER BY created_at DESC
+            `,
+            [id]
+        );
+
+
+        /*
+         * Calculate total paid spending
+         */
+
+        const totalSpent = orderRows.reduce(
+            (total, order) => {
+                if (order.payment_status === "paid") {
+                    return (
+                        total +
+                        Number(order.total_amount || 0)
+                    );
+                }
+
+                return total;
+            },
+            0
+        );
+
+
+        /*
+         * Format address
+         */
+
+        const address =
+            addressRows.length > 0
+                ? {
+                      id: addressRows[0].id,
+
+                      full_name:
+                          addressRows[0].full_name,
+
+                      phone:
+                          addressRows[0].phone,
+
+                      address_line1:
+                          addressRows[0].address_line1,
+
+                      address_line2:
+                          addressRows[0].address_line2,
+
+                      city:
+                          addressRows[0].city,
+
+                      state:
+                          addressRows[0].state,
+
+                      postal_code:
+                          addressRows[0].postal_code,
+
+                      country:
+                          addressRows[0].country,
+
+                      is_default:
+                          Boolean(
+                              addressRows[0].is_default
+                          )
+                  }
+                : null;
+
+
+        /*
+         * Return customer details
+         */
+
+        return res.status(200).json({
+            success: true,
+
+            customer: {
+                id: customer.id,
+                name: customer.name,
+                email: customer.email,
+                phone: customer.phone,
+                registered: customer.created_at,
+
+                status: "Active",
+
+                orders: orderRows.length,
+
+                totalSpent
+            },
+
+            address,
+
+            orders: orderRows.map((order) => ({
+                id: order.id,
+
+                order_number:
+                    order.order_number,
+
+                total_amount:
+                    Number(
+                        order.total_amount || 0
+                    ),
+
+                currency:
+                    order.currency,
+
+                payment_status:
+                    order.payment_status,
+
+                order_status:
+                    order.order_status,
+
+                created_at:
+                    order.created_at
+            }))
+        });
+
+    } catch (error) {
+        console.error(
+            "ADMIN CUSTOMER DETAILS ERROR:"
+        );
+
+        console.error(error);
+
+        return res.status(500).json({
+            success: false,
+            message:
+                "Failed to fetch customer details"
         });
     }
 };

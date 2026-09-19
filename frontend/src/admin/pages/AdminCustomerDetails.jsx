@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -10,267 +10,210 @@ import {
   ShoppingBag,
 } from "lucide-react";
 
-const demoCustomers = [
-  {
-    id: 1,
-    name: "Rahul Sharma",
-    email: "rahul@example.com",
-    phone: "+91 98765 43210",
-    orders: 8,
-    totalSpent: 4392,
-    registered: "12 Aug 2026",
-    status: "Active",
-    address: {
-      line1: "24 Lake View Road",
-      city: "Kolkata",
-      state: "West Bengal",
-      pincode: "700029",
-      country: "India",
-    },
-    orderHistory: [
-      {
-        id: "UNT-1024",
-        product: "Karma T-Shirt",
-        quantity: 1,
-        amount: 549,
-        date: "18 Sep 2026",
-        status: "Delivered",
-      },
-      {
-        id: "UNT-1008",
-        product: "History T-Shirt",
-        quantity: 2,
-        amount: 1098,
-        date: "04 Sep 2026",
-        status: "Delivered",
-      },
-      {
-        id: "UNT-0987",
-        product: "Misery World",
-        quantity: 1,
-        amount: 899,
-        date: "22 Aug 2026",
-        status: "Delivered",
-      },
-    ],
-  },
-  {
-    id: 2,
-    name: "Priya Das",
-    email: "priya@example.com",
-    phone: "+91 98765 12345",
-    orders: 5,
-    totalSpent: 2745,
-    registered: "28 Jul 2026",
-    status: "Active",
-    address: {
-      line1: "18 Park Street",
-      city: "Kolkata",
-      state: "West Bengal",
-      pincode: "700016",
-      country: "India",
-    },
-    orderHistory: [
-      {
-        id: "UNT-1023",
-        product: "History T-Shirt",
-        quantity: 1,
-        amount: 549,
-        date: "18 Sep 2026",
-        status: "Processing",
-      },
-      {
-        id: "UNT-0992",
-        product: "Karma T-Shirt",
-        quantity: 2,
-        amount: 1098,
-        date: "28 Aug 2026",
-        status: "Delivered",
-      },
-    ],
-  },
-  {
-    id: 3,
-    name: "Arjun Mehta",
-    email: "arjun@example.com",
-    phone: "+91 91234 56789",
-    orders: 11,
-    totalSpent: 8690,
-    registered: "14 Jun 2026",
-    status: "Active",
-    address: {
-      line1: "42 Ballygunge Circular Road",
-      city: "Kolkata",
-      state: "West Bengal",
-      pincode: "700019",
-      country: "India",
-    },
-    orderHistory: [
-      {
-        id: "UNT-1022",
-        product: "Misery World",
-        quantity: 2,
-        amount: 1798,
-        date: "17 Sep 2026",
-        status: "Shipped",
-      },
-      {
-        id: "UNT-1001",
-        product: "Dragon Flame",
-        quantity: 1,
-        amount: 899,
-        date: "01 Sep 2026",
-        status: "Delivered",
-      },
-    ],
-  },
-  {
-    id: 4,
-    name: "Ananya Roy",
-    email: "ananya@example.com",
-    phone: "+91 99887 66554",
-    orders: 3,
-    totalSpent: 1798,
-    registered: "02 Sep 2026",
-    status: "Active",
-    address: {
-      line1: "7 Salt Lake Avenue",
-      city: "Kolkata",
-      state: "West Bengal",
-      pincode: "700091",
-      country: "India",
-    },
-    orderHistory: [
-      {
-        id: "UNT-1021",
-        product: "Dragon Flame",
-        quantity: 1,
-        amount: 899,
-        date: "17 Sep 2026",
-        status: "Processing",
-      },
-    ],
-  },
-  {
-    id: 5,
-    name: "Aditya Singh",
-    email: "aditya@example.com",
-    phone: "+91 90012 34567",
-    orders: 6,
-    totalSpent: 3294,
-    registered: "19 Jul 2026",
-    status: "Active",
-    address: {
-      line1: "15 New Town Road",
-      city: "Kolkata",
-      state: "West Bengal",
-      pincode: "700156",
-      country: "India",
-    },
-    orderHistory: [
-      {
-        id: "UNT-1020",
-        product: "Karma T-Shirt",
-        quantity: 1,
-        amount: 549,
-        date: "16 Sep 2026",
-        status: "Delivered",
-      },
-    ],
-  },
-  {
-    id: 6,
-    name: "Sneha Roy",
-    email: "sneha@example.com",
-    phone: "+91 93333 22110",
-    orders: 4,
-    totalSpent: 2196,
-    registered: "05 Aug 2026",
-    status: "Active",
-    address: {
-      line1: "31 Gariahat Road",
-      city: "Kolkata",
-      state: "West Bengal",
-      pincode: "700029",
-      country: "India",
-    },
-    orderHistory: [
-      {
-        id: "UNT-1019",
-        product: "History T-Shirt",
-        quantity: 2,
-        amount: 1098,
-        date: "15 Sep 2026",
-        status: "Shipped",
-      },
-    ],
-  },
-  {
-    id: 7,
-    name: "Rohan Das",
-    email: "rohan@example.com",
-    phone: "+91 87777 66554",
-    orders: 2,
-    totalSpent: 1448,
-    registered: "10 Sep 2026",
-    status: "Active",
-    address: {
-      line1: "9 Behala Main Road",
-      city: "Kolkata",
-      state: "West Bengal",
-      pincode: "700034",
-      country: "India",
-    },
-    orderHistory: [
-      {
-        id: "UNT-1018",
-        product: "Misery World",
-        quantity: 1,
-        amount: 899,
-        date: "14 Sep 2026",
-        status: "Cancelled",
-      },
-    ],
-  },
-  {
-    id: 8,
-    name: "Meera Kapoor",
-    email: "meera@example.com",
-    phone: "+91 95555 44332",
-    orders: 7,
-    totalSpent: 4895,
-    registered: "21 May 2026",
-    status: "Active",
-    address: {
-      line1: "12 Camac Street",
-      city: "Kolkata",
-      state: "West Bengal",
-      pincode: "700017",
-      country: "India",
-    },
-    orderHistory: [
-      {
-        id: "UNT-1009",
-        product: "Karma T-Shirt",
-        quantity: 1,
-        amount: 549,
-        date: "05 Sep 2026",
-        status: "Delivered",
-      },
-    ],
-  },
-];
+import api from "../../services/api.js";
 
 function AdminCustomerDetails() {
   const { id } = useParams();
 
-  const customer = demoCustomers.find(
-    (item) => item.id === Number(id)
-  );
+  const [customer, setCustomer] = useState(null);
+  const [orders, setOrders] = useState([]);
 
-  const [customerStatus, setCustomerStatus] = useState(
-    customer?.status || "Active"
-  );
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const [customerStatus, setCustomerStatus] = useState("Active");
+
+  /*
+  |--------------------------------------------------------------------------
+  | FETCH CUSTOMER DETAILS
+  |--------------------------------------------------------------------------
+  */
+
+  useEffect(() => {
+    const fetchCustomerDetails = async () => {
+      try {
+        setLoading(true);
+        setError("");
+
+        const response = await api.get(
+          `/admin/customers/${id}`
+        );
+
+        if (!response.data?.success) {
+          throw new Error(
+            response.data?.message ||
+              "Failed to fetch customer details."
+          );
+        }
+
+        const customerData = response.data.customer;
+        const orderData = response.data.orders || [];
+
+        setCustomer(customerData);
+        setOrders(orderData);
+
+        setCustomerStatus(
+          customerData.status || "Active"
+        );
+
+      } catch (err) {
+        console.error(
+          "ADMIN CUSTOMER DETAILS ERROR:",
+          err
+        );
+
+        setCustomer(null);
+        setOrders([]);
+
+        setError(
+          err.response?.data?.message ||
+            err.message ||
+            "Failed to load customer details."
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (id) {
+      fetchCustomerDetails();
+    }
+  }, [id]);
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | FORMAT CURRENCY
+  |--------------------------------------------------------------------------
+  */
+
+  const formatCurrency = (amount) => {
+    const value = Number(amount) || 0;
+
+    return `₹${value.toLocaleString("en-IN")}`;
+  };
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | FORMAT DATE
+  |--------------------------------------------------------------------------
+  */
+
+  const formatDate = (dateValue) => {
+    if (!dateValue) {
+      return "—";
+    }
+
+    const date = new Date(dateValue);
+
+    if (Number.isNaN(date.getTime())) {
+      return "—";
+    }
+
+    return date.toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | ORDER STATUS CLASS
+  |--------------------------------------------------------------------------
+  */
+
+  const getOrderStatusClass = (status) => {
+    const normalizedStatus =
+      String(status || "").toLowerCase();
+
+    if (normalizedStatus === "delivered") {
+      return "delivered";
+    }
+
+    if (normalizedStatus === "processing") {
+      return "processing";
+    }
+
+    if (normalizedStatus === "shipped") {
+      return "shipped";
+    }
+
+    if (normalizedStatus === "cancelled") {
+      return "cancelled";
+    }
+
+    return "processing";
+  };
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | LOADING STATE
+  |--------------------------------------------------------------------------
+  */
+
+  if (loading) {
+    return (
+      <section className="admin-page admin-customer-details-page">
+
+        <div className="admin-details-header">
+          <div>
+
+            <Link
+              to="/admin/customers"
+              className="admin-back-link"
+            >
+              <ArrowLeft
+                size={16}
+                strokeWidth={1.5}
+              />
+
+              Customers
+            </Link>
+
+            <p className="admin-eyebrow">
+              CUSTOMER PROFILE
+            </p>
+
+            <h1 className="admin-page-title">
+              Loading...
+            </h1>
+
+          </div>
+        </div>
+
+        <div className="admin-panel">
+          <div className="admin-empty-state">
+
+            <Package
+              size={32}
+              strokeWidth={1.2}
+            />
+
+            <h3>
+              Loading customer details...
+            </h3>
+
+            <p>
+              Please wait while the customer information is being loaded.
+            </p>
+
+          </div>
+        </div>
+
+      </section>
+    );
+  }
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | CUSTOMER NOT FOUND / ERROR
+  |--------------------------------------------------------------------------
+  */
 
   if (!customer) {
     return (
@@ -278,19 +221,29 @@ function AdminCustomerDetails() {
 
         <div className="admin-not-found">
 
-          <UsersFallback />
+          <div className="admin-fallback-users-icon">
+            <span />
+            <span />
+          </div>
 
-          <h2>Customer Not Found</h2>
+          <h2>
+            Customer Not Found
+          </h2>
 
           <p>
-            The customer you are looking for does not exist.
+            {error ||
+              "The customer you are looking for does not exist."}
           </p>
 
           <Link
             to="/admin/customers"
             className="admin-back-button"
           >
-            <ArrowLeft size={16} strokeWidth={1.5} />
+            <ArrowLeft
+              size={16}
+              strokeWidth={1.5}
+            />
+
             Back to Customers
           </Link>
 
@@ -300,9 +253,12 @@ function AdminCustomerDetails() {
     );
   }
 
-  const formatCurrency = (amount) => {
-    return `₹${amount.toLocaleString("en-IN")}`;
-  };
+
+  /*
+  |--------------------------------------------------------------------------
+  | MAIN UI
+  |--------------------------------------------------------------------------
+  */
 
   return (
     <section className="admin-page admin-customer-details-page">
@@ -321,6 +277,7 @@ function AdminCustomerDetails() {
               size={16}
               strokeWidth={1.5}
             />
+
             Customers
           </Link>
 
@@ -350,10 +307,14 @@ function AdminCustomerDetails() {
         <div className="admin-panel admin-customer-profile-card">
 
           <div className="admin-profile-avatar">
-            {customer.name.charAt(0)}
+            {customer.name
+              ?.charAt(0)
+              .toUpperCase() || "?"}
           </div>
 
-          <h2>{customer.name}</h2>
+          <h2>
+            {customer.name}
+          </h2>
 
           <p className="admin-profile-role">
             UNTKN Customer
@@ -361,14 +322,26 @@ function AdminCustomerDetails() {
 
           <div className="admin-profile-contact">
 
-            <a href={`mailto:${customer.email}`}>
-              <Mail size={16} strokeWidth={1.5} />
+            <a
+              href={`mailto:${customer.email}`}
+            >
+              <Mail
+                size={16}
+                strokeWidth={1.5}
+              />
+
               {customer.email}
             </a>
 
-            <a href={`tel:${customer.phone}`}>
-              <Phone size={16} strokeWidth={1.5} />
-              {customer.phone}
+            <a
+              href={`tel:${customer.phone}`}
+            >
+              <Phone
+                size={16}
+                strokeWidth={1.5}
+              />
+
+              {customer.phone || "No phone number"}
             </a>
 
             <span>
@@ -376,7 +349,8 @@ function AdminCustomerDetails() {
                 size={16}
                 strokeWidth={1.5}
               />
-              Joined {customer.registered}
+
+              Joined {formatDate(customer.registered)}
             </span>
 
           </div>
@@ -395,11 +369,16 @@ function AdminCustomerDetails() {
               strokeWidth={1.5}
             />
 
-            <span>Total Orders</span>
+            <span>
+              Total Orders
+            </span>
 
-            <strong>{customer.orders}</strong>
+            <strong>
+              {Number(customer.orders) || 0}
+            </strong>
 
           </div>
+
 
           <div className="admin-panel admin-customer-stat-card">
 
@@ -408,13 +387,16 @@ function AdminCustomerDetails() {
               strokeWidth={1.5}
             />
 
-            <span>Total Spent</span>
+            <span>
+              Total Spent
+            </span>
 
             <strong>
               {formatCurrency(customer.totalSpent)}
             </strong>
 
           </div>
+
 
           <div className="admin-panel admin-customer-stat-card">
 
@@ -423,19 +405,27 @@ function AdminCustomerDetails() {
               strokeWidth={1.5}
             />
 
-            <span>Customer Since</span>
+            <span>
+              Customer Since
+            </span>
 
             <strong className="customer-since">
-              {customer.registered}
+              {formatDate(customer.registered)}
             </strong>
 
           </div>
 
+
           <div className="admin-panel admin-customer-stat-card">
 
-            <UsersFallback />
+            <div className="admin-fallback-users-icon">
+              <span />
+              <span />
+            </div>
 
-            <span>Account Status</span>
+            <span>
+              Account Status
+            </span>
 
             <strong className="customer-active-text">
               {customerStatus}
@@ -459,6 +449,7 @@ function AdminCustomerDetails() {
           <div className="admin-panel-header">
 
             <div>
+
               <p className="admin-eyebrow">
                 PURCHASES
               </p>
@@ -466,73 +457,96 @@ function AdminCustomerDetails() {
               <h2>
                 Order History
               </h2>
+
             </div>
 
             <span className="admin-panel-count">
-              {customer.orderHistory.length}
+              {orders.length}
             </span>
 
           </div>
 
+
           <div className="admin-customer-orders-list">
 
-            {customer.orderHistory.map((order) => (
+            {orders.length === 0 ? (
 
-              <div
-                className="admin-customer-order"
-                key={order.id}
-              >
+              <div className="admin-empty-state">
 
-                <div className="admin-customer-order-icon">
-                  <Package
-                    size={17}
-                    strokeWidth={1.5}
-                  />
-                </div>
+                <Package
+                  size={32}
+                  strokeWidth={1.2}
+                />
 
-                <div className="admin-customer-order-info">
+                <h3>
+                  No orders yet
+                </h3>
 
-                  <Link
-                    to={`/admin/orders/${order.id}`}
-                  >
-                    #{order.id}
-                  </Link>
-
-                  <span>
-                    {order.product}
-                  </span>
-
-                  <small>
-                    {order.date} · Qty {order.quantity}
-                  </small>
-
-                </div>
-
-                <div className="admin-customer-order-right">
-
-                  <strong>
-                    {formatCurrency(order.amount)}
-                  </strong>
-
-                  <span
-                    className={`admin-status-badge ${
-                      order.status === "Delivered"
-                        ? "delivered"
-                        : order.status === "Processing"
-                        ? "processing"
-                        : order.status === "Shipped"
-                        ? "shipped"
-                        : "cancelled"
-                    }`}
-                  >
-                    {order.status}
-                  </span>
-
-                </div>
+                <p>
+                  This customer has not placed any orders.
+                </p>
 
               </div>
 
-            ))}
+            ) : (
+
+              orders.map((order) => (
+
+                <div
+                  className="admin-customer-order"
+                  key={order.id}
+                >
+
+                  <div className="admin-customer-order-icon">
+
+                    <Package
+                      size={17}
+                      strokeWidth={1.5}
+                    />
+
+                  </div>
+
+
+                  <div className="admin-customer-order-info">
+
+                    <Link
+                      to={`/admin/orders/${order.id}`}
+                    >
+                      #{order.order_number || order.id}
+                    </Link>
+
+                    <span>
+                      Order #{order.id}
+                    </span>
+
+                    <small>
+                      {formatDate(order.created_at)}
+                    </small>
+
+                  </div>
+
+
+                  <div className="admin-customer-order-right">
+
+                    <strong>
+                      {formatCurrency(order.total_amount)}
+                    </strong>
+
+                    <span
+                      className={`admin-status-badge ${getOrderStatusClass(
+                        order.order_status
+                      )}`}
+                    >
+                      {order.order_status || "Pending"}
+                    </span>
+
+                  </div>
+
+                </div>
+
+              ))
+
+            )}
 
           </div>
 
@@ -550,6 +564,7 @@ function AdminCustomerDetails() {
             <div className="admin-panel-header">
 
               <div>
+
                 <p className="admin-eyebrow">
                   DELIVERY
                 </p>
@@ -557,6 +572,7 @@ function AdminCustomerDetails() {
                 <h2>
                   Shipping Address
                 </h2>
+
               </div>
 
               <MapPin
@@ -566,6 +582,7 @@ function AdminCustomerDetails() {
 
             </div>
 
+
             <div className="admin-address">
 
               <strong>
@@ -573,20 +590,7 @@ function AdminCustomerDetails() {
               </strong>
 
               <p>
-                {customer.address.line1}
-              </p>
-
-              <p>
-                {customer.address.city},{" "}
-                {customer.address.state}
-              </p>
-
-              <p>
-                {customer.address.pincode}
-              </p>
-
-              <p>
-                {customer.address.country}
+                Shipping address information is not currently available from the customer details API.
               </p>
 
             </div>
@@ -601,6 +605,7 @@ function AdminCustomerDetails() {
             <div className="admin-panel-header">
 
               <div>
+
                 <p className="admin-eyebrow">
                   ACCOUNT
                 </p>
@@ -608,9 +613,11 @@ function AdminCustomerDetails() {
                 <h2>
                   Customer Status
                 </h2>
+
               </div>
 
             </div>
+
 
             <div className="admin-status-control">
 
@@ -622,9 +629,12 @@ function AdminCustomerDetails() {
                 id="customer-status"
                 value={customerStatus}
                 onChange={(event) =>
-                  setCustomerStatus(event.target.value)
+                  setCustomerStatus(
+                    event.target.value
+                  )
                 }
               >
+
                 <option value="Active">
                   Active
                 </option>
@@ -632,16 +642,18 @@ function AdminCustomerDetails() {
                 <option value="Blocked">
                   Blocked
                 </option>
+
               </select>
+
 
               <button
                 type="button"
                 className="admin-primary-button"
-                onClick={() =>
+                onClick={() => {
                   alert(
-                    "Customer status updated. Backend connection will be added later."
-                  )
-                }
+                    "Customer status update API will be connected next."
+                  );
+                }}
               >
                 UPDATE STATUS
               </button>
@@ -655,21 +667,6 @@ function AdminCustomerDetails() {
       </div>
 
     </section>
-  );
-}
-
-
-/*
-  Small fallback icon component.
-  Keeps this page independent from additional icon imports.
-*/
-
-function UsersFallback() {
-  return (
-    <div className="admin-fallback-users-icon">
-      <span />
-      <span />
-    </div>
   );
 }
 

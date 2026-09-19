@@ -19,6 +19,9 @@ import paymentRoutes from "./routes/payment.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
 import { errorHandler } from "./middleware/error.middleware.js";
 import addressRoutes from "./routes/address.routes.js";
+import newsletterRoutes from "./routes/newsletter.routes.js";
+import inquiryRoutes from "./routes/inquiry.routes.js";
+import settingsRoutes from "./routes/settings.routes.js";
 
 const app = express();
 
@@ -248,6 +251,15 @@ app.use("/test", express.static("test"));
 app.use("/api/admin", adminRoutes);
 
 app.use("/api/addresses", addressRoutes);
+
+app.use(
+    "/api/newsletter",
+    newsletterRoutes
+);
+
+app.use("/api/inquiries", inquiryRoutes);
+
+app.use("/api/settings", settingsRoutes);
 
 // ==================================================
 // 404

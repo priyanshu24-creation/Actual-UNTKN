@@ -1,354 +1,782 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-  Mail,
-  Search,
-  Trash2,
-  Download,
-  Send,
-  Users,
+    Mail,
+    Search,
+    Trash2,
+    Download,
+    Send,
+    Users,
 } from "lucide-react";
-
-const initialSubscribers = [
-  {
-    id: 1,
-    email: "rahul.sharma@gmail.com",
-    name: "Rahul Sharma",
-    subscribed: "18 Sep 2026",
-    status: "Subscribed",
-  },
-  {
-    id: 2,
-    email: "priya.das@gmail.com",
-    name: "Priya Das",
-    subscribed: "17 Sep 2026",
-    status: "Subscribed",
-  },
-  {
-    id: 3,
-    email: "arjun.mehta@gmail.com",
-    name: "Arjun Mehta",
-    subscribed: "16 Sep 2026",
-    status: "Subscribed",
-  },
-  {
-    id: 4,
-    email: "ananya.roy@gmail.com",
-    name: "Ananya Roy",
-    subscribed: "15 Sep 2026",
-    status: "Subscribed",
-  },
-  {
-    id: 5,
-    email: "aditya.singh@gmail.com",
-    name: "Aditya Singh",
-    subscribed: "14 Sep 2026",
-    status: "Subscribed",
-  },
-  {
-    id: 6,
-    email: "sneha.roy@gmail.com",
-    name: "Sneha Roy",
-    subscribed: "13 Sep 2026",
-    status: "Unsubscribed",
-  },
-  {
-    id: 7,
-    email: "rohan.das@gmail.com",
-    name: "Rohan Das",
-    subscribed: "12 Sep 2026",
-    status: "Subscribed",
-  },
-  {
-    id: 8,
-    email: "meera.kapoor@gmail.com",
-    name: "Meera Kapoor",
-    subscribed: "11 Sep 2026",
-    status: "Subscribed",
-  },
-  {
-    id: 9,
-    email: "kabir.sen@gmail.com",
-    name: "Kabir Sen",
-    subscribed: "10 Sep 2026",
-    status: "Subscribed",
-  },
-  {
-    id: 10,
-    email: "ishita.das@gmail.com",
-    name: "Ishita Das",
-    subscribed: "09 Sep 2026",
-    status: "Subscribed",
-  },
-];
+import api from "../../services/api.js";
 
 function AdminNewsletter() {
-  const [subscribers, setSubscribers] = useState(initialSubscribers);
-  const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("All");
+    const [subscribers, setSubscribers] = useState([]);
+    const [search, setSearch] = useState("");
+    const [statusFilter, setStatusFilter] = useState("All");
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
 
-  const filteredSubscribers = useMemo(() => {
-    return subscribers.filter((subscriber) => {
-      const searchText = search.toLowerCase();
+    useEffect(() => {
+        fetchSubscribers();
+    }, []);
 
-      const matchesSearch =
-        subscriber.name.toLowerCase().includes(searchText) ||
-        subscriber.email.toLowerCase().includes(searchText);
+    const fetchSubscribers = async () => {
+        try {
+            setLoading(true);
+            setError("");
 
-      const matchesStatus =
-        status === "All" || subscriber.status === status;
+            const response = await api.get("/newsletter/admin");
 
-      return matchesSearch && matchesStatus;
-    });
-  }, [subscribers, search, status]);
+            setSubscribers(response.data?.subscribers || []);
+        } catch (err) {
+            console.error("Failed to fetch newsletter subscribers:", err);
 
-  const totalSubscribers = subscribers.length;
+            setError(
+                err.response?.data?.message ||
+                    "Failed to load newsletter subscribers."
+            );
+        } finally {
+            setLoading(false);
+        }
+    };
 
-  const activeSubscribers = subscribers.filter(
-    (subscriber) => subscriber.status === "Subscribed"
-  ).length;
+    const handleDelete = async (id) => {
+        const confirmed = window.confirm(
+            "Are you sure you want to remove this subscriber?"
+        );
 
-  const unsubscribed = subscribers.filter(
-    (subscriber) => subscriber.status === "Unsubscribed"
-  ).length;
+        if (!confirmed) return;
 
-  const handleDelete = (id) => {
-    const subscriber = subscribers.find(
-      (item) => item.id === id
-    );
+        try {
+            await api.delete(`/newsletter/admin/${id}`);
 
-    if (!subscriber) return;
+            setSubscribers((current) =>
+                current.filter(
+                    (subscriber) => Number(subscriber.id) !== Number(id)
+                )
+            );
+        } catch (err) {
+            console.error("Failed to delete subscriber:", err);
 
-    const confirmed = window.confirm(
-      `Remove ${subscriber.email} from the newsletter list?`
-    );
+            alert(
+                err.response?.data?.message ||
+                    "Failed to delete subscriber."
+            );
+        }
+    };
 
-    if (!confirmed) return;
+    const filteredSubscribers = useMemo(() => {
+        const searchText = search.toLowerCase().trim();
 
-    setSubscribers((current) =>
-      current.filter((item) => item.id !== id)
-    );
-  };
+        return subscribers.filter((subscriber) => {
+            const name = String(subscriber.name || "").toLowerCase();
+            const email = String(subscriber.email || "").toLowerCase();
 
-  const handleExport = () => {
-    const csvRows = [
-      ["Name", "Email", "Subscribed Date", "Status"],
-      ...filteredSubscribers.map((subscriber) => [
-        subscriber.name,
-        subscriber.email,
-        subscriber.subscribed,
-        subscriber.status,
-      ]),
-    ];
+            const matchesSearch =
+                !searchText ||
+                name.includes(searchText) ||
+                email.includes(searchText);
 
-    const csvContent = csvRows
-      .map((row) =>
-        row
-          .map((value) => `"${String(value).replace(/"/g, '""')}"`)
-          .join(",")
-      )
-      .join("\n");
+            const matchesStatus =
+                statusFilter === "All" ||
+                subscriber.status === statusFilter;
 
-    const blob = new Blob([csvContent], {
-      type: "text/csv;charset=utf-8;",
-    });
+            return matchesSearch && matchesStatus;
+        });
+    }, [subscribers, search, statusFilter]);
 
-    const url = URL.createObjectURL(blob);
+    const totalSubscribers = subscribers.length;
 
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "untkn-newsletter-subscribers.csv";
-    link.click();
+    const activeSubscribers = subscribers.filter(
+        (subscriber) => Boolean(subscriber.active)
+    ).length;
 
-    URL.revokeObjectURL(url);
-  };
+    const unsubscribedSubscribers = subscribers.filter(
+        (subscriber) => !subscriber.active
+    ).length;
 
-  const handleSendNewsletter = () => {
-    alert(
-      "Newsletter campaign UI is ready. Sending will be connected to the backend later."
-    );
-  };
+    const formatDate = (date) => {
+        if (!date) return "-";
 
-  return (
-    <section className="admin-newsletter-page">
-      {/* PAGE HEADER */}
-      <div className="admin-page-header">
-        <div>
-          <p className="admin-eyebrow">MARKETING</p>
+        const parsedDate = new Date(date);
 
-          <h1>Newsletter</h1>
+        if (Number.isNaN(parsedDate.getTime())) {
+            return "-";
+        }
 
-          <p>
-            Manage newsletter subscribers and email campaigns.
-          </p>
-        </div>
+        return parsedDate.toLocaleDateString("en-IN", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+        });
+    };
 
-        <button
-          type="button"
-          className="admin-primary-button"
-          onClick={handleSendNewsletter}
-        >
-          <Send size={17} strokeWidth={1.7} />
-          <span>Send Newsletter</span>
-        </button>
-      </div>
+    const exportCSV = () => {
+        if (subscribers.length === 0) {
+            alert("No subscribers to export.");
+            return;
+        }
 
-      {/* SUMMARY */}
-      <div className="admin-newsletter-summary">
-        <div className="admin-newsletter-stat">
-          <div className="admin-newsletter-stat-icon">
-            <Users size={19} strokeWidth={1.5} />
-          </div>
+        const headers = [
+            "Name",
+            "Email",
+            "Source",
+            "Subscribed",
+            "Status",
+        ];
 
-          <div>
-            <span>Total Subscribers</span>
-            <strong>{totalSubscribers.toLocaleString()}</strong>
-          </div>
-        </div>
+        const rows = subscribers.map((subscriber) => [
+            subscriber.name || "",
+            subscriber.email || "",
+            subscriber.source || "",
+            formatDate(subscriber.created_at),
+            subscriber.status || "",
+        ]);
 
-        <div className="admin-newsletter-stat">
-          <div className="admin-newsletter-stat-icon">
-            <Mail size={19} strokeWidth={1.5} />
-          </div>
+        const csv = [headers, ...rows]
+            .map((row) =>
+                row
+                    .map((value) => {
+                        const safeValue = String(value).replace(
+                            /"/g,
+                            '""'
+                        );
 
-          <div>
-            <span>Active Subscribers</span>
-            <strong>{activeSubscribers.toLocaleString()}</strong>
-          </div>
-        </div>
+                        return `"${safeValue}"`;
+                    })
+                    .join(",")
+            )
+            .join("\n");
 
-        <div className="admin-newsletter-stat">
-          <div className="admin-newsletter-stat-icon">
-            <Mail size={19} strokeWidth={1.5} />
-          </div>
+        const blob = new Blob([csv], {
+            type: "text/csv;charset=utf-8;",
+        });
 
-          <div>
-            <span>Unsubscribed</span>
-            <strong>{unsubscribed.toLocaleString()}</strong>
-          </div>
-        </div>
-      </div>
+        const url = URL.createObjectURL(blob);
 
-      {/* TOOLBAR */}
-      <div className="admin-newsletter-toolbar">
-        <div className="admin-search-box">
-          <Search size={17} strokeWidth={1.5} />
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "newsletter-subscribers.csv";
 
-          <input
-            type="text"
-            placeholder="Search subscribers..."
-            value={search}
-            onChange={(event) =>
-              setSearch(event.target.value)
-            }
-          />
-        </div>
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
 
-        <select
-          className="admin-filter-select"
-          value={status}
-          onChange={(event) =>
-            setStatus(event.target.value)
-          }
-        >
-          <option value="All">All Status</option>
-          <option value="Subscribed">Subscribed</option>
-          <option value="Unsubscribed">Unsubscribed</option>
-        </select>
+        URL.revokeObjectURL(url);
+    };
 
-        <button
-          type="button"
-          className="admin-secondary-button"
-          onClick={handleExport}
-        >
-          <Download size={16} strokeWidth={1.5} />
-          <span>Export CSV</span>
-        </button>
-      </div>
+    const handleSendNewsletter = () => {
+        alert(
+            "Newsletter campaign sending will be connected to the email service later."
+        );
+    };
 
-      {/* TABLE */}
-      <div className="admin-table-card">
-        <div className="admin-table-wrapper">
-          <table className="admin-table admin-newsletter-table">
-            <thead>
-              <tr>
-                <th>SUBSCRIBER</th>
-                <th>EMAIL</th>
-                <th>SUBSCRIBED</th>
-                <th>STATUS</th>
-                <th>ACTION</th>
-              </tr>
-            </thead>
+    const styles = {
+        page: {
+            width: "100%",
+            color: "#111111",
+            fontFamily:
+                '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+        },
 
-            <tbody>
-              {filteredSubscribers.map((subscriber) => (
-                <tr key={subscriber.id}>
-                  <td>
-                    <div className="admin-newsletter-subscriber">
-                      <div className="admin-newsletter-avatar">
-                        {subscriber.name
-                          .charAt(0)
-                          .toUpperCase()}
-                      </div>
+        header: {
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            gap: "24px",
+            marginBottom: "28px",
+        },
 
-                      <span>{subscriber.name}</span>
-                    </div>
-                  </td>
+        eyebrow: {
+            margin: 0,
+            fontSize: "11px",
+            fontWeight: 500,
+            letterSpacing: "3px",
+            textTransform: "uppercase",
+            color: "#777777",
+        },
 
-                  <td>
-                    <span className="admin-newsletter-email">
-                      {subscriber.email}
-                    </span>
-                  </td>
+        title: {
+            margin: "4px 0 0",
+            fontFamily: "Georgia, Times New Roman, serif",
+            fontSize: "34px",
+            lineHeight: "1.1",
+            fontWeight: 500,
+            color: "#111111",
+        },
 
-                  <td>{subscriber.subscribed}</td>
+        description: {
+            margin: "6px 0 0",
+            fontSize: "14px",
+            color: "#777777",
+        },
 
-                  <td>
-                    <span
-                      className={
-                        subscriber.status === "Subscribed"
-                          ? "admin-status-badge subscribed"
-                          : "admin-status-badge unsubscribed"
-                      }
-                    >
-                      {subscriber.status}
-                    </span>
-                  </td>
+        sendButton: {
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "8px",
+            height: "38px",
+            padding: "0 18px",
+            border: "1px solid #111111",
+            borderRadius: "5px",
+            background: "#111111",
+            color: "#ffffff",
+            fontSize: "13px",
+            fontWeight: 600,
+            cursor: "pointer",
+            whiteSpace: "nowrap",
+        },
 
-                  <td>
-                    <button
-                      type="button"
-                      className="admin-action-button delete"
-                      onClick={() =>
-                        handleDelete(subscriber.id)
-                      }
-                      aria-label={`Delete ${subscriber.email}`}
-                    >
-                      <Trash2
-                        size={16}
-                        strokeWidth={1.5}
-                      />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        statsGrid: {
+            display: "grid",
+            gridTemplateColumns:
+                "repeat(3, minmax(0, 1fr))",
+            gap: "14px",
+            marginBottom: "20px",
+        },
 
-          {filteredSubscribers.length === 0 && (
-            <div className="admin-empty-state">
-              <Mail size={30} strokeWidth={1.4} />
+        statCard: {
+            minHeight: "88px",
+            display: "flex",
+            alignItems: "center",
+            padding: "20px",
+            border: "1px solid #e5e5e5",
+            borderRadius: "6px",
+            background: "#ffffff",
+            boxSizing: "border-box",
+        },
 
-              <h3>No subscribers found</h3>
+        statIcon: {
+            width: "38px",
+            height: "38px",
+            flexShrink: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            border: "1px solid #e5e5e5",
+            borderRadius: "50%",
+            color: "#222222",
+        },
 
-              <p>
-                Try changing your search or status filter.
-              </p>
+        statContent: {
+            marginLeft: "14px",
+        },
+
+        statLabel: {
+            margin: 0,
+            fontSize: "10px",
+            lineHeight: "1.2",
+            fontWeight: 500,
+            letterSpacing: "1.2px",
+            textTransform: "uppercase",
+            color: "#888888",
+        },
+
+        statNumber: {
+            margin: "5px 0 0",
+            fontSize: "23px",
+            lineHeight: "1",
+            fontWeight: 600,
+            color: "#111111",
+        },
+
+        filterBar: {
+            minHeight: "58px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "16px",
+            padding: "10px",
+            marginBottom: "14px",
+            border: "1px solid #e5e5e5",
+            borderRadius: "6px",
+            background: "#ffffff",
+            boxSizing: "border-box",
+        },
+
+        filterLeft: {
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+        },
+
+        searchWrapper: {
+            position: "relative",
+            width: "225px",
+        },
+
+        searchIcon: {
+            position: "absolute",
+            left: "11px",
+            top: "50%",
+            transform: "translateY(-50%)",
+            color: "#999999",
+            pointerEvents: "none",
+        },
+
+        searchInput: {
+            width: "100%",
+            height: "36px",
+            padding: "0 12px 0 34px",
+            border: "1px solid #dddddd",
+            borderRadius: "4px",
+            outline: "none",
+            background: "#ffffff",
+            color: "#222222",
+            fontSize: "13px",
+            boxSizing: "border-box",
+        },
+
+        select: {
+            height: "36px",
+            minWidth: "125px",
+            padding: "0 30px 0 11px",
+            border: "1px solid #dddddd",
+            borderRadius: "4px",
+            outline: "none",
+            background: "#ffffff",
+            color: "#333333",
+            fontSize: "13px",
+            cursor: "pointer",
+        },
+
+        exportButton: {
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "7px",
+            height: "36px",
+            padding: "0 14px",
+            border: "1px solid #dddddd",
+            borderRadius: "4px",
+            background: "#ffffff",
+            color: "#333333",
+            fontSize: "13px",
+            cursor: "pointer",
+            whiteSpace: "nowrap",
+        },
+
+        tableWrapper: {
+            width: "100%",
+            overflow: "hidden",
+            border: "1px solid #e5e5e5",
+            borderRadius: "6px",
+            background: "#ffffff",
+        },
+
+        table: {
+            width: "100%",
+            borderCollapse: "collapse",
+            tableLayout: "fixed",
+        },
+
+        tableHeader: {
+            height: "45px",
+            padding: "0 16px",
+            borderBottom: "1px solid #e5e5e5",
+            background: "#fafafa",
+            color: "#777777",
+            fontSize: "10px",
+            fontWeight: 500,
+            letterSpacing: "1px",
+            textTransform: "uppercase",
+            textAlign: "left",
+        },
+
+        tableCell: {
+            height: "56px",
+            padding: "0 16px",
+            borderBottom: "1px solid #eeeeee",
+            color: "#333333",
+            fontSize: "13px",
+            verticalAlign: "middle",
+            boxSizing: "border-box",
+        },
+
+        subscriberCell: {
+            display: "flex",
+            alignItems: "center",
+            gap: "11px",
+        },
+
+        avatar: {
+            width: "30px",
+            height: "30px",
+            flexShrink: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            borderRadius: "50%",
+            background: "#f1f1f1",
+            color: "#333333",
+            fontSize: "11px",
+            fontWeight: 600,
+        },
+
+        subscriberName: {
+            fontSize: "13px",
+            fontWeight: 500,
+            color: "#222222",
+        },
+
+        email: {
+            color: "#666666",
+        },
+
+        statusSubscribed: {
+            display: "inline-flex",
+            alignItems: "center",
+            padding: "5px 9px",
+            borderRadius: "4px",
+            background: "#edf8f0",
+            color: "#238342",
+            fontSize: "10px",
+            fontWeight: 600,
+        },
+
+        statusUnsubscribed: {
+            display: "inline-flex",
+            alignItems: "center",
+            padding: "5px 9px",
+            borderRadius: "4px",
+            background: "#f1f1f1",
+            color: "#666666",
+            fontSize: "10px",
+            fontWeight: 600,
+        },
+
+        deleteButton: {
+            width: "30px",
+            height: "30px",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            border: "1px solid #e0e0e0",
+            borderRadius: "4px",
+            background: "#ffffff",
+            color: "#777777",
+            cursor: "pointer",
+        },
+
+        empty: {
+            padding: "48px 20px",
+            textAlign: "center",
+            color: "#888888",
+            fontSize: "13px",
+        },
+
+        error: {
+            marginBottom: "18px",
+            padding: "11px 14px",
+            border: "1px solid #f0caca",
+            borderRadius: "5px",
+            background: "#fff5f5",
+            color: "#c0392b",
+            fontSize: "13px",
+        },
+
+        loading: {
+            padding: "40px 0",
+            color: "#777777",
+            fontSize: "13px",
+        },
+    };
+
+    if (loading) {
+        return (
+            <div style={styles.page}>
+                <div style={styles.loading}>
+                    Loading newsletter subscribers...
+                </div>
             </div>
-          )}
+        );
+    }
+
+    return (
+        <div style={styles.page}>
+            <div style={styles.header}>
+                <div>
+                    <p style={styles.eyebrow}>Marketing</p>
+
+                    <h1 style={styles.title}>Newsletter</h1>
+
+                    <p style={styles.description}>
+                        Manage newsletter subscribers and email campaigns.
+                    </p>
+                </div>
+
+                <button
+                    type="button"
+                    onClick={handleSendNewsletter}
+                    style={styles.sendButton}
+                >
+                    <Send size={15} />
+                    Send Newsletter
+                </button>
+            </div>
+
+            {error && <div style={styles.error}>{error}</div>}
+
+            <div style={styles.statsGrid}>
+                <div style={styles.statCard}>
+                    <div style={styles.statIcon}>
+                        <Users size={18} />
+                    </div>
+
+                    <div style={styles.statContent}>
+                        <p style={styles.statLabel}>
+                            Total Subscribers
+                        </p>
+
+                        <p style={styles.statNumber}>
+                            {totalSubscribers}
+                        </p>
+                    </div>
+                </div>
+
+                <div style={styles.statCard}>
+                    <div style={styles.statIcon}>
+                        <Mail size={18} />
+                    </div>
+
+                    <div style={styles.statContent}>
+                        <p style={styles.statLabel}>
+                            Active Subscribers
+                        </p>
+
+                        <p style={styles.statNumber}>
+                            {activeSubscribers}
+                        </p>
+                    </div>
+                </div>
+
+                <div style={styles.statCard}>
+                    <div style={styles.statIcon}>
+                        <Mail size={18} />
+                    </div>
+
+                    <div style={styles.statContent}>
+                        <p style={styles.statLabel}>
+                            Unsubscribed
+                        </p>
+
+                        <p style={styles.statNumber}>
+                            {unsubscribedSubscribers}
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div style={styles.filterBar}>
+                <div style={styles.filterLeft}>
+                    <div style={styles.searchWrapper}>
+                        <Search
+                            size={15}
+                            style={styles.searchIcon}
+                        />
+
+                        <input
+                            type="text"
+                            value={search}
+                            onChange={(e) =>
+                                setSearch(e.target.value)
+                            }
+                            placeholder="Search subscribers..."
+                            style={styles.searchInput}
+                        />
+                    </div>
+
+                    <select
+                        value={statusFilter}
+                        onChange={(e) =>
+                            setStatusFilter(e.target.value)
+                        }
+                        style={styles.select}
+                    >
+                        <option value="All">All Status</option>
+                        <option value="Subscribed">
+                            Subscribed
+                        </option>
+                        <option value="Unsubscribed">
+                            Unsubscribed
+                        </option>
+                    </select>
+                </div>
+
+                <button
+                    type="button"
+                    onClick={exportCSV}
+                    style={styles.exportButton}
+                >
+                    <Download size={15} />
+                    Export CSV
+                </button>
+            </div>
+
+            <div style={styles.tableWrapper}>
+                <table style={styles.table}>
+                    <thead>
+                        <tr>
+                            <th
+                                style={{
+                                    ...styles.tableHeader,
+                                    width: "28%",
+                                }}
+                            >
+                                Subscriber
+                            </th>
+
+                            <th
+                                style={{
+                                    ...styles.tableHeader,
+                                    width: "25%",
+                                }}
+                            >
+                                Email
+                            </th>
+
+                            <th
+                                style={{
+                                    ...styles.tableHeader,
+                                    width: "16%",
+                                }}
+                            >
+                                Subscribed
+                            </th>
+
+                            <th
+                                style={{
+                                    ...styles.tableHeader,
+                                    width: "16%",
+                                }}
+                            >
+                                Status
+                            </th>
+
+                            <th
+                                style={{
+                                    ...styles.tableHeader,
+                                    width: "15%",
+                                    textAlign: "right",
+                                }}
+                            >
+                                Action
+                            </th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {filteredSubscribers.map((subscriber) => {
+                            const displayName =
+                                subscriber.name ||
+                                subscriber.email ||
+                                "Unknown";
+
+                            const initial =
+                                displayName
+                                    .charAt(0)
+                                    .toUpperCase();
+
+                            return (
+                                <tr key={subscriber.id}>
+                                    <td style={styles.tableCell}>
+                                        <div
+                                            style={
+                                                styles.subscriberCell
+                                            }
+                                        >
+                                            <div
+                                                style={styles.avatar}
+                                            >
+                                                {initial}
+                                            </div>
+
+                                            <span
+                                                style={
+                                                    styles.subscriberName
+                                                }
+                                            >
+                                                {displayName}
+                                            </span>
+                                        </div>
+                                    </td>
+
+                                    <td
+                                        style={{
+                                            ...styles.tableCell,
+                                            ...styles.email,
+                                        }}
+                                    >
+                                        {subscriber.email}
+                                    </td>
+
+                                    <td
+                                        style={{
+                                            ...styles.tableCell,
+                                            color: "#555555",
+                                        }}
+                                    >
+                                        {formatDate(
+                                            subscriber.created_at
+                                        )}
+                                    </td>
+
+                                    <td style={styles.tableCell}>
+                                        <span
+                                            style={
+                                                subscriber.active
+                                                    ? styles.statusSubscribed
+                                                    : styles.statusUnsubscribed
+                                            }
+                                        >
+                                            {subscriber.active
+                                                ? "Subscribed"
+                                                : "Unsubscribed"}
+                                        </span>
+                                    </td>
+
+                                    <td
+                                        style={{
+                                            ...styles.tableCell,
+                                            textAlign: "right",
+                                        }}
+                                    >
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                handleDelete(
+                                                    subscriber.id
+                                                )
+                                            }
+                                            style={styles.deleteButton}
+                                            title="Delete subscriber"
+                                        >
+                                            <Trash2 size={15} />
+                                        </button>
+                                    </td>
+                                </tr>
+                            );
+                        })}
+
+                        {filteredSubscribers.length === 0 && (
+                            <tr>
+                                <td
+                                    colSpan={5}
+                                    style={{
+                                        ...styles.tableCell,
+                                        ...styles.empty,
+                                    }}
+                                >
+                                    No newsletter subscribers found.
+                                </td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
+            </div>
         </div>
-      </div>
-    </section>
-  );
+    );
 }
 
 export default AdminNewsletter;

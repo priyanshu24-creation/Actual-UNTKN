@@ -15,10 +15,9 @@ async function startServer() {
 
         connection.release();
 
-        app.listen(PORT, () => {
-            console.log(`UNTKN Backend running on port ${PORT}`);
-            console.log(`http://localhost:${PORT}`);
-        });
+       app.listen(PORT, "0.0.0.0", () => {
+    console.log(`UNTKN Backend running on port ${PORT}`);
+});
     } catch (error) {
         console.error("MySQL connection failed:");
         console.error(error.message);

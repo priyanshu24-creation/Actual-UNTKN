@@ -1,5 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
+import api from "../services/api.js";
 
 function Register() {
   const navigate = useNavigate();
@@ -12,8 +13,9 @@ function Register() {
     confirmPassword: "",
   });
 
-  const [showPassword, setShowPassword] =
-    useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -22,38 +24,54 @@ function Register() {
       ...current,
       [name]: value,
     }));
+
+    setError("");
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
 
-    if (
-      formData.password !==
-      formData.confirmPassword
-    ) {
-      alert("Passwords do not match.");
+    setError("");
+
+    if (formData.password !== formData.confirmPassword) {
+      setError("Passwords do not match.");
       return;
     }
 
-    /*
-      FRONTEND ONLY
+    if (formData.password.length < 6) {
+      setError("Password must be at least 6 characters.");
+      return;
+    }
 
-      Your friend will connect the registration
-      API here later.
-    */
+    const fullName =
+      `${formData.firstName} ${formData.lastName}`.trim();
 
-    console.log("Register form:", formData);
+    try {
+      setLoading(true);
 
-    alert(
-      "Registration API will be connected later."
-    );
+      const response = await api.post("/auth/register", {
+        name: fullName,
+        email: formData.email.trim().toLowerCase(),
+        password: formData.password,
+      });
 
-    navigate("/account");
+      console.log("Registration successful:", response.data);
+
+      navigate("/account", { replace: true });
+    } catch (error) {
+      console.error("Registration error:", error);
+
+      setError(
+        error.response?.data?.message ||
+          "Registration failed. Please try again."
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="auth-page">
-
       <div className="auth-container register-container">
 
         {/* HEADER */}
@@ -77,6 +95,22 @@ function Register() {
 
         </div>
 
+        {/* ERROR */}
+
+        {error && (
+          <div
+            style={{
+              marginBottom: "20px",
+              padding: "12px 14px",
+              border: "1px solid #e0b4b4",
+              background: "#fff7f7",
+              color: "#a33a3a",
+              fontSize: "13px",
+            }}
+          >
+            {error}
+          </div>
+        )}
 
         {/* FORM */}
 
@@ -104,10 +138,10 @@ function Register() {
                 placeholder="FIRST NAME"
                 autoComplete="given-name"
                 required
+                disabled={loading}
               />
 
             </div>
-
 
             <div className="form-field">
 
@@ -124,12 +158,12 @@ function Register() {
                 placeholder="LAST NAME"
                 autoComplete="family-name"
                 required
+                disabled={loading}
               />
 
             </div>
 
           </div>
-
 
           {/* EMAIL */}
 
@@ -148,10 +182,10 @@ function Register() {
               placeholder="ENTER YOUR EMAIL"
               autoComplete="email"
               required
+              disabled={loading}
             />
 
           </div>
-
 
           {/* PASSWORD */}
 
@@ -168,10 +202,9 @@ function Register() {
                 onClick={() =>
                   setShowPassword(!showPassword)
                 }
+                disabled={loading}
               >
-                {showPassword
-                  ? "HIDE"
-                  : "SHOW"}
+                {showPassword ? "HIDE" : "SHOW"}
               </button>
 
             </div>
@@ -190,10 +223,10 @@ function Register() {
               autoComplete="new-password"
               required
               minLength={6}
+              disabled={loading}
             />
 
           </div>
-
 
           {/* CONFIRM PASSWORD */}
 
@@ -213,10 +246,10 @@ function Register() {
               autoComplete="new-password"
               required
               minLength={6}
+              disabled={loading}
             />
 
           </div>
-
 
           {/* TERMS */}
 
@@ -225,6 +258,7 @@ function Register() {
             <input
               type="checkbox"
               required
+              disabled={loading}
             />
 
             <span>
@@ -233,18 +267,19 @@ function Register() {
 
           </label>
 
-
           {/* SUBMIT */}
 
           <button
             type="submit"
             className="auth-submit"
+            disabled={loading}
           >
-            CREATE ACCOUNT →
+            {loading
+              ? "CREATING ACCOUNT..."
+              : "CREATE ACCOUNT →"}
           </button>
 
         </form>
-
 
         {/* LOGIN */}
 
@@ -261,7 +296,6 @@ function Register() {
         </div>
 
       </div>
-
     </div>
   );
 }

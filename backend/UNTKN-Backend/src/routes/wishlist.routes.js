@@ -4,12 +4,22 @@ import {
     getWishlist,
     addToWishlist,
     removeFromWishlist,
-    clearWishlist
+    clearWishlist,
+    getAdminWishlist,
+    adminRemoveFromWishlist
 } from "../controllers/wishlist.controller.js";
 
-import { authenticate } from "../middleware/auth.middleware.js";
+import {
+    authenticate,
+    requireAdmin
+} from "../middleware/auth.middleware.js";
 
 const router = express.Router();
+
+
+// ======================================================
+// CUSTOMER WISHLIST
+// ======================================================
 
 router.get(
     "/",
@@ -34,5 +44,25 @@ router.delete(
     authenticate,
     clearWishlist
 );
+
+
+// ======================================================
+// ADMIN WISHLIST
+// ======================================================
+
+router.get(
+    "/admin",
+    authenticate,
+    requireAdmin,
+    getAdminWishlist
+);
+
+router.delete(
+    "/admin/items/:itemId",
+    authenticate,
+    requireAdmin,
+    adminRemoveFromWishlist
+);
+
 
 export default router;

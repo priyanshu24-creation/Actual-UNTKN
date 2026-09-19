@@ -2,7 +2,8 @@ import express from "express";
 
 import {
     getAdminDashboard,
-    getAdminCustomers
+    getAdminCustomers,
+    getAdminCustomerDetails
 } from "../controllers/admin.controller.js";
 
 import {
@@ -11,7 +12,6 @@ import {
 } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
-
 
 /*
 |--------------------------------------------------------------------------
@@ -40,6 +40,21 @@ router.get(
     authenticate,
     requireAdmin,
     getAdminCustomers
+);
+
+
+/*
+|--------------------------------------------------------------------------
+| ADMIN CUSTOMER DETAILS
+|--------------------------------------------------------------------------
+| GET /api/admin/customers/:id
+*/
+
+router.get(
+    "/customers/:id",
+    authenticate,
+    requireAdmin,
+    getAdminCustomerDetails
 );
 
 

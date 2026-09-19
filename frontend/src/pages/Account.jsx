@@ -29,7 +29,7 @@ function Account() {
      ADDRESS
   ========================= */
 
-  const [address, setAddress] = useState({
+  const emptyAddress = {
     fullName: "",
     phone: "",
     addressLine1: "",
@@ -38,7 +38,11 @@ function Account() {
     state: "",
     pincode: "",
     country: "India",
-  });
+  };
+
+  const [address, setAddress] = useState(emptyAddress);
+
+  const [savedAddress, setSavedAddress] = useState(emptyAddress);
 
   const [addressId, setAddressId] = useState(null);
 
@@ -86,6 +90,23 @@ function Account() {
   };
 
   /* =========================
+     FORMAT ADDRESS
+  ========================= */
+
+  const normalizeAddress = (item) => {
+    return {
+      fullName: item?.full_name || "",
+      phone: item?.phone || "",
+      addressLine1: item?.address_line1 || "",
+      addressLine2: item?.address_line2 || "",
+      city: item?.city || "",
+      state: item?.state || "",
+      pincode: item?.postal_code || "",
+      country: item?.country || "India",
+    };
+  };
+
+  /* =========================
      LOAD USER + ADDRESS
   ========================= */
 
@@ -102,13 +123,8 @@ function Account() {
 
         const response = await api.get("/auth/me");
 
-        if (
-          !response.data?.success ||
-          !response.data?.user
-        ) {
-          throw new Error(
-            "Unable to load account details."
-          );
+        if (!response.data?.success || !response.data?.user) {
+          throw new Error("Unable to load account details.");
         }
 
         const user = response.data.user;
@@ -117,8 +133,7 @@ function Account() {
            SPLIT FULL NAME
         ------------------------- */
 
-        const { firstName, lastName } =
-          splitName(user.name);
+        const { firstName, lastName } = splitName(user.name);
 
         /* -------------------------
            SET USER DATA
@@ -136,76 +151,33 @@ function Account() {
            GET USER ADDRESSES
         ------------------------- */
 
-        const addressResponse =
-          await api.get("/addresses");
+        const addressResponse = await api.get("/addresses");
 
         if (addressResponse.data?.success) {
-          const addresses =
-            addressResponse.data.addresses || [];
+          const addresses = addressResponse.data.addresses || [];
 
           if (addresses.length > 0) {
             const defaultAddress =
               addresses.find(
-                (item) =>
-                  Boolean(item.is_default)
+                (item) => Boolean(item.is_default)
               ) || addresses[0];
 
-            setAddressId(
-              Number(defaultAddress.id)
-            );
+            const normalizedAddress =
+              normalizeAddress(defaultAddress);
 
-            setAddress({
-              fullName:
-                defaultAddress.full_name ||
-                user.name ||
-                "",
-
-              phone:
-                defaultAddress.phone ||
-                user.phone ||
-                "",
-
-              addressLine1:
-                defaultAddress.address_line1 ||
-                "",
-
-              addressLine2:
-                defaultAddress.address_line2 ||
-                "",
-
-              city:
-                defaultAddress.city ||
-                "",
-
-              state:
-                defaultAddress.state ||
-                "",
-
-              pincode:
-                defaultAddress.postal_code ||
-                "",
-
-              country:
-                defaultAddress.country ||
-                "India",
-            });
+            setAddressId(Number(defaultAddress.id));
+            setAddress(normalizedAddress);
+            setSavedAddress(normalizedAddress);
           } else {
+            const newAddress = {
+              ...emptyAddress,
+              fullName: user.name || "",
+              phone: user.phone || "",
+            };
+
             setAddressId(null);
-
-            setAddress({
-              fullName:
-                user.name || "",
-
-              phone:
-                user.phone || "",
-
-              addressLine1: "",
-              addressLine2: "",
-              city: "",
-              state: "",
-              pincode: "",
-              country: "India",
-            });
+            setAddress(newAddress);
+            setSavedAddress(newAddress);
           }
         }
       } catch (requestError) {
@@ -214,9 +186,7 @@ function Account() {
           requestError
         );
 
-        if (
-          requestError.response?.status === 401
-        ) {
+        if (requestError.response?.status === 401) {
           window.location.href = "/login";
           return;
         }
@@ -245,6 +215,9 @@ function Account() {
       ...previous,
       [name]: value,
     }));
+
+    setError("");
+    setMessage("");
   };
 
   /* =========================
@@ -258,6 +231,44 @@ function Account() {
       ...previous,
       [name]: value,
     }));
+
+    setError("");
+    setMessage("");
+  };
+
+  /* =========================
+     START ADDRESS EDIT
+  ========================= */
+
+  const startAddressEdit = () => {
+    setEditingAddress(true);
+    setError("");
+    setMessage("");
+
+    if (!addressId) {
+      setAddress((previous) => ({
+        ...previous,
+        fullName:
+          previous.fullName ||
+          `${personalDetails.firstName} ${personalDetails.lastName}`.trim(),
+        phone:
+          previous.phone ||
+          personalDetails.phone ||
+          "",
+      }));
+    }
+  };
+
+  /* =========================
+     CANCEL ADDRESS EDIT
+  ========================= */
+
+  const cancelAddressEdit = () => {
+    setEditingAddress(false);
+    setError("");
+    setMessage("");
+
+    setAddress(savedAddress);
   };
 
   /* =========================
@@ -276,26 +287,17 @@ function Account() {
       const lastName =
         personalDetails.lastName.trim();
 
-      const fullName = [
-        firstName,
-        lastName,
-      ]
+      const fullName = [firstName, lastName]
         .filter(Boolean)
         .join(" ");
 
       if (fullName.length < 2) {
-        setError(
-          "Please enter your name."
-        );
+        setError("Please enter your name.");
         return;
       }
 
-      if (
-        personalDetails.email.trim() === ""
-      ) {
-        setError(
-          "Please enter your email address."
-        );
+      if (!personalDetails.email.trim()) {
+        setError("Please enter your email address.");
         return;
       }
 
@@ -303,10 +305,8 @@ function Account() {
         "/auth/profile",
         {
           name: fullName,
-          email:
-            personalDetails.email.trim(),
-          phone:
-            personalDetails.phone.trim(),
+          email: personalDetails.email.trim(),
+          phone: personalDetails.phone.trim(),
         }
       );
 
@@ -320,56 +320,27 @@ function Account() {
         );
       }
 
-      const updatedUser =
-        response.data.user;
-
-      /* -------------------------
-         SPLIT UPDATED NAME
-      ------------------------- */
+      const updatedUser = response.data.user;
 
       const {
         firstName: updatedFirstName,
         lastName: updatedLastName,
       } = splitName(updatedUser.name);
 
-      /* -------------------------
-         UPDATE PERSONAL STATE
-      ------------------------- */
-
-      setPersonalDetails(
-        (previous) => ({
-          ...previous,
-
-          firstName:
-            updatedFirstName,
-
-          lastName:
-            updatedLastName,
-
-          email:
-            updatedUser.email || "",
-
-          phone:
-            updatedUser.phone || "",
-
-          dateOfBirth:
-            previous.dateOfBirth,
-        })
-      );
-
-      /* -------------------------
-         UPDATE ADDRESS CONTACT
-         ONLY IF EMPTY
-      ------------------------- */
+      setPersonalDetails((previous) => ({
+        ...previous,
+        firstName: updatedFirstName,
+        lastName: updatedLastName,
+        email: updatedUser.email || "",
+        phone: updatedUser.phone || "",
+      }));
 
       setAddress((previous) => ({
         ...previous,
-
         fullName:
           previous.fullName ||
           updatedUser.name ||
           "",
-
         phone:
           previous.phone ||
           updatedUser.phone ||
@@ -440,16 +411,12 @@ function Account() {
       ------------------------- */
 
       if (!cleanFullName) {
-        setError(
-          "Please enter your full name."
-        );
+        setError("Please enter your full name.");
         return;
       }
 
       if (!cleanPhone) {
-        setError(
-          "Please enter your phone number."
-        );
+        setError("Please enter your phone number.");
         return;
       }
 
@@ -461,23 +428,17 @@ function Account() {
       }
 
       if (!cleanAddressLine1) {
-        setError(
-          "Please enter your address."
-        );
+        setError("Please enter your address.");
         return;
       }
 
       if (!cleanCity) {
-        setError(
-          "Please enter your city."
-        );
+        setError("Please enter your city.");
         return;
       }
 
       if (!cleanState) {
-        setError(
-          "Please enter your state."
-        );
+        setError("Please enter your state.");
         return;
       }
 
@@ -489,7 +450,7 @@ function Account() {
       }
 
       /* -------------------------
-         PREPARE API DATA
+         API DATA
       ------------------------- */
 
       const addressData = {
@@ -505,13 +466,15 @@ function Account() {
         is_default: true,
       };
 
+      const isUpdating = Boolean(addressId);
+
       let response;
 
       /* -------------------------
-         UPDATE EXISTING ADDRESS
+         UPDATE
       ------------------------- */
 
-      if (addressId) {
+      if (isUpdating) {
         response = await api.put(
           `/addresses/${addressId}`,
           addressData
@@ -519,7 +482,7 @@ function Account() {
       }
 
       /* -------------------------
-         CREATE NEW ADDRESS
+         CREATE
       ------------------------- */
 
       else {
@@ -539,51 +502,29 @@ function Account() {
         );
       }
 
-      const savedAddress =
+      const savedAddressFromApi =
         response.data.address;
 
+      const normalizedAddress =
+        normalizeAddress(savedAddressFromApi);
+
       /* -------------------------
-         STORE ADDRESS ID
+         UPDATE STATE
       ------------------------- */
 
       setAddressId(
-        Number(savedAddress.id)
+        Number(savedAddressFromApi.id)
       );
 
-      /* -------------------------
-         UPDATE ADDRESS STATE
-      ------------------------- */
-
-      setAddress({
-        fullName:
-          savedAddress.full_name || "",
-
-        phone:
-          savedAddress.phone || "",
-
-        addressLine1:
-          savedAddress.address_line1 || "",
-
-        addressLine2:
-          savedAddress.address_line2 || "",
-
-        city:
-          savedAddress.city || "",
-
-        state:
-          savedAddress.state || "",
-
-        pincode:
-          savedAddress.postal_code || "",
-
-        country:
-          savedAddress.country || "India",
-      });
+      setAddress(normalizedAddress);
+      setSavedAddress(normalizedAddress);
 
       setEditingAddress(false);
 
       setMessage(
-        "Address updated successfully."
+        isUpdating
+          ? "Address updated successfully."
+          : "Address added successfully."
       );
 
       setTimeout(() => {
@@ -635,9 +576,7 @@ function Account() {
               MY ACCOUNT
             </p>
 
-            <h1>
-              PERSONAL DETAILS
-            </h1>
+            <h1>PERSONAL DETAILS</h1>
           </div>
 
           <p className="account-header-description">
@@ -664,9 +603,8 @@ function Account() {
 
   return (
     <div className="account-page">
-      {/* =========================
-          PAGE HEADER
-      ========================= */}
+
+      {/* PAGE HEADER */}
 
       <section className="account-header">
         <div>
@@ -674,9 +612,7 @@ function Account() {
             MY ACCOUNT
           </p>
 
-          <h1>
-            PERSONAL DETAILS
-          </h1>
+          <h1>PERSONAL DETAILS</h1>
         </div>
 
         <p className="account-header-description">
@@ -685,64 +621,62 @@ function Account() {
         </p>
       </section>
 
-      {/* =========================
-          SUCCESS MESSAGE
-      ========================= */}
+      {/* SUCCESS MESSAGE */}
 
       {message && (
-  <div className="account-toast account-toast-success">
-    <div className="account-toast-icon">
-      <Check size={18} strokeWidth={2} />
-    </div>
+        <div className="account-toast account-toast-success">
+          <div className="account-toast-icon">
+            <Check size={18} strokeWidth={2} />
+          </div>
 
-    <div className="account-toast-content">
-      <strong>SUCCESS</strong>
-      <span>{message}</span>
-    </div>
+          <div className="account-toast-content">
+            <strong>SUCCESS</strong>
+            <span>{message}</span>
+          </div>
 
-    <button
-      type="button"
-      className="account-toast-close"
-      onClick={() => setMessage("")}
-      aria-label="Close notification"
-    >
-      <X size={17} />
-    </button>
-  </div>
-)}
+          <button
+            type="button"
+            className="account-toast-close"
+            onClick={() => setMessage("")}
+            aria-label="Close notification"
+          >
+            <X size={17} />
+          </button>
+        </div>
+      )}
 
-{error && (
-  <div className="account-toast account-toast-error">
-    <div className="account-toast-icon">
-      <X size={18} strokeWidth={2} />
-    </div>
+      {/* ERROR MESSAGE */}
 
-    <div className="account-toast-content">
-      <strong>ERROR</strong>
-      <span>{error}</span>
-    </div>
+      {error && (
+        <div className="account-toast account-toast-error">
+          <div className="account-toast-icon">
+            <X size={18} strokeWidth={2} />
+          </div>
 
-    <button
-      type="button"
-      className="account-toast-close"
-      onClick={() => setError("")}
-      aria-label="Close notification"
-    >
-      <X size={17} />
-    </button>
-  </div>
-)}
+          <div className="account-toast-content">
+            <strong>ERROR</strong>
+            <span>{error}</span>
+          </div>
 
-      {/* =========================
-          ACCOUNT LAYOUT
-      ========================= */}
+          <button
+            type="button"
+            className="account-toast-close"
+            onClick={() => setError("")}
+            aria-label="Close notification"
+          >
+            <X size={17} />
+          </button>
+        </div>
+      )}
+
+      {/* ACCOUNT LAYOUT */}
 
       <section className="account-content">
-        {/* =========================
-            SIDEBAR
-        ========================= */}
+
+        {/* SIDEBAR */}
 
         <aside className="account-sidebar">
+
           <div className="account-user">
             <div className="account-user-icon">
               <User
@@ -764,6 +698,7 @@ function Account() {
           </div>
 
           <nav className="account-navigation">
+
             <Link
               to="/account"
               className="account-nav-item active"
@@ -787,6 +722,7 @@ function Account() {
               <Heart size={17} />
               Wishlist
             </Link>
+
           </nav>
 
           <button
@@ -797,27 +733,27 @@ function Account() {
             <LogOut size={17} />
             LOG OUT
           </button>
+
         </aside>
 
-        {/* =========================
-            MAIN CONTENT
-        ========================= */}
+        {/* MAIN CONTENT */}
 
         <main className="account-main">
+
           {/* =========================
-              PERSONAL DETAILS CARD
+              PERSONAL DETAILS
           ========================= */}
 
           <section className="account-card">
+
             <div className="account-card-header">
+
               <div>
                 <p className="account-card-number">
                   01 / PROFILE
                 </p>
 
-                <h2>
-                  Personal Details
-                </h2>
+                <h2>Personal Details</h2>
 
                 <p>
                   Update your basic account
@@ -839,12 +775,15 @@ function Account() {
                   EDIT
                 </button>
               )}
+
             </div>
 
             <div className="account-form">
+
               {/* FIRST NAME */}
 
               <div className="account-field">
+
                 <label htmlFor="firstName">
                   FIRST NAME
                 </label>
@@ -861,6 +800,7 @@ function Account() {
                       handlePersonalChange
                     }
                     placeholder="First name"
+                    disabled={savingPersonal}
                   />
                 ) : (
                   <div className="account-value">
@@ -868,11 +808,13 @@ function Account() {
                       "—"}
                   </div>
                 )}
+
               </div>
 
               {/* LAST NAME */}
 
               <div className="account-field">
+
                 <label htmlFor="lastName">
                   LAST NAME
                 </label>
@@ -889,6 +831,7 @@ function Account() {
                       handlePersonalChange
                     }
                     placeholder="Last name"
+                    disabled={savingPersonal}
                   />
                 ) : (
                   <div className="account-value">
@@ -896,11 +839,13 @@ function Account() {
                       "—"}
                   </div>
                 )}
+
               </div>
 
               {/* EMAIL */}
 
               <div className="account-field">
+
                 <label htmlFor="email">
                   EMAIL ADDRESS
                 </label>
@@ -917,6 +862,7 @@ function Account() {
                       handlePersonalChange
                     }
                     placeholder="Email address"
+                    disabled={savingPersonal}
                   />
                 ) : (
                   <div className="account-value">
@@ -924,11 +870,13 @@ function Account() {
                       "—"}
                   </div>
                 )}
+
               </div>
 
               {/* PHONE */}
 
               <div className="account-field">
+
                 <label htmlFor="phone">
                   PHONE NUMBER
                 </label>
@@ -946,6 +894,7 @@ function Account() {
                     }
                     placeholder="+91"
                     maxLength={15}
+                    disabled={savingPersonal}
                   />
                 ) : (
                   <div className="account-value">
@@ -953,11 +902,13 @@ function Account() {
                       "—"}
                   </div>
                 )}
+
               </div>
 
               {/* DATE OF BIRTH */}
 
               <div className="account-field full-width">
+
                 <label htmlFor="dateOfBirth">
                   DATE OF BIRTH
                 </label>
@@ -973,6 +924,7 @@ function Account() {
                     onChange={
                       handlePersonalChange
                     }
+                    disabled={savingPersonal}
                   />
                 ) : (
                   <div className="account-value">
@@ -980,13 +932,16 @@ function Account() {
                       "Not added"}
                   </div>
                 )}
+
               </div>
+
             </div>
 
             {/* PERSONAL ACTIONS */}
 
             {editingPersonal && (
               <div className="account-form-actions">
+
                 <button
                   type="button"
                   className="account-cancel-button"
@@ -1004,9 +959,7 @@ function Account() {
                 <button
                   type="button"
                   className="account-save-button"
-                  onClick={
-                    savePersonalDetails
-                  }
+                  onClick={savePersonalDetails}
                   disabled={savingPersonal}
                 >
                   <Check size={15} />
@@ -1015,24 +968,26 @@ function Account() {
                     ? "SAVING..."
                     : "SAVE CHANGES"}
                 </button>
+
               </div>
             )}
+
           </section>
 
           {/* =========================
-              ADDRESS CARD
+              DELIVERY ADDRESS
           ========================= */}
 
           <section className="account-card">
+
             <div className="account-card-header">
+
               <div>
                 <p className="account-card-number">
                   02 / DELIVERY
                 </p>
 
-                <h2>
-                  Delivery Address
-                </h2>
+                <h2>Delivery Address</h2>
 
                 <p>
                   Add or update the address used
@@ -1044,22 +999,24 @@ function Account() {
                 <button
                   type="button"
                   className="account-edit-button"
-                  onClick={() => {
-                    setEditingAddress(true);
-                    setMessage("");
-                    setError("");
-                  }}
+                  onClick={startAddressEdit}
                 >
                   <Edit3 size={15} />
-                  EDIT
+
+                  {addressId
+                    ? "EDIT"
+                    : "ADD ADDRESS"}
                 </button>
               )}
+
             </div>
 
             <div className="account-form">
+
               {/* FULL NAME */}
 
               <div className="account-field">
+
                 <label htmlFor="fullName">
                   FULL NAME
                 </label>
@@ -1069,25 +1026,25 @@ function Account() {
                     id="fullName"
                     type="text"
                     name="fullName"
-                    value={
-                      address.fullName
-                    }
+                    value={address.fullName}
                     onChange={
                       handleAddressChange
                     }
                     placeholder="Full name"
+                    disabled={savingAddress}
                   />
                 ) : (
                   <div className="account-value">
-                    {address.fullName ||
-                      "—"}
+                    {address.fullName || "—"}
                   </div>
                 )}
+
               </div>
 
               {/* PHONE */}
 
               <div className="account-field">
+
                 <label htmlFor="addressPhone">
                   PHONE NUMBER
                 </label>
@@ -1097,26 +1054,27 @@ function Account() {
                     id="addressPhone"
                     type="tel"
                     name="phone"
-                    value={
-                      address.phone
-                    }
+                    value={address.phone}
                     onChange={
                       handleAddressChange
                     }
-                    placeholder="+91"
+                    placeholder="10 digit phone number"
                     maxLength={15}
+                    inputMode="numeric"
+                    disabled={savingAddress}
                   />
                 ) : (
                   <div className="account-value">
-                    {address.phone ||
-                      "—"}
+                    {address.phone || "—"}
                   </div>
                 )}
+
               </div>
 
               {/* ADDRESS LINE 1 */}
 
               <div className="account-field full-width">
+
                 <label htmlFor="addressLine1">
                   ADDRESS LINE 1
                 </label>
@@ -1133,6 +1091,7 @@ function Account() {
                       handleAddressChange
                     }
                     placeholder="House / Flat / Building / Street"
+                    disabled={savingAddress}
                   />
                 ) : (
                   <div className="account-value">
@@ -1140,11 +1099,13 @@ function Account() {
                       "Not added"}
                   </div>
                 )}
+
               </div>
 
               {/* ADDRESS LINE 2 */}
 
               <div className="account-field full-width">
+
                 <label htmlFor="addressLine2">
                   ADDRESS LINE 2
                 </label>
@@ -1161,6 +1122,7 @@ function Account() {
                       handleAddressChange
                     }
                     placeholder="Apartment, landmark, area"
+                    disabled={savingAddress}
                   />
                 ) : (
                   <div className="account-value">
@@ -1168,11 +1130,13 @@ function Account() {
                       "Not added"}
                   </div>
                 )}
+
               </div>
 
               {/* CITY */}
 
               <div className="account-field">
+
                 <label htmlFor="city">
                   CITY
                 </label>
@@ -1187,6 +1151,7 @@ function Account() {
                       handleAddressChange
                     }
                     placeholder="City"
+                    disabled={savingAddress}
                   />
                 ) : (
                   <div className="account-value">
@@ -1194,11 +1159,13 @@ function Account() {
                       "Not added"}
                   </div>
                 )}
+
               </div>
 
               {/* STATE */}
 
               <div className="account-field">
+
                 <label htmlFor="state">
                   STATE
                 </label>
@@ -1213,6 +1180,7 @@ function Account() {
                       handleAddressChange
                     }
                     placeholder="State"
+                    disabled={savingAddress}
                   />
                 ) : (
                   <div className="account-value">
@@ -1220,11 +1188,13 @@ function Account() {
                       "Not added"}
                   </div>
                 )}
+
               </div>
 
-              {/* PINCODE */}
+              {/* PIN CODE */}
 
               <div className="account-field">
+
                 <label htmlFor="pincode">
                   PIN CODE
                 </label>
@@ -1234,15 +1204,14 @@ function Account() {
                     id="pincode"
                     type="text"
                     name="pincode"
-                    value={
-                      address.pincode
-                    }
+                    value={address.pincode}
                     onChange={
                       handleAddressChange
                     }
                     placeholder="PIN Code"
                     maxLength={6}
                     inputMode="numeric"
+                    disabled={savingAddress}
                   />
                 ) : (
                   <div className="account-value">
@@ -1250,11 +1219,13 @@ function Account() {
                       "Not added"}
                   </div>
                 )}
+
               </div>
 
               {/* COUNTRY */}
 
               <div className="account-field">
+
                 <label htmlFor="country">
                   COUNTRY
                 </label>
@@ -1263,12 +1234,11 @@ function Account() {
                   <select
                     id="country"
                     name="country"
-                    value={
-                      address.country
-                    }
+                    value={address.country}
                     onChange={
                       handleAddressChange
                     }
+                    disabled={savingAddress}
                   >
                     <option value="India">
                       India
@@ -1292,26 +1262,24 @@ function Account() {
                   </select>
                 ) : (
                   <div className="account-value">
-                    {address.country ||
-                      "India"}
+                    {address.country || "India"}
                   </div>
                 )}
+
               </div>
+
             </div>
 
             {/* ADDRESS ACTIONS */}
 
             {editingAddress && (
               <div className="account-form-actions">
+
                 <button
                   type="button"
                   className="account-cancel-button"
                   disabled={savingAddress}
-                  onClick={() => {
-                    setEditingAddress(false);
-                    setMessage("");
-                    setError("");
-                  }}
+                  onClick={cancelAddressEdit}
                 >
                   <X size={15} />
                   CANCEL
@@ -1331,8 +1299,10 @@ function Account() {
                     ? "SAVE ADDRESS"
                     : "ADD ADDRESS"}
                 </button>
+
               </div>
             )}
+
           </section>
 
           {/* =========================
@@ -1340,6 +1310,7 @@ function Account() {
           ========================= */}
 
           <section className="address-preview">
+
             <div className="address-preview-icon">
               <MapPin
                 size={20}
@@ -1348,12 +1319,14 @@ function Account() {
             </div>
 
             <div>
+
               <p className="address-preview-label">
                 DEFAULT DELIVERY ADDRESS
               </p>
 
               <h3>
-                {address.fullName}
+                {address.fullName ||
+                  "No address added"}
               </h3>
 
               {address.addressLine1 ||
@@ -1361,6 +1334,7 @@ function Account() {
               address.state ||
               address.pincode ? (
                 <p className="address-preview-text">
+
                   {address.addressLine1}
 
                   {address.addressLine2 &&
@@ -1380,6 +1354,7 @@ function Account() {
                   <br />
 
                   {address.country}
+
                 </p>
               ) : (
                 <p className="address-preview-text">
@@ -1392,8 +1367,11 @@ function Account() {
                   {address.phone}
                 </p>
               )}
+
             </div>
+
           </section>
+
         </main>
       </section>
     </div>

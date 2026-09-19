@@ -9098,3 +9098,238 @@ img {
     font-size: 9px;
   }
 }
+/* =========================================================
+   FINAL FOOTER + FOOTER NEWSLETTER FIX
+   This section intentionally appears at the end so it overrides
+   earlier footer/newsletter rules in this stylesheet.
+========================================================= */
+
+.footer {
+  width: 100%;
+  padding: 80px 5vw 30px;
+  background: #000;
+  color: #fff;
+}
+
+.footer-top {
+  display: grid;
+  grid-template-columns: 2fr repeat(4, minmax(0, 1fr));
+  gap: 50px;
+  align-items: start;
+}
+
+.footer-brand {
+  min-width: 0;
+}
+
+.footer h2 {
+  margin: 0;
+  font-size: 40px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.05em;
+}
+
+.footer p {
+  margin-top: 15px;
+  line-height: 1.6;
+  font-size: 13px;
+}
+
+.footer-column {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.footer-column h3 {
+  margin: 0 0 10px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+
+.footer-column a {
+  color: #fff;
+  font-size: 12px;
+  text-decoration: none;
+  transition: opacity 0.25s ease;
+}
+
+.footer-column a:hover {
+  opacity: 0.55;
+}
+
+/* Footer newsletter */
+.footer-newsletter {
+  min-width: 0;
+}
+
+.footer-newsletter > p {
+  margin: 0 0 18px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.footer-newsletter-form {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  max-width: 360px;
+  height: 42px;
+  margin: 0;
+  border-bottom: 1px solid #fff;
+}
+
+.footer-newsletter-form input {
+  display: block;
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  height: 42px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: #fff;
+  font-family: inherit;
+  font-size: 12px;
+  box-shadow: none;
+}
+
+.footer-newsletter-form input::placeholder {
+  color: #fff;
+  opacity: 0.6;
+}
+
+.footer-newsletter-form input:focus {
+  border: none;
+  outline: none;
+  box-shadow: none;
+}
+
+.footer-newsletter-form button {
+  display: block;
+  flex-shrink: 0;
+  width: auto;
+  height: 42px;
+  margin: 0;
+  padding: 0 0 0 18px;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: #fff;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  box-shadow: none;
+  transition: opacity 0.25s ease;
+}
+
+.footer-newsletter-form button:hover {
+  opacity: 0.55;
+}
+
+.footer-newsletter-form button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.footer-newsletter-status {
+  margin-top: 10px !important;
+  margin-bottom: 0 !important;
+  color: #fff !important;
+  font-size: 11px !important;
+  line-height: 1.5 !important;
+}
+
+/* Footer Instagram */
+.footer-instagram {
+  display: inline-block;
+  margin-top: 70px;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: opacity 0.25s ease;
+}
+
+.footer-instagram:hover {
+  opacity: 0.55;
+}
+
+/* Footer bottom */
+.footer-bottom {
+  margin-top: 70px;
+  padding-top: 20px;
+  border-top: 1px solid #333;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 9px;
+  letter-spacing: 1px;
+}
+
+/* Footer responsive */
+@media (max-width: 1100px) {
+  .footer-top {
+    grid-template-columns: 1.5fr repeat(4, minmax(0, 1fr));
+    gap: 35px;
+  }
+}
+
+@media (max-width: 900px) {
+  .footer-top {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 40px 25px;
+  }
+
+  .footer-brand {
+    grid-column: 1 / -1;
+  }
+
+  .footer-newsletter {
+    grid-column: 1 / -1;
+  }
+
+  .footer-newsletter-form {
+    max-width: 420px;
+  }
+}
+
+@media (max-width: 600px) {
+  .footer {
+    padding: 60px 18px 25px;
+  }
+
+  .footer-top {
+    grid-template-columns: 1fr 1fr;
+    gap: 35px 20px;
+  }
+
+  .footer-brand,
+  .footer-newsletter {
+    grid-column: 1 / -1;
+  }
+
+  .footer-newsletter-form {
+    max-width: 100%;
+  }
+
+  .footer-instagram {
+    margin-top: 60px;
+  }
+
+  .footer-bottom {
+    margin-top: 50px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+}

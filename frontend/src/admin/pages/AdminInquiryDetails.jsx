@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -8,123 +8,199 @@ import {
   CalendarDays,
   MessageSquare,
   CheckCircle,
-  XCircle,
   Send,
 } from "lucide-react";
-
-const inquiries = [
-  {
-    id: 1,
-    name: "Rahul Sharma",
-    email: "rahul.sharma@gmail.com",
-    phone: "+91 98765 43210",
-    subject: "Bulk T-Shirt Order",
-    message:
-      "I would like to know about bulk pricing for around 50 T-shirts. Please let me know if you offer any special pricing for bulk orders and what the minimum order quantity is.",
-    date: "18 Sep 2026",
-    time: "10:42 AM",
-    status: "New",
-  },
-  {
-    id: 2,
-    name: "Priya Das",
-    email: "priya.das@gmail.com",
-    phone: "+91 98321 45678",
-    subject: "Product Availability",
-    message:
-      "Could you please let me know when the History T-Shirt will be available in XL?",
-    date: "18 Sep 2026",
-    time: "09:18 AM",
-    status: "Read",
-  },
-  {
-    id: 3,
-    name: "Arjun Mehta",
-    email: "arjun.mehta@gmail.com",
-    phone: "+91 98111 22334",
-    subject: "Order Query",
-    message:
-      "I want to know the current status of my recent order. The order was placed recently and I would like to know when it will be shipped.",
-    date: "17 Sep 2026",
-    time: "04:35 PM",
-    status: "Replied",
-  },
-  {
-    id: 4,
-    name: "Ananya Roy",
-    email: "ananya.roy@gmail.com",
-    phone: "+91 99032 11223",
-    subject: "Wholesale Enquiry",
-    message:
-      "Please share information about your wholesale and reseller program. I would like to know about the pricing, minimum order quantity and available products.",
-    date: "17 Sep 2026",
-    time: "01:22 PM",
-    status: "New",
-  },
-  {
-    id: 5,
-    name: "Aditya Singh",
-    email: "aditya.singh@gmail.com",
-    phone: "+91 91234 56789",
-    subject: "Return Request",
-    message:
-      "I would like to discuss returning one of the products from my order. Please let me know the return procedure.",
-    date: "16 Sep 2026",
-    time: "11:05 AM",
-    status: "Read",
-  },
-  {
-    id: 6,
-    name: "Sneha Roy",
-    email: "sneha.roy@gmail.com",
-    phone: "+91 98300 44556",
-    subject: "Collaboration",
-    message:
-      "I am interested in discussing a possible brand collaboration. Please let me know whom I should contact regarding this.",
-    date: "15 Sep 2026",
-    time: "03:14 PM",
-    status: "Replied",
-  },
-  {
-    id: 7,
-    name: "Rohan Das",
-    email: "rohan.das@gmail.com",
-    phone: "+91 98740 77889",
-    subject: "Size Exchange",
-    message:
-      "Can I exchange my current product for one size larger? Please let me know the exchange procedure.",
-    date: "14 Sep 2026",
-    time: "06:20 PM",
-    status: "Closed",
-  },
-  {
-    id: 8,
-    name: "Meera Kapoor",
-    email: "meera.kapoor@gmail.com",
-    phone: "+91 98310 99887",
-    subject: "General Enquiry",
-    message:
-      "I would like some information about your upcoming collection and when it will be available on the website.",
-    date: "13 Sep 2026",
-    time: "12:10 PM",
-    status: "New",
-  },
-];
+import api from "../../services/api.js";
 
 function AdminInquiryDetails() {
   const { id } = useParams();
 
-  const inquiry = inquiries.find(
-    (item) => String(item.id) === String(id)
-  );
-
-  const [inquiryStatus, setInquiryStatus] = useState(
-    inquiry?.status || "New"
-  );
-
+  const [inquiry, setInquiry] = useState(null);
+  const [inquiryStatus, setInquiryStatus] = useState("New");
   const [reply, setReply] = useState("");
 
-  if (!inquiry) {
+  const [loading, setLoading] = useState(true);
+  const [savingStatus, setSavingStatus] = useState(false);
+  const [savingReply, setSavingReply] = useState(false);
+  const [error, setError] = useState("");
+
+  const fetchInquiry = async () => {
+    try {
+      setLoading(true);
+      setError("");
+
+      const response = await api.get(
+        `/inquiries/admin/${id}`
+      );
+
+      const data = response.data?.inquiry;
+
+      setInquiry(data || null);
+      setInquiryStatus(data?.status || "New");
+      setReply(data?.admin_response || "");
+    } catch (err) {
+      console.error("Failed to fetch inquiry:", err);
+
+      setError(
+        err.response?.data?.message ||
+          "Failed to load inquiry."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchInquiry();
+  }, [id]);
+
+  const getStatusClass = (currentStatus) => {
+    switch (currentStatus) {
+      case "New":
+        return "new";
+
+      case "In Progress":
+        return "read";
+
+      case "Resolved":
+        return "replied";
+
+      case "Closed":
+        return "closed";
+
+      default:
+        return "";
+    }
+  };
+
+  const formatDate = (dateValue) => {
+    if (!dateValue) return "-";
+
+    return new Date(dateValue).toLocaleDateString(
+      "en-IN",
+      {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      }
+    );
+  };
+
+  const formatTime = (dateValue) => {
+    if (!dateValue) return "";
+
+    return new Date(dateValue).toLocaleTimeString(
+      "en-IN",
+      {
+        hour: "2-digit",
+        minute: "2-digit",
+      }
+    );
+  };
+
+  const handleStatusUpdate = async () => {
+    try {
+      setSavingStatus(true);
+
+      const response = await api.patch(
+        `/inquiries/admin/${id}`,
+        {
+          status: inquiryStatus,
+        }
+      );
+
+      const updatedInquiry =
+        response.data?.inquiry;
+
+      if (updatedInquiry) {
+        setInquiry(updatedInquiry);
+        setInquiryStatus(updatedInquiry.status);
+        setReply(updatedInquiry.admin_response || "");
+      }
+
+      alert("Inquiry status updated successfully.");
+    } catch (err) {
+      console.error(
+        "Failed to update inquiry status:",
+        err
+      );
+
+      alert(
+        err.response?.data?.message ||
+          "Failed to update inquiry status."
+      );
+    } finally {
+      setSavingStatus(false);
+    }
+  };
+
+  const handleReply = async () => {
+    if (!reply.trim()) {
+      alert("Please write a reply first.");
+      return;
+    }
+
+    try {
+      setSavingReply(true);
+
+      const response = await api.patch(
+        `/inquiries/admin/${id}`,
+        {
+          admin_response: reply.trim(),
+          status:
+            inquiryStatus === "New"
+              ? "Resolved"
+              : inquiryStatus,
+        }
+      );
+
+      const updatedInquiry =
+        response.data?.inquiry;
+
+      if (updatedInquiry) {
+        setInquiry(updatedInquiry);
+        setInquiryStatus(updatedInquiry.status);
+        setReply(updatedInquiry.admin_response || "");
+      }
+
+      alert(
+        "Reply saved successfully. Email sending will be connected later."
+      );
+    } catch (err) {
+      console.error(
+        "Failed to save inquiry reply:",
+        err
+      );
+
+      alert(
+        err.response?.data?.message ||
+          "Failed to save reply."
+      );
+    } finally {
+      setSavingReply(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <section className="admin-inquiry-details-page">
+        <div className="admin-detail-not-found">
+          <MessageSquare
+            size={36}
+            strokeWidth={1.4}
+          />
+
+          <h2>Loading Inquiry...</h2>
+
+          <p>
+            Please wait while the inquiry is loaded.
+          </p>
+        </div>
+      </section>
+    );
+  }
+
+  if (error || !inquiry) {
     return (
       <section className="admin-inquiry-details-page">
         <div className="admin-detail-not-found">
@@ -136,7 +212,8 @@ function AdminInquiryDetails() {
           <h2>Inquiry Not Found</h2>
 
           <p>
-            The inquiry you are looking for does not exist.
+            {error ||
+              "The inquiry you are looking for does not exist."}
           </p>
 
           <Link
@@ -147,50 +224,13 @@ function AdminInquiryDetails() {
               size={16}
               strokeWidth={1.5}
             />
+
             Back to Inquiries
           </Link>
         </div>
       </section>
     );
   }
-
-  const getStatusClass = (currentStatus) => {
-    switch (currentStatus) {
-      case "New":
-        return "new";
-
-      case "Read":
-        return "read";
-
-      case "Replied":
-        return "replied";
-
-      case "Closed":
-        return "closed";
-
-      default:
-        return "";
-    }
-  };
-
-  const handleStatusUpdate = () => {
-    alert(
-      `Inquiry status changed to "${inquiryStatus}". Backend update will be connected later.`
-    );
-  };
-
-  const handleReply = () => {
-    if (!reply.trim()) {
-      alert("Please write a reply first.");
-      return;
-    }
-
-    alert(
-      "Reply is ready. Email sending will be connected to the backend later."
-    );
-
-    setReply("");
-  };
 
   return (
     <section className="admin-inquiry-details-page">
@@ -203,6 +243,7 @@ function AdminInquiryDetails() {
           size={16}
           strokeWidth={1.5}
         />
+
         <span>Back to Inquiries</span>
       </Link>
 
@@ -221,10 +262,13 @@ function AdminInquiryDetails() {
                 size={14}
                 strokeWidth={1.5}
               />
-              {inquiry.date}
+
+              {formatDate(inquiry.created_at)}
             </span>
 
-            <span>{inquiry.time}</span>
+            <span>
+              {formatTime(inquiry.created_at)}
+            </span>
 
             <span
               className={`admin-inquiry-status ${getStatusClass(
@@ -299,15 +343,38 @@ function AdminInquiryDetails() {
                 type="button"
                 className="admin-primary-button"
                 onClick={handleReply}
+                disabled={savingReply}
               >
                 <Send
                   size={16}
                   strokeWidth={1.5}
                 />
-                Send Reply
+
+                {savingReply
+                  ? "Saving..."
+                  : "Save Reply"}
               </button>
             </div>
           </div>
+
+          {/* EXISTING RESPONSE */}
+          {inquiry.admin_response && (
+            <div className="admin-detail-panel">
+              <div className="admin-detail-panel-header">
+                <div>
+                  <p className="admin-panel-eyebrow">
+                    SAVED RESPONSE
+                  </p>
+
+                  <h2>Admin Response</h2>
+                </div>
+              </div>
+
+              <div className="admin-inquiry-full-message">
+                <p>{inquiry.admin_response}</p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* RIGHT */}
@@ -350,25 +417,10 @@ function AdminInquiryDetails() {
                 <div>
                   <span>Email</span>
 
-                  <a href={`mailto:${inquiry.email}`}>
+                  <a
+                    href={`mailto:${inquiry.email}`}
+                  >
                     {inquiry.email}
-                  </a>
-                </div>
-              </div>
-
-              <div className="admin-contact-row">
-                <div className="admin-contact-icon">
-                  <Phone
-                    size={16}
-                    strokeWidth={1.5}
-                  />
-                </div>
-
-                <div>
-                  <span>Phone</span>
-
-                  <a href={`tel:${inquiry.phone}`}>
-                    {inquiry.phone}
                   </a>
                 </div>
               </div>
@@ -400,21 +452,31 @@ function AdminInquiryDetails() {
                 }
               >
                 <option value="New">New</option>
-                <option value="Read">Read</option>
-                <option value="Replied">Replied</option>
-                <option value="Closed">Closed</option>
+                <option value="In Progress">
+                  In Progress
+                </option>
+                <option value="Resolved">
+                  Resolved
+                </option>
+                <option value="Closed">
+                  Closed
+                </option>
               </select>
 
               <button
                 type="button"
                 className="admin-primary-button"
                 onClick={handleStatusUpdate}
+                disabled={savingStatus}
               >
                 <CheckCircle
                   size={16}
                   strokeWidth={1.5}
                 />
-                Update Status
+
+                {savingStatus
+                  ? "Updating..."
+                  : "Update Status"}
               </button>
             </div>
           </div>
@@ -440,18 +502,8 @@ function AdminInquiryDetails() {
                   size={16}
                   strokeWidth={1.5}
                 />
-                Email Customer
-              </a>
 
-              <a
-                href={`tel:${inquiry.phone}`}
-                className="admin-secondary-button"
-              >
-                <Phone
-                  size={16}
-                  strokeWidth={1.5}
-                />
-                Call Customer
+                Email Customer
               </a>
             </div>
           </div>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   Save,
@@ -10,55 +10,207 @@ import {
   MapPin,
 } from "lucide-react";
 
+import api from "../../services/api.js";
+
+const defaultSettings = {
+  storeName: "UNTKN",
+  tagline: "More than just a T-shirt",
+
+  email: "support@untkn.in",
+  phone: "+91 98765 43210",
+  whatsapp: "+91 98765 43210",
+  address: "Kolkata, West Bengal, India",
+
+  instagram:
+    "https://www.instagram.com/untknofficialstore/",
+  facebook: "",
+  youtube: "",
+  website: "https://untkn.in",
+
+  currency: "INR",
+  currencySymbol: "₹",
+  freeShipping: "999",
+  shippingCharge: "99",
+
+  contactEnabled: true,
+  newsletterEnabled: true,
+  maintenanceMode: false,
+};
+
 function AdminSettings() {
-  const [settings, setSettings] = useState({
-    storeName: "UNTKN",
-    tagline: "More than just a T-shirt",
+  const [settings, setSettings] = useState(defaultSettings);
 
-    email: "support@untkn.in",
-    phone: "+91 98765 43210",
-    whatsapp: "+91 98765 43210",
-    address: "Kolkata, West Bengal, India",
-
-    instagram: "https://www.instagram.com/untknofficialstore/",
-    facebook: "",
-    youtube: "",
-    website: "https://untkn.in",
-
-    currency: "INR",
-    currencySymbol: "₹",
-    freeShipping: "999",
-    shippingCharge: "99",
-
-    contactEnabled: true,
-    newsletterEnabled: true,
-    maintenanceMode: false,
-  });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
 
+  /*
+   * LOAD SETTINGS
+   */
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        setLoading(true);
+        setError("");
+
+        const response = await api.get("/settings/admin");
+
+        if (response.data?.settings) {
+          setSettings({
+            ...defaultSettings,
+            ...response.data.settings,
+
+            freeShipping:
+              response.data.settings.freeShipping !==
+              undefined
+                ? String(
+                    response.data.settings.freeShipping
+                  )
+                : "999",
+
+            shippingCharge:
+              response.data.settings.shippingCharge !==
+              undefined
+                ? String(
+                    response.data.settings.shippingCharge
+                  )
+                : "99",
+          });
+        }
+      } catch (err) {
+        console.error(
+          "Failed to load store settings:",
+          err
+        );
+
+        setError(
+          err.response?.data?.message ||
+            "Failed to load store settings."
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSettings();
+  }, []);
+
+  /*
+   * HANDLE INPUT CHANGES
+   */
   const handleChange = (event) => {
-    const { name, value, type, checked } = event.target;
+    const {
+      name,
+      value,
+      type,
+      checked,
+    } = event.target;
 
     setSettings((current) => ({
       ...current,
-      [name]: type === "checkbox" ? checked : value,
+      [name]:
+        type === "checkbox"
+          ? checked
+          : value,
     }));
 
     setSaved(false);
+    setError("");
   };
 
-  const handleSave = (event) => {
+  /*
+   * SAVE SETTINGS
+   */
+  const handleSave = async (event) => {
     event.preventDefault();
 
-    console.log("Store settings:", settings);
+    try {
+      setSaving(true);
+      setSaved(false);
+      setError("");
 
-    setSaved(true);
+      const response = await api.put(
+        "/settings/admin",
+        {
+          ...settings,
 
-    alert(
-      "Settings saved locally for now. Backend connection will be added later."
-    );
+          freeShipping: Number(
+            settings.freeShipping
+          ),
+
+          shippingCharge: Number(
+            settings.shippingCharge
+          ),
+        }
+      );
+
+      if (response.data?.settings) {
+        setSettings({
+          ...defaultSettings,
+          ...response.data.settings,
+
+          freeShipping:
+            response.data.settings.freeShipping !==
+            undefined
+              ? String(
+                  response.data.settings.freeShipping
+                )
+              : "999",
+
+          shippingCharge:
+            response.data.settings.shippingCharge !==
+            undefined
+              ? String(
+                  response.data.settings.shippingCharge
+                )
+              : "99",
+        });
+      }
+
+      setSaved(true);
+
+      setTimeout(() => {
+        setSaved(false);
+      }, 2500);
+    } catch (err) {
+      console.error(
+        "Failed to save store settings:",
+        err
+      );
+
+      setError(
+        err.response?.data?.message ||
+          "Failed to save store settings."
+      );
+    } finally {
+      setSaving(false);
+    }
   };
+
+  /*
+   * LOADING STATE
+   */
+  if (loading) {
+    return (
+      <section className="admin-settings-page">
+        <div className="admin-page-header">
+          <div>
+            <p className="admin-eyebrow">
+              CONFIGURATION
+            </p>
+
+            <h1>Settings</h1>
+
+            <p>
+              Loading store settings...
+            </p>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="admin-settings-page">
@@ -66,12 +218,15 @@ function AdminSettings() {
 
       <div className="admin-page-header">
         <div>
-          <p className="admin-eyebrow">CONFIGURATION</p>
+          <p className="admin-eyebrow">
+            CONFIGURATION
+          </p>
 
           <h1>Settings</h1>
 
           <p>
-            Manage your store information and storefront settings.
+            Manage your store information and
+            storefront settings.
           </p>
         </div>
 
@@ -79,12 +234,35 @@ function AdminSettings() {
           type="submit"
           form="admin-settings-form"
           className="admin-primary-button"
+          disabled={saving}
         >
-          <Save size={17} strokeWidth={1.6} />
+          <Save
+            size={17}
+            strokeWidth={1.6}
+          />
 
-          <span>{saved ? "Saved" : "Save Changes"}</span>
+          <span>
+            {saving
+              ? "Saving..."
+              : saved
+              ? "Saved"
+              : "Save Changes"}
+          </span>
         </button>
       </div>
+
+      {/* ERROR MESSAGE */}
+
+      {error && (
+        <div
+          className="admin-error-message"
+          style={{
+            marginBottom: "20px",
+          }}
+        >
+          {error}
+        </div>
+      )}
 
       <form
         id="admin-settings-form"
@@ -96,23 +274,31 @@ function AdminSettings() {
         <div className="admin-settings-panel">
           <div className="admin-settings-panel-header">
             <div className="admin-settings-panel-icon">
-              <Store size={19} strokeWidth={1.5} />
+              <Store
+                size={19}
+                strokeWidth={1.5}
+              />
             </div>
 
             <div>
-              <p className="admin-panel-eyebrow">STORE</p>
+              <p className="admin-panel-eyebrow">
+                STORE
+              </p>
 
               <h2>Store Information</h2>
 
               <p>
-                Basic information displayed across the storefront.
+                Basic information displayed across
+                the storefront.
               </p>
             </div>
           </div>
 
           <div className="admin-settings-fields">
             <div className="admin-settings-field">
-              <label htmlFor="storeName">Store Name</label>
+              <label htmlFor="storeName">
+                Store Name
+              </label>
 
               <input
                 id="storeName"
@@ -120,11 +306,14 @@ function AdminSettings() {
                 type="text"
                 value={settings.storeName}
                 onChange={handleChange}
+                required
               />
             </div>
 
             <div className="admin-settings-field">
-              <label htmlFor="tagline">Tagline</label>
+              <label htmlFor="tagline">
+                Tagline
+              </label>
 
               <input
                 id="tagline"
@@ -136,10 +325,15 @@ function AdminSettings() {
             </div>
 
             <div className="admin-settings-field full">
-              <label htmlFor="website">Website</label>
+              <label htmlFor="website">
+                Website
+              </label>
 
               <div className="admin-settings-input-icon">
-                <Globe size={16} strokeWidth={1.5} />
+                <Globe
+                  size={16}
+                  strokeWidth={1.5}
+                />
 
                 <input
                   id="website"
@@ -159,11 +353,16 @@ function AdminSettings() {
         <div className="admin-settings-panel">
           <div className="admin-settings-panel-header">
             <div className="admin-settings-panel-icon">
-              <Mail size={19} strokeWidth={1.5} />
+              <Mail
+                size={19}
+                strokeWidth={1.5}
+              />
             </div>
 
             <div>
-              <p className="admin-panel-eyebrow">CONTACT</p>
+              <p className="admin-panel-eyebrow">
+                CONTACT
+              </p>
 
               <h2>Contact Information</h2>
 
@@ -175,10 +374,15 @@ function AdminSettings() {
 
           <div className="admin-settings-fields">
             <div className="admin-settings-field">
-              <label htmlFor="email">Email Address</label>
+              <label htmlFor="email">
+                Email Address
+              </label>
 
               <div className="admin-settings-input-icon">
-                <Mail size={16} strokeWidth={1.5} />
+                <Mail
+                  size={16}
+                  strokeWidth={1.5}
+                />
 
                 <input
                   id="email"
@@ -191,10 +395,15 @@ function AdminSettings() {
             </div>
 
             <div className="admin-settings-field">
-              <label htmlFor="phone">Phone Number</label>
+              <label htmlFor="phone">
+                Phone Number
+              </label>
 
               <div className="admin-settings-input-icon">
-                <Phone size={16} strokeWidth={1.5} />
+                <Phone
+                  size={16}
+                  strokeWidth={1.5}
+                />
 
                 <input
                   id="phone"
@@ -207,10 +416,15 @@ function AdminSettings() {
             </div>
 
             <div className="admin-settings-field">
-              <label htmlFor="whatsapp">WhatsApp Number</label>
+              <label htmlFor="whatsapp">
+                WhatsApp Number
+              </label>
 
               <div className="admin-settings-input-icon">
-                <MessageCircle size={16} strokeWidth={1.5} />
+                <MessageCircle
+                  size={16}
+                  strokeWidth={1.5}
+                />
 
                 <input
                   id="whatsapp"
@@ -223,10 +437,15 @@ function AdminSettings() {
             </div>
 
             <div className="admin-settings-field">
-              <label htmlFor="address">Store Address</label>
+              <label htmlFor="address">
+                Store Address
+              </label>
 
               <div className="admin-settings-input-icon">
-                <MapPin size={16} strokeWidth={1.5} />
+                <MapPin
+                  size={16}
+                  strokeWidth={1.5}
+                />
 
                 <input
                   id="address"
@@ -245,16 +464,22 @@ function AdminSettings() {
         <div className="admin-settings-panel">
           <div className="admin-settings-panel-header">
             <div className="admin-settings-panel-icon">
-              <Globe size={19} strokeWidth={1.5} />
+              <Globe
+                size={19}
+                strokeWidth={1.5}
+              />
             </div>
 
             <div>
-              <p className="admin-panel-eyebrow">SOCIAL</p>
+              <p className="admin-panel-eyebrow">
+                SOCIAL
+              </p>
 
               <h2>Social Links</h2>
 
               <p>
-                Manage your social media profile links.
+                Manage your social media profile
+                links.
               </p>
             </div>
           </div>
@@ -263,10 +488,15 @@ function AdminSettings() {
             {/* INSTAGRAM */}
 
             <div className="admin-settings-field">
-              <label htmlFor="instagram">Instagram</label>
+              <label htmlFor="instagram">
+                Instagram
+              </label>
 
               <div className="admin-settings-input-icon">
-                <Globe size={16} strokeWidth={1.5} />
+                <Globe
+                  size={16}
+                  strokeWidth={1.5}
+                />
 
                 <input
                   id="instagram"
@@ -282,10 +512,15 @@ function AdminSettings() {
             {/* FACEBOOK */}
 
             <div className="admin-settings-field">
-              <label htmlFor="facebook">Facebook</label>
+              <label htmlFor="facebook">
+                Facebook
+              </label>
 
               <div className="admin-settings-input-icon">
-                <Globe size={16} strokeWidth={1.5} />
+                <Globe
+                  size={16}
+                  strokeWidth={1.5}
+                />
 
                 <input
                   id="facebook"
@@ -301,10 +536,15 @@ function AdminSettings() {
             {/* YOUTUBE */}
 
             <div className="admin-settings-field">
-              <label htmlFor="youtube">YouTube</label>
+              <label htmlFor="youtube">
+                YouTube
+              </label>
 
               <div className="admin-settings-input-icon">
-                <Globe size={16} strokeWidth={1.5} />
+                <Globe
+                  size={16}
+                  strokeWidth={1.5}
+                />
 
                 <input
                   id="youtube"
@@ -324,7 +564,10 @@ function AdminSettings() {
         <div className="admin-settings-panel">
           <div className="admin-settings-panel-header">
             <div className="admin-settings-panel-icon">
-              <Store size={19} strokeWidth={1.5} />
+              <Store
+                size={19}
+                strokeWidth={1.5}
+              />
             </div>
 
             <div>
@@ -335,14 +578,17 @@ function AdminSettings() {
               <h2>Store Settings</h2>
 
               <p>
-                Configure currency and shipping options.
+                Configure currency and shipping
+                options.
               </p>
             </div>
           </div>
 
           <div className="admin-settings-fields">
             <div className="admin-settings-field">
-              <label htmlFor="currency">Currency</label>
+              <label htmlFor="currency">
+                Currency
+              </label>
 
               <select
                 id="currency"
@@ -415,16 +661,22 @@ function AdminSettings() {
         <div className="admin-settings-panel">
           <div className="admin-settings-panel-header">
             <div className="admin-settings-panel-icon">
-              <Globe size={19} strokeWidth={1.5} />
+              <Globe
+                size={19}
+                strokeWidth={1.5}
+              />
             </div>
 
             <div>
-              <p className="admin-panel-eyebrow">WEBSITE</p>
+              <p className="admin-panel-eyebrow">
+                WEBSITE
+              </p>
 
               <h2>Website Features</h2>
 
               <p>
-                Enable or disable selected storefront features.
+                Enable or disable selected storefront
+                features.
               </p>
             </div>
           </div>
@@ -434,17 +686,22 @@ function AdminSettings() {
 
             <label className="admin-settings-toggle">
               <div>
-                <strong>Contact Form</strong>
+                <strong>
+                  Contact Form
+                </strong>
 
                 <span>
-                  Allow customers to submit inquiries.
+                  Allow customers to submit
+                  inquiries.
                 </span>
               </div>
 
               <input
                 type="checkbox"
                 name="contactEnabled"
-                checked={settings.contactEnabled}
+                checked={
+                  settings.contactEnabled
+                }
                 onChange={handleChange}
               />
 
@@ -455,17 +712,22 @@ function AdminSettings() {
 
             <label className="admin-settings-toggle">
               <div>
-                <strong>Newsletter</strong>
+                <strong>
+                  Newsletter
+                </strong>
 
                 <span>
-                  Show newsletter subscription forms.
+                  Show newsletter subscription
+                  forms.
                 </span>
               </div>
 
               <input
                 type="checkbox"
                 name="newsletterEnabled"
-                checked={settings.newsletterEnabled}
+                checked={
+                  settings.newsletterEnabled
+                }
                 onChange={handleChange}
               />
 
@@ -476,17 +738,22 @@ function AdminSettings() {
 
             <label className="admin-settings-toggle">
               <div>
-                <strong>Maintenance Mode</strong>
+                <strong>
+                  Maintenance Mode
+                </strong>
 
                 <span>
-                  Temporarily disable the customer storefront.
+                  Temporarily disable the customer
+                  storefront.
                 </span>
               </div>
 
               <input
                 type="checkbox"
                 name="maintenanceMode"
-                checked={settings.maintenanceMode}
+                checked={
+                  settings.maintenanceMode
+                }
                 onChange={handleChange}
               />
 
