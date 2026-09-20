@@ -15,7 +15,7 @@ function Lookbook() {
         setError("");
 
         const response = await fetch(
-          "http://localhost:5000/api/lookbook/active"
+          "/api/lookbook/active"
         );
 
         const data = await response.json();
