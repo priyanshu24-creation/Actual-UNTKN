@@ -64,13 +64,6 @@ import AdminDeliverySettings from "./admin/pages/AdminDeliverySettings";
 
 import AdminLogin from "./admin/pages/AdminLogin";
 import ProtectedAdminRoute from "./admin/components/ProtectedAdminRoute";
-import AdminLookbook from "./admin/pages/AdminLookbook";
-import AdminAbout from "./admin/pages/AdminAbout";
-
-
-// =========================================================
-// APP CONTENT
-// =========================================================
 
 import AdminLookbook from "./admin/pages/AdminLookbook";
 import AdminAbout from "./admin/pages/AdminAbout";
@@ -83,12 +76,8 @@ function AppContent() {
   const location = useLocation();
 
   // Check whether the current page is an admin page
-<<<<<<< Updated upstream
-  const isAdminPage = location.pathname.startsWith("/admin");
-=======
   const isAdminPage =
     location.pathname.startsWith("/admin");
->>>>>>> Stashed changes
 
   return (
     <>
@@ -98,10 +87,6 @@ function AppContent() {
 
       <IntroAnimation />
 
-<<<<<<< Updated upstream
-
-=======
->>>>>>> Stashed changes
       {/* =====================================================
           CUSTOMER NAVBAR
           Hidden inside Admin Panel
@@ -109,16 +94,11 @@ function AppContent() {
 
       {!isAdminPage && <Navbar />}
 
-<<<<<<< Updated upstream
-
-=======
->>>>>>> Stashed changes
       {/* =====================================================
           MAIN
       ===================================================== */}
 
       <main>
-
         <Routes>
 
           {/* ===================================================
@@ -131,118 +111,72 @@ function AppContent() {
             element={<Home />}
           />
 
-<<<<<<< Updated upstream
-
-=======
->>>>>>> Stashed changes
           {/* SHOP */}
           <Route
             path="/shop"
             element={<Shop />}
           />
 
-<<<<<<< Updated upstream
-
-=======
->>>>>>> Stashed changes
           {/* COLLECTIONS */}
           <Route
             path="/collections"
             element={<Collections />}
           />
 
-<<<<<<< Updated upstream
-
-=======
->>>>>>> Stashed changes
           {/* PRODUCT DETAILS */}
           <Route
             path="/product/:id"
             element={<ProductDetails />}
           />
 
-<<<<<<< Updated upstream
-
-=======
->>>>>>> Stashed changes
           {/* CART */}
           <Route
             path="/cart"
             element={<Cart />}
           />
 
-<<<<<<< Updated upstream
-
-=======
->>>>>>> Stashed changes
           {/* WISHLIST */}
           <Route
             path="/wishlist"
             element={<Wishlist />}
           />
 
-<<<<<<< Updated upstream
-
-=======
->>>>>>> Stashed changes
           {/* SEARCH */}
           <Route
             path="/search"
             element={<Search />}
           />
 
-<<<<<<< Updated upstream
-
-=======
->>>>>>> Stashed changes
           {/* LOGIN */}
           <Route
             path="/login"
             element={<Login />}
           />
 
-<<<<<<< Updated upstream
-
-=======
->>>>>>> Stashed changes
           {/* REGISTER */}
           <Route
             path="/register"
             element={<Register />}
           />
 
-<<<<<<< Updated upstream
-
-=======
->>>>>>> Stashed changes
           {/* ACCOUNT */}
           <Route
             path="/account"
             element={<Account />}
           />
 
-<<<<<<< Updated upstream
-
-=======
->>>>>>> Stashed changes
           {/* ORDERS */}
           <Route
             path="/orders"
             element={<Orders />}
           />
 
-<<<<<<< Updated upstream
-
-=======
->>>>>>> Stashed changes
           {/* ORDER DETAILS */}
           <Route
             path="/orders/:id"
             element={<OrderDetails />}
           />
 
-<<<<<<< Updated upstream
-=======
           {/* ACCOUNT ORDER DETAILS
               Required for URLs like:
               /account/orders/10
@@ -251,7 +185,6 @@ function AppContent() {
             path="/account/orders/:id"
             element={<OrderDetails />}
           />
->>>>>>> Stashed changes
 
           {/* CHECKOUT */}
           <Route
@@ -259,50 +192,30 @@ function AppContent() {
             element={<Checkout />}
           />
 
-<<<<<<< Updated upstream
-
-=======
->>>>>>> Stashed changes
           {/* PAYMENT */}
           <Route
             path="/payment"
             element={<Payment />}
           />
 
-<<<<<<< Updated upstream
-
-=======
->>>>>>> Stashed changes
           {/* ORDER SUCCESS */}
           <Route
             path="/order-success"
             element={<OrderSuccess />}
           />
 
-<<<<<<< Updated upstream
-
-=======
->>>>>>> Stashed changes
           {/* ABOUT */}
           <Route
             path="/about"
             element={<About />}
           />
 
-<<<<<<< Updated upstream
-
-=======
->>>>>>> Stashed changes
           {/* LOOKBOOK */}
           <Route
             path="/lookbook"
             element={<Lookbook />}
           />
 
-<<<<<<< Updated upstream
-
-=======
->>>>>>> Stashed changes
           {/* CONTACT */}
           <Route
             path="/contact"
@@ -313,22 +226,6 @@ function AppContent() {
               ADMIN LOGIN
           =================================================== */}
 
-<<<<<<< Updated upstream
-          {/* ===================================================
-              ADMIN LOGIN
-          =================================================== */}
-
-          <Route
-            path="/admin/login"
-            element={<AdminLogin />}
-          />
-
-
-          {/* ===================================================
-              PROTECTED ADMIN ROUTES
-          =================================================== */}
-
-=======
           <Route
             path="/admin/login"
             element={<AdminLogin />}
@@ -338,120 +235,10 @@ function AppContent() {
               PROTECTED ADMIN ROUTES
           =================================================== */}
 
->>>>>>> Stashed changes
           <Route
             path="/admin"
             element={<ProtectedAdminRoute />}
           >
-<<<<<<< Updated upstream
-
-            {/* ADMIN LAYOUT */}
-
-            <Route element={<AdminLayout />}>
-
-              {/* =============================================
-                  ADMIN DASHBOARD
-              ============================================= */}
-
-              <Route
-                index
-                element={<AdminDashboard />}
-              />
-
-
-              {/* =============================================
-                  PRODUCTS
-              ============================================= */}
-
-              <Route
-                path="products"
-                element={<AdminProducts />}
-              />
-
-
-              {/* ADD PRODUCT */}
-
-              <Route
-                path="products/add"
-                element={<AdminAddProduct />}
-              />
-
-
-              {/* EDIT PRODUCT */}
-
-              <Route
-                path="products/edit/:id"
-                element={<AdminEditProduct />}
-              />
-
-
-              {/* =============================================
-                  ORDERS
-              ============================================= */}
-
-              <Route
-                path="orders"
-                element={<AdminOrders />}
-              />
-
-
-              {/* ORDER DETAILS */}
-
-              <Route
-                path="orders/:id"
-                element={<AdminOrderDetails />}
-              />
-
-              <Route
-  path="lookbook"
-  element={<AdminLookbook />}
-/>
-
-
-              {/* =============================================
-                  DELIVERY SETTINGS
-              ============================================= */}
-
-              <Route
-                path="delivery-settings"
-                element={<AdminDeliverySettings />}
-              />
-
-
-              {/* =============================================
-                  CUSTOMERS
-              ============================================= */}
-
-              <Route
-                path="customers"
-                element={<AdminCustomers />}
-              />
-
-
-              {/* CUSTOMER DETAILS */}
-
-              <Route
-                path="customers/:id"
-                element={<AdminCustomerDetails />}
-              />
-
-
-              {/* =============================================
-                  COLLECTIONS
-              ============================================= */}
-
-              <Route
-                path="collections"
-                element={<AdminCollections />}
-              />
-
-
-              {/* =============================================
-                  WISHLIST
-              ============================================= */}
-
-              <Route
-=======
             {/* ADMIN LAYOUT */}
             <Route element={<AdminLayout />}>
 
@@ -547,15 +334,10 @@ function AppContent() {
               ============================================= */}
 
               <Route
->>>>>>> Stashed changes
                 path="wishlist"
                 element={<AdminWishlist />}
               />
 
-<<<<<<< Updated upstream
-
-=======
->>>>>>> Stashed changes
               {/* =============================================
                   NEWSLETTER
               ============================================= */}
@@ -565,10 +347,6 @@ function AppContent() {
                 element={<AdminNewsletter />}
               />
 
-<<<<<<< Updated upstream
-
-=======
->>>>>>> Stashed changes
               {/* =============================================
                   INQUIRIES
               ============================================= */}
@@ -578,16 +356,6 @@ function AppContent() {
                 element={<AdminInquiries />}
               />
 
-<<<<<<< Updated upstream
-              <Route
-  path="about"
-  element={<AdminAbout />}
-/>
-
-
-              {/* INQUIRY DETAILS */}
-
-=======
               {/* ABOUT */}
               <Route
                 path="about"
@@ -595,16 +363,11 @@ function AppContent() {
               />
 
               {/* INQUIRY DETAILS */}
->>>>>>> Stashed changes
               <Route
                 path="inquiries/:id"
                 element={<AdminInquiryDetails />}
               />
 
-<<<<<<< Updated upstream
-
-=======
->>>>>>> Stashed changes
               {/* =============================================
                   ADMIN SETTINGS
               ============================================= */}
@@ -615,15 +378,8 @@ function AppContent() {
               />
 
             </Route>
-<<<<<<< Updated upstream
-
           </Route>
 
-
-=======
-          </Route>
-
->>>>>>> Stashed changes
           {/* ===================================================
               404
           =================================================== */}
@@ -634,13 +390,8 @@ function AppContent() {
           />
 
         </Routes>
-
       </main>
 
-<<<<<<< Updated upstream
-
-=======
->>>>>>> Stashed changes
       {/* =====================================================
           CUSTOMER FOOTER
           Hidden inside Admin Panel
@@ -648,27 +399,18 @@ function AppContent() {
 
       {!isAdminPage && <Footer />}
 
-<<<<<<< Updated upstream
-
-=======
->>>>>>> Stashed changes
       {/* =====================================================
           CONTACT BUTTON
       ===================================================== */}
 
       <ContactButton />
 
-<<<<<<< Updated upstream
-
-=======
->>>>>>> Stashed changes
       {/* =====================================================
           SCROLL TO TOP
           Hidden inside Admin Panel
       ===================================================== */}
 
       {!isAdminPage && <ScrollToTop />}
-
     </>
   );
 }
@@ -677,19 +419,12 @@ function AppContent() {
 // APP
 // =========================================================
 
-// =========================================================
-// APP
-// =========================================================
-
 function App() {
   return (
     <BrowserRouter>
-
       <AppContent />
-
     </BrowserRouter>
   );
 }
-
 
 export default App;

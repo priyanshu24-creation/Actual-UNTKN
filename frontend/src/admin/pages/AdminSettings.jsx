@@ -27,11 +27,6 @@ const defaultSettings = {
   runningBannerMessage3:
     "EASY RETURNS",
 
-<<<<<<< Updated upstream
-  email: "support@untkn.in",
-
-=======
->>>>>>> Stashed changes
   email: "support@untkn.in",
   phone: "+91 98765 43210",
   whatsapp: "+91 98765 43210",
@@ -782,141 +777,6 @@ function AdminSettings() {
           </div>
         </div>
 
-<<<<<<< Updated upstream
-        {/* RUNNING BANNER */}
-
-<div className="admin-settings-panel">
-
-  <div className="admin-settings-panel-header">
-
-    <div className="admin-settings-panel-icon">
-      <MessageCircle
-        size={19}
-        strokeWidth={1.5}
-      />
-    </div>
-
-    <div>
-      <p className="admin-panel-eyebrow">
-        HOMEPAGE
-      </p>
-
-      <h2>Running Banner</h2>
-
-      <p>
-        Manage the scrolling announcement bar
-        displayed at the top of the website.
-      </p>
-    </div>
-
-  </div>
-
-  <div className="admin-settings-fields">
-
-    {/* MESSAGE 1 */}
-
-    <div className="admin-settings-field full">
-
-      <label htmlFor="runningBannerMessage1">
-        Message 1
-      </label>
-
-      <input
-        id="runningBannerMessage1"
-        name="runningBannerMessage1"
-        type="text"
-        maxLength={80}
-        value={
-          settings.runningBannerMessage1
-        }
-        onChange={handleChange}
-        placeholder="FREE SHIPPING ON ORDERS ABOVE ₹999"
-      />
-
-    </div>
-
-    {/* MESSAGE 2 */}
-
-    <div className="admin-settings-field full">
-
-      <label htmlFor="runningBannerMessage2">
-        Message 2
-      </label>
-
-      <input
-        id="runningBannerMessage2"
-        name="runningBannerMessage2"
-        type="text"
-        maxLength={80}
-        value={
-          settings.runningBannerMessage2
-        }
-        onChange={handleChange}
-        placeholder="NEW DROP LIVE NOW"
-      />
-
-    </div>
-
-    {/* MESSAGE 3 */}
-
-    <div className="admin-settings-field full">
-
-      <label htmlFor="runningBannerMessage3">
-        Message 3
-      </label>
-
-      <input
-        id="runningBannerMessage3"
-        name="runningBannerMessage3"
-        type="text"
-        maxLength={80}
-        value={
-          settings.runningBannerMessage3
-        }
-        onChange={handleChange}
-        placeholder="EASY RETURNS"
-      />
-
-    </div>
-
-  </div>
-
-  {/* ENABLE / DISABLE */}
-
-  <div className="admin-settings-toggles">
-
-    <label className="admin-settings-toggle">
-
-      <div>
-        <strong>
-          Running Banner
-        </strong>
-
-        <span>
-          Show the scrolling announcement bar
-          on the customer website.
-        </span>
-      </div>
-
-      <input
-        type="checkbox"
-        name="runningBannerEnabled"
-        checked={
-          settings.runningBannerEnabled
-        }
-        onChange={handleChange}
-      />
-
-      <span className="admin-toggle-slider" />
-
-    </label>
-
-  </div>
-
-</div>
-
-        {/* STORE SETTINGS */}
-=======
         <div className="admin-settings-panel">
           <div className="admin-settings-panel-header">
             <div className="admin-settings-panel-icon">
@@ -1028,7 +888,6 @@ function AdminSettings() {
             </label>
           </div>
         </div>
->>>>>>> Stashed changes
 
         <div className="admin-settings-panel">
           <div className="admin-settings-panel-header">

@@ -236,16 +236,6 @@ function Navbar() {
               >
                 ABOUT
               </Link>
-              <Link
-  to="/contact"
-  className={
-    isActive("/contact")
-      ? "active"
-      : ""
-  }
->
-  CONTACT
-</Link>
 
               <Link
                 to="/contact"
@@ -396,36 +386,6 @@ function Navbar() {
               LOOKBOOK
             </Link>
 
-<<<<<<< Updated upstream
-            {/* ABOUT */}
-           {/* ABOUT */}
-<Link
-  to="/about"
-  onClick={closeMenu}
-  className={
-    isActive("/about")
-      ? "active"
-      : ""
-  }
->
-  <span>05</span>
-  ABOUT
-</Link>
-
-{/* CONTACT */}
-<Link
-  to="/contact"
-  onClick={closeMenu}
-  className={
-    isActive("/contact")
-      ? "active"
-      : ""
-  }
->
-  <span>06</span>
-  CONTACT
-</Link>
-=======
             <Link
               to="/about"
               onClick={closeMenu}
@@ -438,7 +398,6 @@ function Navbar() {
               <span>05</span>
               ABOUT
             </Link>
->>>>>>> Stashed changes
 
             <Link
               to="/contact"

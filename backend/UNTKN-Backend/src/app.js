@@ -4,6 +4,7 @@ import cookieParser from "cookie-parser";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import path from "path";
+import { fileURLToPath } from "url";
 
 import authRoutes from "./routes/auth.routes.js";
 import categoryRoutes from "./routes/category.routes.js";
@@ -23,12 +24,19 @@ import newsletterRoutes from "./routes/newsletter.routes.js";
 import inquiryRoutes from "./routes/inquiry.routes.js";
 import settingsRoutes from "./routes/settings.routes.js";
 import lookbookRoutes from "./routes/lookbook.routes.js";
-
-import { errorHandler } from "./middleware/error.middleware.js";
 import deliveryMethodRoutes from "./routes/deliveryMethod.routes.js";
 import runningBannerRoutes from "./routes/runningBanner.routes.js";
 
+import { errorHandler } from "./middleware/error.middleware.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const app = express();
+
+const frontendPath = path.resolve(__dirname, "../../../frontend/dist");
+const uploadsPath = path.resolve(__dirname, "../uploads");
+const testPath = path.resolve(__dirname, "../test");
 
 app.use(
     helmet({
@@ -49,14 +57,10 @@ app.use(
                     "'self'",
                     "data:",
                     "blob:",
-                    "http://localhost:5000",
-                    "http://localhost:5173",
                     "https:"
                 ],
                 connectSrc: [
                     "'self'",
-                    "http://localhost:5000",
-                    "http://localhost:5173",
                     "https://checkout.razorpay.com",
                     "https://api.razorpay.com",
                     "https://cdn.razorpay.com"
@@ -82,9 +86,23 @@ app.use(
     })
 );
 
+const allowedOrigins = [
+    "http://localhost:5173",
+    "http://localhost:4173",
+    "https://untkn.in",
+    "https://www.untkn.in"
+];
+
 app.use(
     cors({
-        origin: "http://localhost:5173",
+        origin: (origin, callback) => {
+            if (!origin || allowedOrigins.includes(origin)) {
+                callback(null, true);
+                return;
+            }
+
+            callback(new Error("Not allowed by CORS"));
+        },
         credentials: true
     })
 );
@@ -117,8 +135,6 @@ const apiLimiter = rateLimit({
 
 app.use("/api", apiLimiter);
 
-const uploadsPath = path.resolve(process.cwd(), "uploads");
-
 app.use("/uploads", express.static(uploadsPath));
 
 app.get("/api/health", (req, res) => {
@@ -140,7 +156,7 @@ app.use("/api/cart", cartRoutes);
 app.use("/api/wishlist", wishlistRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/payments", paymentRoutes);
-app.use("/test", express.static("test"));
+app.use("/test", express.static(testPath));
 app.use("/api/admin", adminRoutes);
 app.use("/api/addresses", addressRoutes);
 app.use("/api/newsletter", newsletterRoutes);
@@ -148,11 +164,21 @@ app.use("/api/inquiries", inquiryRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/lookbook", lookbookRoutes);
 app.use("/api/delivery-methods", deliveryMethodRoutes);
+app.use("/api/settings/running-banner", runningBannerRoutes);
 
-app.use(
-    "/api/settings/running-banner",
-    runningBannerRoutes
-);
+app.use(express.static(frontendPath));
+
+app.use((req, res, next) => {
+    if (req.method !== "GET") {
+        return next();
+    }
+
+    if (req.path.startsWith("/api/")) {
+        return next();
+    }
+
+    res.sendFile(path.join(frontendPath, "index.html"));
+});
 
 app.use((req, res) => {
     res.status(404).json({

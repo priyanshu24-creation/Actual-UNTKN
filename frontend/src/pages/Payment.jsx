@@ -19,6 +19,12 @@ function Payment() {
   const [scriptLoading, setScriptLoading] = useState(true);
   const [error, setError] = useState("");
 
+  /*
+  |--------------------------------------------------------------------------
+  | GET CHECKOUT DATA
+  |--------------------------------------------------------------------------
+  */
+
   const checkoutData = useMemo(() => {
     if (location.state?.checkout) {
       return location.state.checkout;
@@ -47,6 +53,12 @@ function Payment() {
 
     return checkoutData?.order || null;
   }, [location.state, checkoutData]);
+
+  /*
+  |--------------------------------------------------------------------------
+  | ITEMS
+  |--------------------------------------------------------------------------
+  */
 
   const checkoutItems = useMemo(() => {
     if (
@@ -91,6 +103,12 @@ function Payment() {
     return [];
   }, [cartItems, order]);
 
+  /*
+  |--------------------------------------------------------------------------
+  | TOTALS
+  |--------------------------------------------------------------------------
+  */
+
   const calculatedSubtotal = useMemo(() => {
     if (Number(subtotal || 0) > 0) {
       return Number(subtotal);
@@ -108,9 +126,9 @@ function Payment() {
             item.price ??
             0
         ) *
-        Number(
-          item.quantity || 0
-        ),
+          Number(
+            item.quantity || 0
+          ),
       0
     );
   }, [subtotal, order, checkoutItems]);
@@ -128,19 +146,22 @@ function Payment() {
   const frontendTotal =
     calculatedSubtotal + shipping;
 
-<<<<<<< Updated upstream
   /*
   |--------------------------------------------------------------------------
   | BACKEND TOTAL IS AUTHORITATIVE
   |--------------------------------------------------------------------------
   */
 
-=======
->>>>>>> Stashed changes
   const total =
     backendTotal > 0
       ? backendTotal
       : frontendTotal;
+
+  /*
+  |--------------------------------------------------------------------------
+  | LOAD RAZORPAY CHECKOUT SCRIPT
+  |--------------------------------------------------------------------------
+  */
 
   useEffect(() => {
     if (window.Razorpay) {
@@ -203,21 +224,24 @@ function Payment() {
     };
   }, []);
 
+  /*
+  |--------------------------------------------------------------------------
+  | FORMAT MONEY
+  |--------------------------------------------------------------------------
+  */
+
   const formatMoney = (amount) => {
     return Number(
       amount || 0
     ).toLocaleString("en-IN");
   };
 
-<<<<<<< Updated upstream
   /*
   |--------------------------------------------------------------------------
   | HANDLE PAYMENT
   |--------------------------------------------------------------------------
   */
 
-=======
->>>>>>> Stashed changes
   const handlePayment = async (
     event,
     selectedMethod = paymentMethod
@@ -225,7 +249,12 @@ function Payment() {
     event.preventDefault();
 
     setError("");
-    setPaymentMethod(selectedMethod);
+
+    /*
+    |--------------------------------------------------------------------------
+    | CHECK ORDER
+    |--------------------------------------------------------------------------
+    */
 
     if (!order?.id) {
       setError(
@@ -235,7 +264,6 @@ function Payment() {
       return;
     }
 
-<<<<<<< Updated upstream
     /*
     |--------------------------------------------------------------------------
     | CASH ON DELIVERY
@@ -250,35 +278,14 @@ function Payment() {
           "untkn_checkout"
         );
 
-=======
-    if (selectedMethod === "cod") {
-      try {
-        setLoading(true);
-
-        sessionStorage.removeItem(
-          "untkn_checkout"
-        );
-
->>>>>>> Stashed changes
         navigate(
           "/order-success",
           {
             replace: true,
-<<<<<<< Updated upstream
 
             state: {
               order,
               paymentMethod: "cod",
-=======
-            state: {
-              order,
-              paymentMethod: "cod",
-              customerEmail:
-                checkoutData?.customer?.email ||
-                order?.shipping_email ||
-                "",
-              emailSent: false,
->>>>>>> Stashed changes
             },
           }
         );
@@ -298,6 +305,12 @@ function Payment() {
       return;
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | CHECK RAZORPAY SCRIPT
+    |--------------------------------------------------------------------------
+    */
+
     if (
       scriptLoading ||
       !window.Razorpay
@@ -309,17 +322,20 @@ function Payment() {
       return;
     }
 
-<<<<<<< Updated upstream
     /*
     |--------------------------------------------------------------------------
     | START RAZORPAY PAYMENT
     |--------------------------------------------------------------------------
     */
 
-=======
->>>>>>> Stashed changes
     try {
       setLoading(true);
+
+      /*
+      |--------------------------------------------------------------------------
+      | CREATE RAZORPAY ORDER
+      |--------------------------------------------------------------------------
+      */
 
       const response =
         await api.post(
@@ -344,15 +360,12 @@ function Payment() {
         );
       }
 
-<<<<<<< Updated upstream
       /*
       |--------------------------------------------------------------------------
       | GET PAYMENT DATA
       |--------------------------------------------------------------------------
       */
 
-=======
->>>>>>> Stashed changes
       const paymentData =
         response.data?.payment;
 
@@ -362,15 +375,12 @@ function Payment() {
         );
       }
 
-<<<<<<< Updated upstream
       /*
       |--------------------------------------------------------------------------
       | RAZORPAY VALUES
       |--------------------------------------------------------------------------
       */
 
-=======
->>>>>>> Stashed changes
       const razorpayOrderId =
         paymentData?.razorpay_order_id;
 
@@ -387,6 +397,12 @@ function Payment() {
         paymentData?.razorpay_key_id ||
         import.meta.env
           .VITE_RAZORPAY_KEY_ID;
+
+      /*
+      |--------------------------------------------------------------------------
+      | VALIDATE RAZORPAY DATA
+      |--------------------------------------------------------------------------
+      */
 
       if (!razorpayOrderId) {
         throw new Error(
@@ -409,6 +425,12 @@ function Payment() {
         );
       }
 
+      /*
+      |--------------------------------------------------------------------------
+      | CUSTOMER DATA
+      |--------------------------------------------------------------------------
+      */
+
       const customer =
         checkoutData?.customer || {};
 
@@ -417,15 +439,11 @@ function Payment() {
           customer.lastName || ""
         }`.trim();
 
-      const customerEmail =
-        customer.email ||
-        order?.shipping_email ||
-        "";
-
-      const customerPhone =
-        customer.phone ||
-        order?.shipping_phone ||
-        "";
+      /*
+      |--------------------------------------------------------------------------
+      | RAZORPAY OPTIONS
+      |--------------------------------------------------------------------------
+      */
 
       const options = {
         key: razorpayKey,
@@ -453,10 +471,12 @@ function Payment() {
             customerName,
 
           email:
-            customerEmail,
+            customer.email ||
+            "",
 
           contact:
-            customerPhone,
+            customer.phone ||
+            "",
         },
 
         notes: {
@@ -493,15 +513,12 @@ function Payment() {
                 razorpayResponse
               );
 
-<<<<<<< Updated upstream
               /*
               |--------------------------------------------------------------------------
               | VERIFY PAYMENT
               |--------------------------------------------------------------------------
               */
 
-=======
->>>>>>> Stashed changes
               const verifyResponse =
                 await api.post(
                   "/payments/verify",
@@ -538,22 +555,11 @@ function Payment() {
                 );
               }
 
-              const verifiedOrder =
-                verifyResponse
-                  .data
-                  ?.order ||
-                order;
-
-              const verifiedPayment =
-                verifyResponse
-                  .data
-                  ?.payment ||
-                null;
-
-              const emailSent =
-                verifyResponse
-                  .data
-                  ?.email_sent === true;
+              /*
+              |--------------------------------------------------------------------------
+              | PAYMENT SUCCESS
+              |--------------------------------------------------------------------------
+              */
 
               sessionStorage.removeItem(
                 "untkn_checkout"
@@ -566,22 +572,18 @@ function Payment() {
 
                   state: {
                     order:
-                      verifiedOrder,
+                      verifyResponse
+                        .data
+                        ?.order ||
+                      order,
 
                     payment:
-                      verifiedPayment,
+                      verifyResponse
+                        .data
+                        ?.payment,
 
                     paymentMethod:
                       selectedMethod,
-<<<<<<< Updated upstream
-=======
-
-                    customerEmail:
-                      customerEmail,
-
-                    emailSent:
-                      emailSent,
->>>>>>> Stashed changes
                   },
                 }
               );
@@ -603,29 +605,23 @@ function Payment() {
           },
       };
 
-<<<<<<< Updated upstream
       /*
       |--------------------------------------------------------------------------
       | CREATE RAZORPAY INSTANCE
       |--------------------------------------------------------------------------
       */
 
-=======
->>>>>>> Stashed changes
       const razorpay =
         new window.Razorpay(
           options
         );
 
-<<<<<<< Updated upstream
       /*
       |--------------------------------------------------------------------------
       | PAYMENT FAILED
       |--------------------------------------------------------------------------
       */
 
-=======
->>>>>>> Stashed changes
       razorpay.on(
         "payment.failed",
         (paymentFailure) => {
@@ -644,7 +640,6 @@ function Payment() {
         }
       );
 
-<<<<<<< Updated upstream
       /*
       |--------------------------------------------------------------------------
       | OPEN RAZORPAY
@@ -659,10 +654,6 @@ function Payment() {
       |--------------------------------------------------------------------------
       */
 
-=======
-      razorpay.open();
-
->>>>>>> Stashed changes
       setLoading(false);
     } catch (paymentError) {
       console.error(
@@ -680,6 +671,12 @@ function Payment() {
       setLoading(false);
     }
   };
+
+  /*
+  |--------------------------------------------------------------------------
+  | EMPTY / MISSING ORDER
+  |--------------------------------------------------------------------------
+  */
 
   if (
     !order?.id &&
@@ -712,9 +709,19 @@ function Payment() {
     );
   }
 
+  /*
+  |--------------------------------------------------------------------------
+  | PAGE
+  |--------------------------------------------------------------------------
+  */
+
   return (
     <div className="payment-page">
+
+      {/* HEADER */}
+
       <section className="payment-header">
+
         <Link
           to="/checkout"
           className="payment-back"
@@ -738,9 +745,9 @@ function Payment() {
           </h1>
 
         </div>
+
       </section>
 
-<<<<<<< Updated upstream
   <form
   className="payment-layout payment-layout-full"
   onSubmit={handlePayment}
@@ -985,212 +992,6 @@ function Payment() {
   </section>
 
 </form>
-=======
-      <form
-        className="payment-layout payment-layout-full"
-        onSubmit={handlePayment}
-      >
-        <section className="payment-summary payment-summary-full">
-          <div className="payment-summary-header">
-            <p className="eyebrow">
-              ORDER SUMMARY
-            </p>
-
-            <span>
-              {checkoutItems.length} ITEMS
-            </span>
-          </div>
-
-          <div className="payment-summary-items">
-            {checkoutItems.map(
-              (item, index) => (
-                <div
-                  className="payment-summary-item"
-                  key={`${
-                    item.product_id ||
-                    item.id
-                  }-${
-                    item.variant_id ||
-                    item.size
-                  }-${index}`}
-                >
-                  <div className="payment-summary-image">
-                    {item.image ? (
-                      <img
-                        src={item.image}
-                        alt={
-                          item.name ||
-                          "UNTKN Product"
-                        }
-                      />
-                    ) : (
-                      <div
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: "10px",
-                        }}
-                      >
-                        UNTKN
-                      </div>
-                    )}
-
-                    <span>
-                      {item.quantity}
-                    </span>
-                  </div>
-
-                  <div>
-                    <h3>
-                      {item.name ||
-                        item.product_name ||
-                        "UNTKN Product"}
-                    </h3>
-
-                    {item.color && (
-                      <p>
-                        {item.color}
-                      </p>
-                    )}
-
-                    {item.size && (
-                      <span>
-                        SIZE {item.size}
-                      </span>
-                    )}
-                  </div>
-
-                  <strong>
-                    ₹
-                    {formatMoney(
-                      Number(
-                        item.unit_price ??
-                          item.price ??
-                          0
-                      ) *
-                        Number(
-                          item.quantity || 0
-                        )
-                    )}
-                  </strong>
-                </div>
-              )
-            )}
-          </div>
-
-          <div className="payment-totals">
-            <div>
-              <span>
-                SUBTOTAL
-              </span>
-
-              <strong>
-                ₹
-                {formatMoney(
-                  calculatedSubtotal
-                )}
-              </strong>
-            </div>
-
-            <div>
-              <span>
-                SHIPPING
-              </span>
-
-              <strong>
-                ₹
-                {formatMoney(shipping)}
-              </strong>
-            </div>
-
-            <div className="payment-divider"></div>
-
-            <div className="payment-total">
-              <span>
-                TOTAL
-              </span>
-
-              <strong>
-                ₹
-                {formatMoney(total)}
-              </strong>
-            </div>
-          </div>
-
-          {error && (
-            <div className="payment-error">
-              {error}
-            </div>
-          )}
-
-          <section className="payment-actions">
-            <button
-              type="button"
-              className="payment-action-button"
-              onClick={(event) =>
-                handlePayment(
-                  event,
-                  "upi"
-                )
-              }
-              disabled={
-                loading ||
-                scriptLoading
-              }
-            >
-              {loading
-                ? "PROCESSING..."
-                : scriptLoading
-                ? "LOADING PAYMENT..."
-                : "PAY NOW →"}
-            </button>
-
-            <button
-              type="button"
-              className="payment-action-button payment-cod-button"
-              onClick={(event) =>
-                handlePayment(
-                  event,
-                  "cod"
-                )
-              }
-              disabled={loading}
-            >
-              {loading
-                ? "PROCESSING..."
-                : "CASH ON DELIVERY →"}
-            </button>
-          </section>
-
-          <div className="payment-security">
-            <ShieldCheck
-              size={18}
-              strokeWidth={1.3}
-            />
-
-            <div>
-              <strong>
-                YOUR PAYMENT IS SECURE
-              </strong>
-
-              <p>
-                Payment details are securely
-                processed by Razorpay. UNTKN
-                does not store card information.
-              </p>
-            </div>
-          </div>
-
-          <p className="payment-note">
-            By placing this order, you agree
-            to our terms and conditions.
-          </p>
-        </section>
-      </form>
->>>>>>> Stashed changes
     </div>
   );
 }
