@@ -5,7 +5,7 @@
   "scripts": {
     "install:frontend": "npm install --prefix frontend",
     "install:backend": "npm install --prefix backend/UNTKN-Backend",
-    "build": "npm run install:frontend && npm run install:backend && npm run build:frontend && npm run build:backend",
+    "build": "npm run install:frontend && npm run build:frontend",
     "build:frontend": "npm run build --prefix frontend",
     "start": "node server.js",
     "build:backend": "npm run build --prefix backend/UNTKN-Backend"
