@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import {
@@ -10,7 +10,6 @@ import {
 import api from "../services/api";
 import { useCart } from "../context/CartContext";
 
-
 function Checkout() {
   const navigate = useNavigate();
 
@@ -18,8 +17,10 @@ function Checkout() {
     cartItems,
     subtotal,
     loading: cartLoading,
+    refreshCart,
   } = useCart();
 
+<<<<<<< Updated upstream
 
   // =========================
   // DELIVERY METHOD
@@ -28,6 +29,11 @@ function Checkout() {
   const [deliveryMethod, setDeliveryMethod] =
     useState("standard");
 
+=======
+  const [deliveryMethods, setDeliveryMethods] = useState([]);
+  const [deliveryMethod, setDeliveryMethod] = useState("");
+  const [deliveryLoading, setDeliveryLoading] = useState(true);
+>>>>>>> Stashed changes
 
   const deliveryMethods = [
     {
@@ -81,18 +87,98 @@ function Checkout() {
     pincode: "",
   });
 
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
-  const [submitting, setSubmitting] =
-    useState(false);
+  useEffect(() => {
+    let mounted = true;
 
+    const loadDeliveryMethods = async () => {
+      try {
+        setDeliveryLoading(true);
 
-  const [error, setError] =
-    useState("");
+        const response = await api.get("/delivery-methods");
 
+        if (!response.data?.success) {
+          throw new Error(
+            response.data?.message ||
+              "Failed to load delivery methods."
+          );
+        }
 
+<<<<<<< Updated upstream
   // =========================
   // INPUT CHANGE
   // =========================
+=======
+        const methods = Array.isArray(
+          response.data?.deliveryMethods
+        )
+          ? response.data.deliveryMethods
+          : [];
+
+        if (!mounted) {
+          return;
+        }
+
+        setDeliveryMethods(methods);
+
+        if (methods.length > 0) {
+          setDeliveryMethod((current) => {
+            const exists = methods.some(
+              (method) => method.id === current
+            );
+
+            return exists ? current : methods[0].id;
+          });
+        } else {
+          setDeliveryMethod("");
+        }
+      } catch (requestError) {
+        console.error(
+          "Delivery methods error:",
+          requestError
+        );
+
+        if (!mounted) {
+          return;
+        }
+
+        setDeliveryMethods([]);
+        setDeliveryMethod("");
+
+        setError(
+          requestError.response?.data?.message ||
+            requestError.message ||
+            "Unable to load delivery methods."
+        );
+      } finally {
+        if (mounted) {
+          setDeliveryLoading(false);
+        }
+      }
+    };
+
+    loadDeliveryMethods();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const selectedDeliveryMethod =
+    deliveryMethods.find(
+      (method) => method.id === deliveryMethod
+    ) || null;
+
+  const shipping = Number(
+    selectedDeliveryMethod?.price || 0
+  );
+
+  const total =
+    Number(subtotal || 0) +
+    Number(shipping || 0);
+>>>>>>> Stashed changes
 
   const handleChange = (event) => {
     const {
@@ -100,18 +186,23 @@ function Checkout() {
       value,
     } = event.target;
 
-
     setFormData((current) => ({
       ...current,
       [name]: value,
     }));
-
 
     if (error) {
       setError("");
     }
   };
 
+  const handleDeliveryChange = (methodId) => {
+    setDeliveryMethod(methodId);
+
+    if (error) {
+      setError("");
+    }
+  };
 
   // =========================
   // DELIVERY CHANGE
@@ -135,14 +226,27 @@ function Checkout() {
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-
     if (submitting) {
       return;
     }
 
-
     setError("");
 
+    if (deliveryLoading) {
+      setError(
+        "Please wait while delivery methods are loading."
+      );
+
+      return;
+    }
+
+    if (!selectedDeliveryMethod) {
+      setError(
+        "Please select an available delivery method."
+      );
+
+      return;
+    }
 
     // =========================
     // CLEAN VALUES
@@ -175,11 +279,14 @@ function Checkout() {
     const pincode =
       formData.pincode.trim();
 
+<<<<<<< Updated upstream
 
     // =========================
     // REQUIRED VALIDATION
     // =========================
 
+=======
+>>>>>>> Stashed changes
     if (
       !firstName ||
       !lastName ||
@@ -197,11 +304,14 @@ function Checkout() {
       return;
     }
 
+<<<<<<< Updated upstream
 
     // =========================
     // PINCODE VALIDATION
     // =========================
 
+=======
+>>>>>>> Stashed changes
     if (!/^\d{6}$/.test(pincode)) {
       setError(
         "Please enter a valid 6-digit pincode."
@@ -210,11 +320,14 @@ function Checkout() {
       return;
     }
 
+<<<<<<< Updated upstream
 
     // =========================
     // PHONE VALIDATION
     // =========================
 
+=======
+>>>>>>> Stashed changes
     if (!/^\d{10}$/.test(phone)) {
       setError(
         "Please enter a valid 10-digit phone number."
@@ -223,26 +336,27 @@ function Checkout() {
       return;
     }
 
+<<<<<<< Updated upstream
 
     // =========================
     // CART VALIDATION
     // =========================
 
+=======
+>>>>>>> Stashed changes
     if (
       !cartItems ||
       cartItems.length === 0
     ) {
-      setError(
-        "Your bag is empty."
-      );
+      setError("Your bag is empty.");
 
       return;
     }
 
-
     try {
       setSubmitting(true);
 
+<<<<<<< Updated upstream
 
       // =========================
       // SHIPPING NAME
@@ -256,42 +370,32 @@ function Checkout() {
       // ORDER PAYLOAD
       // =========================
 
+=======
+      const shippingName =
+        `${firstName} ${lastName}`.trim();
+
+>>>>>>> Stashed changes
       const orderPayload = {
-        shipping_name:
-          shippingName,
-
-        shipping_phone:
-          phone,
-
-        shipping_email:
-          email,
-
-        shipping_address_line1:
-          address,
-
+        shipping_name: shippingName,
+        shipping_phone: phone,
+        shipping_email: email,
+        shipping_address_line1: address,
         shipping_address_line2:
           apartment || null,
-
-        shipping_city:
-          city,
-
-        shipping_state:
-          state,
-
-        shipping_postal_code:
-          pincode,
-
-        shipping_country:
-          "India",
-
-        delivery_method:
-          deliveryMethod,
-
-        notes:
-          `Delivery method: ${deliveryMethod}`,
+        shipping_city: city,
+        shipping_state: state,
+        shipping_postal_code: pincode,
+        shipping_country: "India",
+        delivery_method: deliveryMethod,
+        notes: `Delivery method: ${deliveryMethod}`,
       };
 
+      const response = await api.post(
+        "/orders",
+        orderPayload
+      );
 
+<<<<<<< Updated upstream
       // =========================
       // CREATE ORDER
       // =========================
@@ -306,25 +410,25 @@ function Checkout() {
       if (
         !response.data?.success
       ) {
+=======
+      if (!response.data?.success) {
+>>>>>>> Stashed changes
         throw new Error(
           response.data?.message ||
             "Failed to create order."
         );
       }
 
-
       const createdOrder =
         response.data?.order;
 
-
-      if (
-        !createdOrder?.id
-      ) {
+      if (!createdOrder?.id) {
         throw new Error(
           "Order was created but no order ID was returned."
         );
       }
 
+      await refreshCart();
 
       // =========================
       // CHECKOUT DATA
@@ -361,22 +465,23 @@ function Checkout() {
         frontendTotal:
           Number(total),
 
-        order:
-          createdOrder,
+        order: createdOrder,
       };
 
+<<<<<<< Updated upstream
 
       // =========================
       // SAVE CHECKOUT SESSION
       // =========================
 
+=======
+>>>>>>> Stashed changes
       sessionStorage.setItem(
         "untkn_checkout",
-        JSON.stringify(
-          checkoutData
-        )
+        JSON.stringify(checkoutData)
       );
 
+<<<<<<< Updated upstream
 
       // =========================
       // GO TO PAYMENT
@@ -396,46 +501,53 @@ function Checkout() {
       );
 
 
+=======
+      navigate("/payment", {
+        state: {
+          order: createdOrder,
+          checkout: checkoutData,
+        },
+      });
+>>>>>>> Stashed changes
     } catch (requestError) {
-
       console.error(
         "Checkout error:",
         requestError
       );
 
-
       const message =
-        requestError.response?.data
-          ?.message ||
+        requestError.response?.data?.message ||
         requestError.message ||
         "Unable to create your order.";
 
-
       setError(message);
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
     } finally {
-
       setSubmitting(false);
 
     }
   };
 
+<<<<<<< Updated upstream
 
   // =========================
   // EMPTY CART
   // =========================
 
+=======
+>>>>>>> Stashed changes
   if (
     !cartLoading &&
     cartItems.length === 0
   ) {
     return (
       <div className="checkout-empty">
-
         <p className="eyebrow">
           YOUR BAG IS EMPTY
         </p>
-
 
         <h1>
           NOTHING
@@ -443,26 +555,26 @@ function Checkout() {
           TO CHECK OUT.
         </h1>
 
-
         <p>
           Add something to your bag before
           continuing to checkout.
         </p>
 
-
         <Link to="/shop">
           SHOP PRODUCTS →
         </Link>
-
       </div>
     );
   }
 
+<<<<<<< Updated upstream
 
   // =========================
   // LOADING
   // =========================
 
+=======
+>>>>>>> Stashed changes
   if (cartLoading) {
     return (
       <div
@@ -477,6 +589,7 @@ function Checkout() {
     );
   }
 
+<<<<<<< Updated upstream
 
   // =========================
   // PAGE
@@ -490,8 +603,11 @@ function Checkout() {
           HEADER
       ========================= */}
 
+=======
+  return (
+    <div className="checkout-page">
+>>>>>>> Stashed changes
       <section className="checkout-header">
-
         <Link
           to="/cart"
           className="checkout-back"
@@ -506,9 +622,7 @@ function Checkout() {
 
         </Link>
 
-
         <div>
-
           <p className="eyebrow">
             SECURE CHECKOUT
           </p>
@@ -516,16 +630,17 @@ function Checkout() {
           <h1>
             CHECKOUT
           </h1>
-
         </div>
-
       </section>
 
+<<<<<<< Updated upstream
 
       {/* =========================
           ERROR
       ========================= */}
 
+=======
+>>>>>>> Stashed changes
       {error && (
         <div
           style={{
@@ -542,15 +657,19 @@ function Checkout() {
         </div>
       )}
 
+<<<<<<< Updated upstream
 
       {/* =========================
           CHECKOUT FORM
       ========================= */}
 
+=======
+>>>>>>> Stashed changes
       <form
         className="checkout-layout"
         onSubmit={handleSubmit}
       >
+<<<<<<< Updated upstream
 
 
         {/* =========================
@@ -564,19 +683,17 @@ function Checkout() {
               CONTACT
           ========================= */}
 
+=======
+        <main className="checkout-main">
+>>>>>>> Stashed changes
           <section className="checkout-section">
-
             <div className="checkout-section-header">
-
               <div>
-
                 <span>
                   01
                 </span>
 
-
                 <div>
-
                   <p className="eyebrow">
                     CONTACT
                   </p>
@@ -584,25 +701,22 @@ function Checkout() {
                   <h2>
                     YOUR DETAILS
                   </h2>
-
                 </div>
-
               </div>
-
             </div>
 
-
             <div className="checkout-fields">
+<<<<<<< Updated upstream
 
 
               {/* FIRST NAME */}
 
+=======
+>>>>>>> Stashed changes
               <div className="checkout-field">
-
                 <label htmlFor="firstName">
                   FIRST NAME
                 </label>
-
 
                 <input
                   id="firstName"
@@ -619,18 +733,12 @@ function Checkout() {
                   required
                   disabled={submitting}
                 />
-
               </div>
 
-
-              {/* LAST NAME */}
-
               <div className="checkout-field">
-
                 <label htmlFor="lastName">
                   LAST NAME
                 </label>
-
 
                 <input
                   id="lastName"
@@ -647,18 +755,12 @@ function Checkout() {
                   required
                   disabled={submitting}
                 />
-
               </div>
 
-
-              {/* EMAIL */}
-
               <div className="checkout-field full">
-
                 <label htmlFor="email">
                   EMAIL ADDRESS
                 </label>
-
 
                 <input
                   id="email"
@@ -675,18 +777,12 @@ function Checkout() {
                   required
                   disabled={submitting}
                 />
-
               </div>
 
-
-              {/* PHONE */}
-
               <div className="checkout-field full">
-
                 <label htmlFor="phone">
                   PHONE NUMBER
                 </label>
-
 
                 <input
                   id="phone"
@@ -705,31 +801,26 @@ function Checkout() {
                   required
                   disabled={submitting}
                 />
-
               </div>
-
             </div>
-
           </section>
 
+<<<<<<< Updated upstream
 
           {/* =========================
               SHIPPING ADDRESS
           ========================= */}
 
+=======
+>>>>>>> Stashed changes
           <section className="checkout-section">
-
             <div className="checkout-section-header">
-
               <div>
-
                 <span>
                   02
                 </span>
 
-
                 <div>
-
                   <p className="eyebrow">
                     DELIVERY
                   </p>
@@ -737,31 +828,27 @@ function Checkout() {
                   <h2>
                     SHIPPING ADDRESS
                   </h2>
-
                 </div>
-
               </div>
-
 
               <MapPin
                 size={20}
                 strokeWidth={1.2}
               />
-
             </div>
 
-
             <div className="checkout-fields">
+<<<<<<< Updated upstream
 
 
               {/* ADDRESS */}
 
+=======
+>>>>>>> Stashed changes
               <div className="checkout-field full">
-
                 <label htmlFor="address">
                   ADDRESS
                 </label>
-
 
                 <input
                   id="address"
@@ -778,18 +865,12 @@ function Checkout() {
                   required
                   disabled={submitting}
                 />
-
               </div>
 
-
-              {/* APARTMENT */}
-
               <div className="checkout-field full">
-
                 <label htmlFor="apartment">
                   APARTMENT / LANDMARK
                 </label>
-
 
                 <input
                   id="apartment"
@@ -805,18 +886,12 @@ function Checkout() {
                   autoComplete="address-line2"
                   disabled={submitting}
                 />
-
               </div>
 
-
-              {/* CITY */}
-
               <div className="checkout-field">
-
                 <label htmlFor="city">
                   CITY
                 </label>
-
 
                 <input
                   id="city"
@@ -833,18 +908,12 @@ function Checkout() {
                   required
                   disabled={submitting}
                 />
-
               </div>
 
-
-              {/* STATE */}
-
               <div className="checkout-field">
-
                 <label htmlFor="state">
                   STATE
                 </label>
-
 
                 <input
                   id="state"
@@ -861,18 +930,12 @@ function Checkout() {
                   required
                   disabled={submitting}
                 />
-
               </div>
 
-
-              {/* PINCODE */}
-
               <div className="checkout-field">
-
                 <label htmlFor="pincode">
                   PINCODE
                 </label>
-
 
                 <input
                   id="pincode"
@@ -891,11 +954,77 @@ function Checkout() {
                   required
                   disabled={submitting}
                 />
-
+<<<<<<< Updated upstream
+=======
               </div>
-
             </div>
 
+            <section className="checkout-delivery">
+              <div className="checkout-section-heading">
+                <p className="eyebrow">
+                  DELIVERY
+                </p>
+
+                <h2>
+                  DELIVERY METHOD
+                </h2>
+              </div>
+
+              {deliveryLoading ? (
+                <div
+                  style={{
+                    padding: "20px 0",
+                    fontSize: "13px",
+                  }}
+                >
+                  LOADING DELIVERY OPTIONS...
+                </div>
+              ) : deliveryMethods.length === 0 ? (
+                <div
+                  style={{
+                    padding: "20px 0",
+                    fontSize: "13px",
+                  }}
+                >
+                  NO DELIVERY METHODS ARE CURRENTLY AVAILABLE.
+                </div>
+              ) : (
+                <div className="delivery-methods">
+                  {deliveryMethods.map(
+                    (method) => {
+                      const selected =
+                        deliveryMethod ===
+                        method.id;
+>>>>>>> Stashed changes
+
+                      return (
+                        <button
+                          key={method.id}
+                          type="button"
+                          className={`delivery-method ${
+                            selected
+                              ? "selected"
+                              : ""
+                          }`}
+                          onClick={() =>
+                            handleDeliveryChange(
+                              method.id
+                            )
+                          }
+                          disabled={
+                            submitting
+                          }
+                        >
+                          <div className="delivery-radio">
+                            <span />
+                          </div>
+
+                          <div className="delivery-info">
+                            <strong>
+                              {method.name}
+                            </strong>
+
+<<<<<<< Updated upstream
 
             {/* =========================
                 DELIVERY METHOD
@@ -989,32 +1118,53 @@ function Checkout() {
               SECURITY
           ========================= */}
 
-          <div className="checkout-security">
+=======
+                            <span>
+                              {method.description}
+                            </span>
+                          </div>
 
+                          <strong className="delivery-price">
+                            {Number(
+                              method.price || 0
+                            ) === 0
+                              ? "FREE"
+                              : `₹${Number(
+                                  method.price || 0
+                                ).toLocaleString(
+                                  "en-IN"
+                                )}`}
+                          </strong>
+                        </button>
+                      );
+                    }
+                  )}
+                </div>
+              )}
+            </section>
+          </section>
+
+>>>>>>> Stashed changes
+          <div className="checkout-security">
             <ShieldCheck
               size={18}
               strokeWidth={1.3}
             />
 
-
             <div>
-
               <strong>
                 SECURE CHECKOUT
               </strong>
-
 
               <p>
                 Your information is protected
                 and securely processed.
               </p>
-
             </div>
-
           </div>
-
         </main>
 
+<<<<<<< Updated upstream
 
         {/* =========================
             ORDER SUMMARY
@@ -1023,12 +1173,13 @@ function Checkout() {
         <aside className="checkout-summary">
 
 
+=======
+        <aside className="checkout-summary">
+>>>>>>> Stashed changes
           <div className="checkout-summary-header">
-
             <p className="eyebrow">
               YOUR BAG
             </p>
-
 
             <span>
 
@@ -1044,18 +1195,18 @@ function Checkout() {
               ITEMS
 
             </span>
-
           </div>
 
+<<<<<<< Updated upstream
 
           {/* =========================
               ITEMS
           ========================= */}
 
+=======
+>>>>>>> Stashed changes
           <div className="checkout-items">
-
             {cartItems.map((item) => {
-
               const unitPrice =
                 Number(
                   item.unit_price ??
@@ -1063,34 +1214,32 @@ function Checkout() {
                     0
                 );
 
-
               const itemTotal =
                 unitPrice *
                 Number(
                   item.quantity || 0
                 );
 
-
               const imageUrl =
                 item.image_url ||
                 item.image ||
                 "";
-
 
               return (
                 <div
                   className="checkout-item"
                   key={`${item.cartItemId}-${item.product_id}-${item.variant_id}`}
                 >
+<<<<<<< Updated upstream
 
 
+=======
+>>>>>>> Stashed changes
                   <div className="checkout-item-image">
-
                     {imageUrl &&
                     !imageUrl.includes(
                       "example.com"
                     ) ? (
-
                       <img
                         src={imageUrl}
                         alt={
@@ -1099,9 +1248,7 @@ function Checkout() {
                           "UNTKN Product"
                         }
                       />
-
                     ) : (
-
                       <div
                         style={{
                           width: "100%",
@@ -1121,24 +1268,18 @@ function Checkout() {
                           item.name ||
                           "UNTKN"}
                       </div>
-
                     )}
-
 
                     <span>
                       {item.quantity}
                     </span>
-
                   </div>
 
-
                   <div className="checkout-item-info">
-
                     <h3>
                       {item.product_name ||
                         item.name}
                     </h3>
-
 
                     {item.color && (
                       <p>
@@ -1146,14 +1287,11 @@ function Checkout() {
                       </p>
                     )}
 
-
                     <span>
                       SIZE{" "}
                       {item.size || "-"}
                     </span>
-
                   </div>
-
 
                   <strong>
 
@@ -1163,14 +1301,13 @@ function Checkout() {
                     )}
 
                   </strong>
-
                 </div>
               );
 
             })}
-
           </div>
 
+<<<<<<< Updated upstream
 
           {/* =========================
               TOTALS
@@ -1179,8 +1316,10 @@ function Checkout() {
           <div className="checkout-totals">
 
 
+=======
+          <div className="checkout-totals">
+>>>>>>> Stashed changes
             <div>
-
               <span>
                 SUBTOTAL
               </span>
@@ -1196,35 +1335,34 @@ function Checkout() {
                 )}
 
               </strong>
-
             </div>
 
-
             <div>
-
               <span>
                 SHIPPING
               </span>
 
 
               <strong>
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
                 {shipping === 0
                   ? "FREE"
                   : `₹${shipping.toLocaleString(
                       "en-IN"
                     )}`}
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
               </strong>
-
             </div>
 
-
-            <div className="checkout-total-divider"></div>
-
+            <div className="checkout-total-divider" />
 
             <div className="checkout-total">
-
               <span>
                 TOTAL
               </span>
@@ -1238,20 +1376,25 @@ function Checkout() {
                 )}
 
               </strong>
-
             </div>
-
           </div>
 
+<<<<<<< Updated upstream
 
           {/* =========================
               SUBMIT
           ========================= */}
 
+=======
+>>>>>>> Stashed changes
           <button
             type="submit"
             className="checkout-submit"
-            disabled={submitting}
+            disabled={
+              submitting ||
+              deliveryLoading ||
+              !selectedDeliveryMethod
+            }
           >
 
             {submitting
@@ -1260,21 +1403,16 @@ function Checkout() {
 
           </button>
 
-
           <p className="checkout-note">
 
             By continuing, you agree to our
             terms and conditions.
 
           </p>
-
         </aside>
-
       </form>
-
     </div>
   );
 }
-
 
 export default Checkout;

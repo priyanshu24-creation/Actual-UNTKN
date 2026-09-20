@@ -1,91 +1,128 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 import heroImage from "../assets/images/hero.jpg";
 
-import product1 from "../assets/images/product-1.jpg";
-import product1_2 from "../assets/images/product-1-2.jpg";
-import product1_3 from "../assets/images/product-1-3.jpg";
-
-import product2 from "../assets/images/product-2.jpg";
-import product2_1 from "../assets/images/product-2-1.jpg";
-import product2_2 from "../assets/images/product-2-2.jpg";
-
-import product3 from "../assets/images/product-3.jpg";
-import product3_1 from "../assets/images/product-3-1.jpg";
-
-import product4 from "../assets/images/product-4.jpg";
-import product4_1 from "../assets/images/product-4-1.jpg";
-
-import collectionImage from "../assets/images/collection.jpg";
-
 function Lookbook() {
-  const looks = [
-    {
-      number: "01",
-      title: "MISERY WORLD",
-      image: heroImage,
-      size: "look-large",
-    },
+  const [looks, setLooks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-    {
-      number: "02",
-      title: "KARMA",
-      image: product1,
-      images: [
-        product1_2,product1_3,product3_1
-      ],
-      size: "look-small",
-    },
+  useEffect(() => {
+    const fetchLookbook = async () => {
+      try {
+        setLoading(true);
+        setError("");
 
-    {
-      number: "03",
-      title: "HISTORY",
-      image: product2,
-      images: [
-        product2_1,product2_2,product4_1
-      ],
-      size: "look-small",
-    },
+        const response = await fetch(
+          "http://localhost:5000/api/lookbook/active"
+        );
 
-    {
-      number: "04",
-      title: "WAFFLE PROGRAMME",
-      image: collectionImage,
-      size: "look-large",
-    },
+        const data = await response.json();
 
-    {
-      number: "05",
-      title: "DRAGON FLAME",
-      image: product4,
-      size: "look-small",
-    },
+        if (!response.ok || !data.success) {
+          throw new Error(
+            data.message ||
+              "Failed to load Lookbook"
+          );
+        }
 
-    {
-      number: "06",
-      title: "STATIC",
-      image: product3,
-      size: "look-small",
-    },
-  ];
+        const apiLooks = Array.isArray(
+          data.looks
+        )
+          ? data.looks
+          : [];
+
+        const formattedLooks =
+          apiLooks.map((look, index) => ({
+            id: look.id,
+            number: String(
+              index + 1
+            ).padStart(2, "0"),
+            title:
+              look.title ||
+              "LOOKBOOK",
+            subtitle:
+              look.subtitle || "",
+            description:
+              look.description || "",
+            image:
+              look.image_url ||
+              look.image ||
+              heroImage,
+            link:
+              look.link_url ||
+              "/shop",
+            size:
+              index === 0 ||
+              index === 3
+                ? "look-large"
+                : "look-small",
+          }));
+
+        setLooks(formattedLooks);
+      } catch (err) {
+        console.error(
+          "Lookbook fetch error:",
+          err
+        );
+
+        setError(
+          "Unable to load the latest Lookbook."
+        );
+
+        setLooks([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLookbook();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="lookbook-page">
+        <section className="lookbook-header">
+          <div>
+            <p className="eyebrow">
+              VISUAL JOURNAL
+            </p>
+
+            <h1>LOOKBOOK</h1>
+          </div>
+
+          <p>
+            A visual exploration of the latest
+            collection, textures, graphics and
+            silhouettes.
+          </p>
+        </section>
+
+        <section
+          className="lookbook-grid"
+          style={{
+            minHeight: "300px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <p>Loading Lookbook...</p>
+        </section>
+      </div>
+    );
+  }
 
   return (
     <div className="lookbook-page">
-
-      {/* =========================
-          LOOKBOOK HEADER
-      ========================= */}
-
       <section className="lookbook-header">
-
         <div>
           <p className="eyebrow">
             VISUAL JOURNAL
           </p>
 
-          <h1>
-            LOOKBOOK
-          </h1>
+          <h1>LOOKBOOK</h1>
         </div>
 
         <p>
@@ -93,136 +130,128 @@ function Lookbook() {
           collection, textures, graphics and
           silhouettes.
         </p>
-
       </section>
 
+      {error && (
+        <div
+          style={{
+            padding: "12px 20px",
+            marginBottom: "20px",
+            textAlign: "center",
+            fontSize: "13px",
+          }}
+        >
+          {error}
+        </div>
+      )}
 
-      {/* =========================
-          LOOKBOOK INTRO
-      ========================= */}
+      {looks.length > 0 && (
+        <>
+          <section className="lookbook-intro">
+            <span>
+              {looks[0].subtitle ||
+                "CAMPAIGN 01"}
+            </span>
 
-      <section className="lookbook-intro">
+            <h2>
+              {looks[0].title}
+            </h2>
 
-        <span>
-          CAMPAIGN 01
-        </span>
+            <p>
+              {looks[0].description ||
+                "Movement. Texture. Repetition."}
+            </p>
+          </section>
 
-        <h2>
-          MISERY
-          <br />
-          WORLD
-        </h2>
+          <section className="lookbook-grid">
+            {looks.map(
+              (look, index) => (
+                <article
+                  className={`look-card ${
+                    look.size
+                  }`}
+                  key={look.id}
+                >
+                  <div className="look-image">
+                    <img
+                      src={look.image}
+                      alt={look.title}
+                      loading={
+                        index === 0
+                          ? "eager"
+                          : "lazy"
+                      }
+                      onError={(event) => {
+                        event.currentTarget.src =
+                          heroImage;
+                      }}
+                    />
 
-        <p>
-          Movement. Texture. Repetition.
-        </p>
+                    <span>
+                      {look.number}
+                    </span>
+                  </div>
 
-      </section>
+                  <div className="look-info">
+                    <div>
+                      <p className="look-number">
+                        {look.number}
+                      </p>
 
+                      <h3>
+                        {look.title}
+                      </h3>
 
-      {/* =========================
-          LOOKBOOK GRID
-      ========================= */}
+                      {look.subtitle && (
+                        <p>
+                          {look.subtitle}
+                        </p>
+                      )}
 
-      <section className="lookbook-grid">
+                      {look.description && (
+                        <p>
+                          {
+                            look.description
+                          }
+                        </p>
+                      )}
+                    </div>
 
-        {looks.map((look) => (
+                    <Link
+                      to={
+                        look.link ||
+                        "/shop"
+                      }
+                    >
+                      SHOP LOOK →
+                    </Link>
+                  </div>
+                </article>
+              )
+            )}
+          </section>
+        </>
+      )}
 
-          <article
-            className={`look-card ${look.size}`}
-            key={look.number}
-          >
+      {looks.length === 0 && (
+        <section
+          style={{
+            padding: "80px 20px",
+            textAlign: "center",
+          }}
+        >
+          <h2>
+            No Lookbook items available
+          </h2>
 
-            {/* =========================
-                IMAGE
-            ========================= */}
-
-            <div className="look-image">
-
-              <img
-                src={look.image}
-                alt={look.title}
-              />
-
-              <span>
-                {look.number}
-              </span>
-
-            </div>
-
-
-            {/* =========================
-                LOOK INFO
-            ========================= */}
-
-            <div className="look-info">
-
-              <div>
-
-                <p className="look-number">
-                  {look.number}
-                </p>
-
-                <h3>
-                  {look.title}
-                </h3>
-
-              </div>
-
-              <Link to="/shop">
-                SHOP LOOK →
-              </Link>
-
-            </div>
-
-
-            {/* =========================
-                ADDITIONAL IMAGES
-                FOR KARMA
-            ========================= */}
-
-            {look.images &&
-              look.images.length > 1 && (
-
-                <div className="look-image-strip">
-
-                  {look.images.map(
-                    (image, index) => (
-
-                      <div
-                        className="look-strip-image"
-                        key={index}
-                      >
-
-                        <img
-                          src={image}
-                          alt={`${look.title} view ${
-                            index + 1
-                          }`}
-                        />
-
-                      </div>
-
-                    )
-                  )}
-
-                </div>
-
-              )}
-
-          </article>
-
-        ))}
-
-      </section>
-
-
-      {/* =========================
-          LOOKBOOK FOOTER
-      ========================= */}
+          <p>
+            Check back soon for the latest
+            collection.
+          </p>
+        </section>
+      )}
 
       <section className="lookbook-footer">
-
         <p className="eyebrow">
           THE COLLECTION
         </p>
@@ -236,9 +265,7 @@ function Lookbook() {
         <Link to="/shop">
           SHOP COLLECTION →
         </Link>
-
       </section>
-
     </div>
   );
 }

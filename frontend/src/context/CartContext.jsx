@@ -43,31 +43,49 @@ export function CartProvider({ children }) {
       const items =
         response.data?.cart?.items || [];
 
+      /*
+       * Normalize backend cart data
+       */
       const normalizedItems = items.map(
         (item) => ({
           /*
            * Product ID
            */
-          id: Number(item.product_id),
+          id: Number(
+            item.product_id
+          ),
 
           /*
            * IMPORTANT:
-           * This is the actual cart_items.id
-           * from MySQL.
+           * This is the exact cart_items.id
+           * from the backend database.
+           *
+           * Backend returns:
+           * ci.id
            */
-          cartItemId: Number(item.id),
+          cartItemId: Number(
+            item.id ??
+              item.cart_item_id ??
+              item.cartItemId ??
+              item.item_id
+          ),
 
+          /*
+           * Product ID
+           */
           product_id: Number(
             item.product_id
           ),
 
           /*
-           * Variant
+           * Variant ID
            */
           variant_id:
             item.variant_id !== null &&
             item.variant_id !== undefined
-              ? Number(item.variant_id)
+              ? Number(
+                  item.variant_id
+                )
               : null,
 
           /*
@@ -82,31 +100,38 @@ export function CartProvider({ children }) {
             "UNTKN Product",
 
           slug:
-            item.product_slug || "",
+            item.product_slug ||
+            "",
 
           /*
            * Image
            */
           image:
-            item.image_url || "",
+            item.image_url ||
+            "",
 
           image_url:
-            item.image_url || "",
+            item.image_url ||
+            "",
 
           /*
            * Variant information
            */
           sku:
-            item.sku || "",
+            item.sku ||
+            "",
 
           size:
-            item.size || "",
+            item.size ||
+            "",
 
           color:
-            item.color || "",
+            item.color ||
+            "",
 
           hex_code:
-            item.hex_code || "",
+            item.hex_code ||
+            "",
 
           /*
            * Quantity
@@ -145,24 +170,28 @@ export function CartProvider({ children }) {
            * Currency
            */
           currency:
-            item.currency || "INR",
+            item.currency ||
+            "INR",
         })
       );
 
-      setCartItems(normalizedItems);
+      setCartItems(
+        normalizedItems
+      );
     } catch (requestError) {
       console.error(
         "Failed to load cart:",
         requestError
       );
 
+      /*
+       * If user is not logged in,
+       * keep cart empty.
+       */
       if (
         requestError.response?.status ===
         401
       ) {
-        /*
-         * User is not logged in.
-         */
         setCartItems([]);
       } else {
         setError(
@@ -211,7 +240,9 @@ export function CartProvider({ children }) {
       );
 
       if (
-        !Number.isInteger(productId) ||
+        !Number.isInteger(
+          productId
+        ) ||
         productId <= 0
       ) {
         throw new Error(
@@ -237,57 +268,59 @@ export function CartProvider({ children }) {
       }
 
       /*
-       * Resolve variant ID.
-       *
-       * ProductDetails should normally
-       * send the exact variant ID.
+       * Resolve variant ID
        */
       let resolvedVariantId =
         variantId;
 
       /*
-       * Fallback:
-       * Find variant using selected size.
+       * If ProductDetails did not
+       * provide variant ID, find it
+       * using the selected size.
        */
       if (
-        resolvedVariantId === null &&
-        Array.isArray(
-          product?.variants
-        ) &&
-        size
+        resolvedVariantId === null ||
+        resolvedVariantId === undefined
       ) {
-        const matchingVariant =
-          product.variants.find(
-            (variant) => {
-              const variantSize =
-                variant.size_name ||
-                variant.size ||
-                variant.size_label ||
-                variant?.size?.name;
-
-              return (
-                String(
-                  variantSize || ""
-                ).toLowerCase() ===
-                String(
-                  size
-                ).toLowerCase()
-              );
-            }
-          );
-
         if (
-          matchingVariant?.id
+          Array.isArray(
+            product?.variants
+          ) &&
+          size
         ) {
-          resolvedVariantId =
-            Number(
-              matchingVariant.id
+          const matchingVariant =
+            product.variants.find(
+              (variant) => {
+                const variantSize =
+                  variant.size_name ||
+                  variant.size ||
+                  variant.size_label ||
+                  variant?.size?.name;
+
+                return (
+                  String(
+                    variantSize || ""
+                  ).toLowerCase() ===
+                  String(
+                    size || ""
+                  ).toLowerCase()
+                );
+              }
             );
+
+          if (
+            matchingVariant?.id
+          ) {
+            resolvedVariantId =
+              Number(
+                matchingVariant.id
+              );
+          }
         }
       }
 
       /*
-       * Send to backend
+       * Send product to backend
        */
       const response =
         await api.post(
@@ -311,7 +344,9 @@ export function CartProvider({ children }) {
           }
         );
 
-      if (!response.data?.success) {
+      if (
+        !response.data?.success
+      ) {
         throw new Error(
           response.data?.message ||
             "Failed to add product to cart."
@@ -319,7 +354,7 @@ export function CartProvider({ children }) {
       }
 
       /*
-       * Reload cart from MySQL
+       * Reload latest cart
        */
       await loadCart();
 
@@ -341,7 +376,9 @@ export function CartProvider({ children }) {
 
       setError(message);
 
-      throw new Error(message);
+      throw new Error(
+        message
+      );
     }
   };
 
@@ -349,10 +386,6 @@ export function CartProvider({ children }) {
   |--------------------------------------------------------------------------
   | FIND CART ITEM
   |--------------------------------------------------------------------------
-  |
-  | Finds the current cart item using
-  | product ID + variant ID.
-  |
   */
 
   const findCartItem = (
@@ -372,10 +405,16 @@ export function CartProvider({ children }) {
           (item) =>
             Number(
               item.product_id
-            ) === Number(productId) &&
+            ) ===
+              Number(
+                productId
+              ) &&
             Number(
               item.variant_id
-            ) === Number(variantId)
+            ) ===
+              Number(
+                variantId
+              )
         );
 
       if (variantMatch) {
@@ -390,7 +429,10 @@ export function CartProvider({ children }) {
       (item) =>
         Number(
           item.product_id
-        ) === Number(productId) &&
+        ) ===
+          Number(
+            productId
+          ) &&
         String(
           item.size || ""
         ).toLowerCase() ===
@@ -433,17 +475,15 @@ export function CartProvider({ children }) {
       }
 
       /*
-       * Use provided cart item ID.
-       *
-       * This is the preferred method because
-       * cart_items.id is the exact backend ID.
+       * Use the exact backend
+       * cart item ID if provided.
        */
       let actualCartItemId =
         cartItemId;
 
       /*
-       * If no cart item ID was supplied,
-       * find it locally.
+       * If no cart item ID was provided,
+       * find it from current cart.
        */
       if (!actualCartItemId) {
         const matchingItem =
@@ -460,10 +500,15 @@ export function CartProvider({ children }) {
       /*
        * Validate cart item ID
        */
+      actualCartItemId =
+        Number(
+          actualCartItemId
+        );
+
       if (
         !actualCartItemId ||
         !Number.isInteger(
-          Number(actualCartItemId)
+          actualCartItemId
         )
       ) {
         throw new Error(
@@ -472,13 +517,16 @@ export function CartProvider({ children }) {
       }
 
       /*
-       * Quantity 0 or below means remove.
+       * Quantity below 1
+       * means remove item.
        */
-      if (newQuantity < 1) {
+      if (
+        newQuantity < 1
+      ) {
         await removeFromCart(
           id,
           size,
-          Number(actualCartItemId),
+          actualCartItemId,
           variantId
         );
 
@@ -490,16 +538,16 @@ export function CartProvider({ children }) {
        */
       const response =
         await api.put(
-          `/cart/items/${Number(
-            actualCartItemId
-          )}`,
+          `/cart/items/${actualCartItemId}`,
           {
             quantity:
               newQuantity,
           }
         );
 
-      if (!response.data?.success) {
+      if (
+        !response.data?.success
+      ) {
         throw new Error(
           response.data?.message ||
             "Failed to update cart."
@@ -507,7 +555,7 @@ export function CartProvider({ children }) {
       }
 
       /*
-       * Reload latest cart.
+       * Reload latest cart
        */
       await loadCart();
     } catch (requestError) {
@@ -524,7 +572,9 @@ export function CartProvider({ children }) {
 
       setError(message);
 
-      throw new Error(message);
+      throw new Error(
+        message
+      );
     }
   };
 
@@ -544,13 +594,15 @@ export function CartProvider({ children }) {
       setError("");
 
       /*
-       * Use provided cart item ID first.
+       * Use the exact backend
+       * cart item ID first.
        */
       let actualCartItemId =
         cartItemId;
 
       /*
-       * Otherwise find it locally.
+       * Fallback:
+       * Find the cart item locally.
        */
       if (!actualCartItemId) {
         const matchingItem =
@@ -565,12 +617,20 @@ export function CartProvider({ children }) {
       }
 
       /*
-       * Validate ID.
+       * Convert to number
+       */
+      actualCartItemId =
+        Number(
+          actualCartItemId
+        );
+
+      /*
+       * Validate ID
        */
       if (
         !actualCartItemId ||
         !Number.isInteger(
-          Number(actualCartItemId)
+          actualCartItemId
         )
       ) {
         throw new Error(
@@ -579,16 +639,24 @@ export function CartProvider({ children }) {
       }
 
       /*
-       * Delete backend cart item.
+       * Debug information
+       */
+      console.log(
+        "Removing cart item:",
+        actualCartItemId
+      );
+
+      /*
+       * Delete from backend
        */
       const response =
         await api.delete(
-          `/cart/items/${Number(
-            actualCartItemId
-          )}`
+          `/cart/items/${actualCartItemId}`
         );
 
-      if (!response.data?.success) {
+      if (
+        !response.data?.success
+      ) {
         throw new Error(
           response.data?.message ||
             "Failed to remove cart item."
@@ -596,7 +664,7 @@ export function CartProvider({ children }) {
       }
 
       /*
-       * Reload cart.
+       * Reload cart from database
        */
       await loadCart();
     } catch (requestError) {
@@ -613,7 +681,9 @@ export function CartProvider({ children }) {
 
       setError(message);
 
-      throw new Error(message);
+      throw new Error(
+        message
+      );
     }
   };
 
@@ -628,15 +698,22 @@ export function CartProvider({ children }) {
       setError("");
 
       const response =
-        await api.delete("/cart");
+        await api.delete(
+          "/cart"
+        );
 
-      if (!response.data?.success) {
+      if (
+        !response.data?.success
+      ) {
         throw new Error(
           response.data?.message ||
             "Failed to clear cart."
         );
       }
 
+      /*
+       * Immediately clear frontend state.
+       */
       setCartItems([]);
     } catch (requestError) {
       console.error(
@@ -652,7 +729,9 @@ export function CartProvider({ children }) {
 
       setError(message);
 
-      throw new Error(message);
+      throw new Error(
+        message
+      );
     }
   };
 
@@ -745,7 +824,9 @@ export function CartProvider({ children }) {
 
 export function useCart() {
   const context =
-    useContext(CartContext);
+    useContext(
+      CartContext
+    );
 
   if (!context) {
     throw new Error(

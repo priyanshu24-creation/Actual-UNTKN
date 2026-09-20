@@ -27,8 +27,11 @@ const defaultSettings = {
   runningBannerMessage3:
     "EASY RETURNS",
 
+<<<<<<< Updated upstream
   email: "support@untkn.in",
 
+=======
+>>>>>>> Stashed changes
   email: "support@untkn.in",
   phone: "+91 98765 43210",
   whatsapp: "+91 98765 43210",
@@ -51,68 +54,125 @@ const defaultSettings = {
 };
 
 function AdminSettings() {
-  const [settings, setSettings] = useState(defaultSettings);
+  const [settings, setSettings] =
+    useState(defaultSettings);
 
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] =
+    useState(true);
 
-  const [saved, setSaved] = useState(false);
-  const [error, setError] = useState("");
+  const [saving, setSaving] =
+    useState(false);
 
-  /*
-   * LOAD SETTINGS
-   */
+  const [saved, setSaved] =
+    useState(false);
+
+  const [error, setError] =
+    useState("");
+
   useEffect(() => {
+    let mounted = true;
+
     const fetchSettings = async () => {
       try {
         setLoading(true);
         setError("");
 
-        const response = await api.get("/settings/admin");
+        const [
+          settingsResponse,
+          bannerResponse,
+        ] = await Promise.all([
+          api.get("/settings/admin"),
+          api.get("/settings/running-banner"),
+        ]);
 
-        if (response.data?.settings) {
-          setSettings({
-            ...defaultSettings,
-            ...response.data.settings,
-
-            freeShipping:
-              response.data.settings.freeShipping !==
-              undefined
-                ? String(
-                    response.data.settings.freeShipping
-                  )
-                : "999",
-
-            shippingCharge:
-              response.data.settings.shippingCharge !==
-              undefined
-                ? String(
-                    response.data.settings.shippingCharge
-                  )
-                : "99",
-          });
+        if (!mounted) {
+          return;
         }
+
+        const storeSettings =
+          settingsResponse.data?.settings ||
+          {};
+
+        const bannerSettings =
+          bannerResponse.data?.settings ||
+          {};
+
+        const bannerMessages =
+          Array.isArray(
+            bannerSettings.messages
+          ) &&
+          bannerSettings.messages.length === 3
+            ? bannerSettings.messages
+            : [
+                defaultSettings.runningBannerMessage1,
+                defaultSettings.runningBannerMessage2,
+                defaultSettings.runningBannerMessage3,
+              ];
+
+        setSettings({
+          ...defaultSettings,
+          ...storeSettings,
+
+          runningBannerEnabled:
+            bannerSettings.enabled !== undefined
+              ? Boolean(
+                  bannerSettings.enabled
+                )
+              : defaultSettings.runningBannerEnabled,
+
+          runningBannerMessage1:
+            bannerMessages[0],
+
+          runningBannerMessage2:
+            bannerMessages[1],
+
+          runningBannerMessage3:
+            bannerMessages[2],
+
+          freeShipping:
+            storeSettings.freeShipping !==
+            undefined
+              ? String(
+                  storeSettings.freeShipping
+                )
+              : defaultSettings.freeShipping,
+
+          shippingCharge:
+            storeSettings.shippingCharge !==
+            undefined
+              ? String(
+                  storeSettings.shippingCharge
+                )
+              : defaultSettings.shippingCharge,
+        });
       } catch (err) {
         console.error(
-          "Failed to load store settings:",
+          "Failed to load settings:",
           err
         );
+
+        if (!mounted) {
+          return;
+        }
 
         setError(
           err.response?.data?.message ||
             "Failed to load store settings."
         );
       } finally {
-        setLoading(false);
+        if (mounted) {
+          setLoading(false);
+        }
       }
     };
 
     fetchSettings();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
-  /*
-   * HANDLE INPUT CHANGES
-   */
   const handleChange = (event) => {
     const {
       name,
@@ -133,54 +193,206 @@ function AdminSettings() {
     setError("");
   };
 
-  /*
-   * SAVE SETTINGS
-   */
   const handleSave = async (event) => {
     event.preventDefault();
+
+    if (saving) {
+      return;
+    }
 
     try {
       setSaving(true);
       setSaved(false);
       setError("");
 
-      const response = await api.put(
-        "/settings/admin",
-        {
-          ...settings,
+      const storePayload = {
+        storeName: settings.storeName,
+        tagline: settings.tagline,
+        email: settings.email,
+        phone: settings.phone,
+        whatsapp: settings.whatsapp,
+        address: settings.address,
+        instagram: settings.instagram,
+        facebook: settings.facebook,
+        youtube: settings.youtube,
+        website: settings.website,
+        currency: settings.currency,
+        currencySymbol: settings.currencySymbol,
+        freeShipping: Number(
+          settings.freeShipping || 0
+        ),
+        shippingCharge: Number(
+          settings.shippingCharge || 0
+        ),
+        contactEnabled:
+          Boolean(settings.contactEnabled),
+        newsletterEnabled:
+          Boolean(settings.newsletterEnabled),
+        maintenanceMode:
+          Boolean(settings.maintenanceMode),
+      };
 
-          freeShipping: Number(
-            settings.freeShipping
-          ),
+      const bannerMessages = [
+        String(
+          settings.runningBannerMessage1 ||
+            ""
+        )
+          .trim()
+          .slice(0, 80),
 
-          shippingCharge: Number(
-            settings.shippingCharge
-          ),
-        }
-      );
+        String(
+          settings.runningBannerMessage2 ||
+            ""
+        )
+          .trim()
+          .slice(0, 80),
 
-      if (response.data?.settings) {
-        setSettings({
-          ...defaultSettings,
-          ...response.data.settings,
+        String(
+          settings.runningBannerMessage3 ||
+            ""
+        )
+          .trim()
+          .slice(0, 80),
+      ];
 
-          freeShipping:
-            response.data.settings.freeShipping !==
-            undefined
-              ? String(
-                  response.data.settings.freeShipping
-                )
-              : "999",
+      if (
+        bannerMessages.some(
+          (message) => !message
+        )
+      ) {
+        setError(
+          "All three running banner messages are required."
+        );
 
-          shippingCharge:
-            response.data.settings.shippingCharge !==
-            undefined
-              ? String(
-                  response.data.settings.shippingCharge
-                )
-              : "99",
-        });
+        return;
       }
+
+      if (
+        !Number.isFinite(
+          Number(settings.freeShipping)
+        ) ||
+        Number(settings.freeShipping) < 0
+      ) {
+        setError(
+          "Free Shipping Above must be a valid number."
+        );
+
+        return;
+      }
+
+      if (
+        !Number.isFinite(
+          Number(settings.shippingCharge)
+        ) ||
+        Number(settings.shippingCharge) < 0
+      ) {
+        setError(
+          "Standard Shipping Charge must be a valid number."
+        );
+
+        return;
+      }
+
+      const [
+        settingsResponse,
+        bannerResponse,
+      ] = await Promise.all([
+        api.put(
+          "/settings/admin",
+          storePayload
+        ),
+
+        api.put(
+          "/settings/running-banner",
+          {
+            enabled:
+              Boolean(
+                settings.runningBannerEnabled
+              ),
+            messages: bannerMessages,
+          }
+        ),
+      ]);
+
+      if (
+        !settingsResponse.data?.success &&
+        !settingsResponse.data?.settings
+      ) {
+        throw new Error(
+          settingsResponse.data?.message ||
+            "Failed to save store settings."
+        );
+      }
+
+      if (
+        !bannerResponse.data?.success
+      ) {
+        throw new Error(
+          bannerResponse.data?.message ||
+            "Failed to save running banner settings."
+        );
+      }
+
+      const savedStoreSettings =
+        settingsResponse.data?.settings ||
+        {};
+
+      const savedBannerSettings =
+        bannerResponse.data?.settings ||
+        {};
+
+      const savedBannerMessages =
+        Array.isArray(
+          savedBannerSettings.messages
+        ) &&
+        savedBannerSettings.messages.length ===
+          3
+          ? savedBannerSettings.messages
+          : bannerMessages;
+
+      setSettings({
+        ...defaultSettings,
+        ...savedStoreSettings,
+
+        runningBannerEnabled:
+          savedBannerSettings.enabled !==
+          undefined
+            ? Boolean(
+                savedBannerSettings.enabled
+              )
+            : Boolean(
+                settings.runningBannerEnabled
+              ),
+
+        runningBannerMessage1:
+          savedBannerMessages[0],
+
+        runningBannerMessage2:
+          savedBannerMessages[1],
+
+        runningBannerMessage3:
+          savedBannerMessages[2],
+
+        freeShipping:
+          savedStoreSettings.freeShipping !==
+          undefined
+            ? String(
+                savedStoreSettings.freeShipping
+              )
+            : String(
+                settings.freeShipping
+              ),
+
+        shippingCharge:
+          savedStoreSettings.shippingCharge !==
+          undefined
+            ? String(
+                savedStoreSettings.shippingCharge
+              )
+            : String(
+                settings.shippingCharge
+              ),
+      });
 
       setSaved(true);
 
@@ -189,12 +401,13 @@ function AdminSettings() {
       }, 2500);
     } catch (err) {
       console.error(
-        "Failed to save store settings:",
+        "Failed to save settings:",
         err
       );
 
       setError(
         err.response?.data?.message ||
+          err.message ||
           "Failed to save store settings."
       );
     } finally {
@@ -202,9 +415,6 @@ function AdminSettings() {
     }
   };
 
-  /*
-   * LOADING STATE
-   */
   if (loading) {
     return (
       <section className="admin-settings-page">
@@ -227,8 +437,6 @@ function AdminSettings() {
 
   return (
     <section className="admin-settings-page">
-      {/* PAGE HEADER */}
-
       <div className="admin-page-header">
         <div>
           <p className="admin-eyebrow">
@@ -264,8 +472,6 @@ function AdminSettings() {
         </button>
       </div>
 
-      {/* ERROR MESSAGE */}
-
       {error && (
         <div
           className="admin-error-message"
@@ -282,8 +488,6 @@ function AdminSettings() {
         onSubmit={handleSave}
         className="admin-settings-form"
       >
-        {/* STORE INFORMATION */}
-
         <div className="admin-settings-panel">
           <div className="admin-settings-panel-header">
             <div className="admin-settings-panel-icon">
@@ -298,7 +502,9 @@ function AdminSettings() {
                 STORE
               </p>
 
-              <h2>Store Information</h2>
+              <h2>
+                Store Information
+              </h2>
 
               <p>
                 Basic information displayed across
@@ -320,6 +526,7 @@ function AdminSettings() {
                 value={settings.storeName}
                 onChange={handleChange}
                 required
+                disabled={saving}
               />
             </div>
 
@@ -334,6 +541,7 @@ function AdminSettings() {
                 type="text"
                 value={settings.tagline}
                 onChange={handleChange}
+                disabled={saving}
               />
             </div>
 
@@ -355,13 +563,12 @@ function AdminSettings() {
                   value={settings.website}
                   onChange={handleChange}
                   placeholder="https://untkn.in"
+                  disabled={saving}
                 />
               </div>
             </div>
           </div>
         </div>
-
-        {/* CONTACT */}
 
         <div className="admin-settings-panel">
           <div className="admin-settings-panel-header">
@@ -377,7 +584,9 @@ function AdminSettings() {
                 CONTACT
               </p>
 
-              <h2>Contact Information</h2>
+              <h2>
+                Contact Information
+              </h2>
 
               <p>
                 Contact details shown on the website.
@@ -403,6 +612,7 @@ function AdminSettings() {
                   type="email"
                   value={settings.email}
                   onChange={handleChange}
+                  disabled={saving}
                 />
               </div>
             </div>
@@ -424,6 +634,7 @@ function AdminSettings() {
                   type="tel"
                   value={settings.phone}
                   onChange={handleChange}
+                  disabled={saving}
                 />
               </div>
             </div>
@@ -445,6 +656,7 @@ function AdminSettings() {
                   type="tel"
                   value={settings.whatsapp}
                   onChange={handleChange}
+                  disabled={saving}
                 />
               </div>
             </div>
@@ -466,13 +678,12 @@ function AdminSettings() {
                   type="text"
                   value={settings.address}
                   onChange={handleChange}
+                  disabled={saving}
                 />
               </div>
             </div>
           </div>
         </div>
-
-        {/* SOCIAL LINKS */}
 
         <div className="admin-settings-panel">
           <div className="admin-settings-panel-header">
@@ -488,7 +699,9 @@ function AdminSettings() {
                 SOCIAL
               </p>
 
-              <h2>Social Links</h2>
+              <h2>
+                Social Links
+              </h2>
 
               <p>
                 Manage your social media profile
@@ -498,8 +711,6 @@ function AdminSettings() {
           </div>
 
           <div className="admin-settings-fields">
-            {/* INSTAGRAM */}
-
             <div className="admin-settings-field">
               <label htmlFor="instagram">
                 Instagram
@@ -518,11 +729,10 @@ function AdminSettings() {
                   placeholder="https://instagram.com/..."
                   value={settings.instagram}
                   onChange={handleChange}
+                  disabled={saving}
                 />
               </div>
             </div>
-
-            {/* FACEBOOK */}
 
             <div className="admin-settings-field">
               <label htmlFor="facebook">
@@ -542,11 +752,10 @@ function AdminSettings() {
                   placeholder="https://facebook.com/..."
                   value={settings.facebook}
                   onChange={handleChange}
+                  disabled={saving}
                 />
               </div>
             </div>
-
-            {/* YOUTUBE */}
 
             <div className="admin-settings-field">
               <label htmlFor="youtube">
@@ -566,12 +775,14 @@ function AdminSettings() {
                   placeholder="https://youtube.com/..."
                   value={settings.youtube}
                   onChange={handleChange}
+                  disabled={saving}
                 />
               </div>
             </div>
           </div>
         </div>
 
+<<<<<<< Updated upstream
         {/* RUNNING BANNER */}
 
 <div className="admin-settings-panel">
@@ -705,6 +916,119 @@ function AdminSettings() {
 </div>
 
         {/* STORE SETTINGS */}
+=======
+        <div className="admin-settings-panel">
+          <div className="admin-settings-panel-header">
+            <div className="admin-settings-panel-icon">
+              <MessageCircle
+                size={19}
+                strokeWidth={1.5}
+              />
+            </div>
+
+            <div>
+              <p className="admin-panel-eyebrow">
+                HOMEPAGE
+              </p>
+
+              <h2>
+                Running Banner
+              </h2>
+
+              <p>
+                Manage the scrolling announcement bar
+                displayed at the top of the website.
+              </p>
+            </div>
+          </div>
+
+          <div className="admin-settings-fields">
+            <div className="admin-settings-field full">
+              <label htmlFor="runningBannerMessage1">
+                Message 1
+              </label>
+
+              <input
+                id="runningBannerMessage1"
+                name="runningBannerMessage1"
+                type="text"
+                maxLength={80}
+                value={
+                  settings.runningBannerMessage1
+                }
+                onChange={handleChange}
+                placeholder="FREE SHIPPING ON ORDERS ABOVE ₹999"
+                disabled={saving}
+              />
+            </div>
+
+            <div className="admin-settings-field full">
+              <label htmlFor="runningBannerMessage2">
+                Message 2
+              </label>
+
+              <input
+                id="runningBannerMessage2"
+                name="runningBannerMessage2"
+                type="text"
+                maxLength={80}
+                value={
+                  settings.runningBannerMessage2
+                }
+                onChange={handleChange}
+                placeholder="NEW DROP LIVE NOW"
+                disabled={saving}
+              />
+            </div>
+
+            <div className="admin-settings-field full">
+              <label htmlFor="runningBannerMessage3">
+                Message 3
+              </label>
+
+              <input
+                id="runningBannerMessage3"
+                name="runningBannerMessage3"
+                type="text"
+                maxLength={80}
+                value={
+                  settings.runningBannerMessage3
+                }
+                onChange={handleChange}
+                placeholder="EASY RETURNS"
+                disabled={saving}
+              />
+            </div>
+          </div>
+
+          <div className="admin-settings-toggles">
+            <label className="admin-settings-toggle">
+              <div>
+                <strong>
+                  Running Banner
+                </strong>
+
+                <span>
+                  Show the scrolling announcement bar
+                  on the customer website.
+                </span>
+              </div>
+
+              <input
+                type="checkbox"
+                name="runningBannerEnabled"
+                checked={
+                  settings.runningBannerEnabled
+                }
+                onChange={handleChange}
+                disabled={saving}
+              />
+
+              <span className="admin-toggle-slider" />
+            </label>
+          </div>
+        </div>
+>>>>>>> Stashed changes
 
         <div className="admin-settings-panel">
           <div className="admin-settings-panel-header">
@@ -720,7 +1044,9 @@ function AdminSettings() {
                 STORE CONFIGURATION
               </p>
 
-              <h2>Store Settings</h2>
+              <h2>
+                Store Settings
+              </h2>
 
               <p>
                 Configure currency and shipping
@@ -740,6 +1066,7 @@ function AdminSettings() {
                 name="currency"
                 value={settings.currency}
                 onChange={handleChange}
+                disabled={saving}
               >
                 <option value="INR">
                   INR — Indian Rupee
@@ -764,8 +1091,11 @@ function AdminSettings() {
                 id="currencySymbol"
                 name="currencySymbol"
                 type="text"
-                value={settings.currencySymbol}
+                value={
+                  settings.currencySymbol
+                }
                 onChange={handleChange}
+                disabled={saving}
               />
             </div>
 
@@ -781,6 +1111,7 @@ function AdminSettings() {
                 min="0"
                 value={settings.freeShipping}
                 onChange={handleChange}
+                disabled={saving}
               />
             </div>
 
@@ -794,14 +1125,15 @@ function AdminSettings() {
                 name="shippingCharge"
                 type="number"
                 min="0"
-                value={settings.shippingCharge}
+                value={
+                  settings.shippingCharge
+                }
                 onChange={handleChange}
+                disabled={saving}
               />
             </div>
           </div>
         </div>
-
-        {/* WEBSITE FEATURES */}
 
         <div className="admin-settings-panel">
           <div className="admin-settings-panel-header">
@@ -817,7 +1149,9 @@ function AdminSettings() {
                 WEBSITE
               </p>
 
-              <h2>Website Features</h2>
+              <h2>
+                Website Features
+              </h2>
 
               <p>
                 Enable or disable selected storefront
@@ -827,8 +1161,6 @@ function AdminSettings() {
           </div>
 
           <div className="admin-settings-toggles">
-            {/* CONTACT FORM */}
-
             <label className="admin-settings-toggle">
               <div>
                 <strong>
@@ -848,12 +1180,11 @@ function AdminSettings() {
                   settings.contactEnabled
                 }
                 onChange={handleChange}
+                disabled={saving}
               />
 
               <span className="admin-toggle-slider" />
             </label>
-
-            {/* NEWSLETTER */}
 
             <label className="admin-settings-toggle">
               <div>
@@ -874,12 +1205,11 @@ function AdminSettings() {
                   settings.newsletterEnabled
                 }
                 onChange={handleChange}
+                disabled={saving}
               />
 
               <span className="admin-toggle-slider" />
             </label>
-
-            {/* MAINTENANCE MODE */}
 
             <label className="admin-settings-toggle">
               <div>
@@ -900,6 +1230,7 @@ function AdminSettings() {
                   settings.maintenanceMode
                 }
                 onChange={handleChange}
+                disabled={saving}
               />
 
               <span className="admin-toggle-slider" />

@@ -11,26 +11,36 @@ import {
 } from "lucide-react";
 
 import { useCart } from "../context/CartContext";
+import api from "../services/api.js";
 
-// Logo image
 import logo from "../assets/images/logo.png";
 
 function Navbar() {
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuOpen, setMenuOpen] =
+    useState(false);
+
+  const [bannerEnabled, setBannerEnabled] =
+    useState(true);
+
+  const [bannerMessages, setBannerMessages] =
+    useState([
+      "FREE SHIPPING ON ORDERS ABOVE ₹999",
+      "NEW DROP LIVE NOW",
+      "EASY RETURNS",
+    ]);
 
   const { totalItems } = useCart();
 
   const location = useLocation();
 
-  // Close mobile menu when route changes
   useEffect(() => {
     setMenuOpen(false);
   }, [location.pathname]);
 
-  // Prevent page scrolling when mobile menu is open
   useEffect(() => {
     if (menuOpen) {
-      document.body.style.overflow = "hidden";
+      document.body.style.overflow =
+        "hidden";
     } else {
       document.body.style.overflow = "";
     }
@@ -39,6 +49,68 @@ function Navbar() {
       document.body.style.overflow = "";
     };
   }, [menuOpen]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadRunningBanner = async () => {
+      try {
+        const response = await api.get(
+          "/settings/running-banner"
+        );
+
+        if (!mounted) {
+          return;
+        }
+
+        if (!response.data?.success) {
+          return;
+        }
+
+        const settings =
+          response.data?.settings;
+
+        if (
+          settings?.enabled !==
+          undefined
+        ) {
+          setBannerEnabled(
+            Boolean(settings.enabled)
+          );
+        }
+
+        if (
+          Array.isArray(
+            settings?.messages
+          )
+        ) {
+          const messages =
+            settings.messages
+              .map((message) =>
+                String(
+                  message || ""
+                ).trim()
+              )
+              .filter(Boolean);
+
+          if (messages.length > 0) {
+            setBannerMessages(messages);
+          }
+        }
+      } catch (error) {
+        console.error(
+          "Failed to load running banner:",
+          error
+        );
+      }
+    };
+
+    loadRunningBanner();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const closeMenu = () => {
     setMenuOpen(false);
@@ -52,61 +124,33 @@ function Navbar() {
     return location.pathname === path;
   };
 
+  const renderBannerMessages = () => {
+    return bannerMessages.map(
+      (message, index) => (
+        <span
+          key={`banner-${index}`}
+        >
+          {message}
+          <span> • </span>
+        </span>
+      )
+    );
+  };
+
   return (
     <>
-      {/* ================= HEADER ================= */}
       <header className="site-header">
-
-        {/* ================= ANNOUNCEMENT BAR ================= */}
-        <div className="announcement-bar">
-          <div className="announcement-track">
-
-            <span>
-              FREE SHIPPING ON ORDERS ABOVE ₹999
-            </span>
-
-            <span>•</span>
-
-            <span>
-              NEW DROP LIVE NOW
-            </span>
-
-            <span>•</span>
-
-            <span>
-              EASY RETURNS
-            </span>
-
-            <span>•</span>
-
-            {/* Duplicate content for continuous animation */}
-            <span>
-              FREE SHIPPING ON ORDERS ABOVE ₹999
-            </span>
-
-            <span>•</span>
-
-            <span>
-              NEW DROP LIVE NOW
-            </span>
-
-            <span>•</span>
-
-            <span>
-              EASY RETURNS
-            </span>
-
-            <span>•</span>
-
+        {bannerEnabled && (
+          <div className="announcement-bar">
+            <div className="announcement-track">
+              {renderBannerMessages()}
+              {renderBannerMessages()}
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* ================= NAVBAR ================= */}
         <div className="navbar">
-
           <div className="navbar-inner">
-
-            {/* ================= MOBILE MENU BUTTON ================= */}
             <button
               type="button"
               className="mobile-menu-button"
@@ -131,7 +175,6 @@ function Navbar() {
               )}
             </button>
 
-            {/* ================= LOGO + NAME ================= */}
             <Link
               to="/"
               className="logo"
@@ -149,9 +192,7 @@ function Navbar() {
               </span>
             </Link>
 
-            {/* ================= DESKTOP NAVIGATION ================= */}
             <nav className="nav-links">
-
               <Link
                 to="/shop"
                 className={
@@ -206,12 +247,19 @@ function Navbar() {
   CONTACT
 </Link>
 
+              <Link
+                to="/contact"
+                className={
+                  isActive("/contact")
+                    ? "active"
+                    : ""
+                }
+              >
+                CONTACT
+              </Link>
             </nav>
 
-            {/* ================= DESKTOP ACTIONS ================= */}
             <div className="nav-actions">
-
-              {/* SEARCH */}
               <Link
                 to="/search"
                 className={
@@ -228,7 +276,6 @@ function Navbar() {
                 />
               </Link>
 
-              {/* WISHLIST */}
               <Link
                 to="/wishlist"
                 className={
@@ -245,7 +292,6 @@ function Navbar() {
                 />
               </Link>
 
-              {/* ACCOUNT */}
               <Link
                 to="/account"
                 className={
@@ -262,7 +308,6 @@ function Navbar() {
                 />
               </Link>
 
-              {/* SHOPPING BAG */}
               <Link
                 to="/cart"
                 className={
@@ -286,15 +331,11 @@ function Navbar() {
                   </span>
                 )}
               </Link>
-
             </div>
-
           </div>
-
         </div>
       </header>
 
-      {/* ================= MOBILE MENU ================= */}
       <div
         className={
           menuOpen
@@ -302,18 +343,12 @@ function Navbar() {
             : "mobile-menu"
         }
       >
-
         <div className="mobile-menu-inner">
-
-          {/* MENU LABEL */}
           <div className="mobile-menu-label">
             MENU
           </div>
 
-          {/* MOBILE NAVIGATION */}
           <nav className="mobile-nav-links">
-
-            {/* SHOP */}
             <Link
               to="/shop"
               onClick={closeMenu}
@@ -327,7 +362,6 @@ function Navbar() {
               SHOP
             </Link>
 
-            {/* NEW ARRIVALS */}
             <Link
               to="/shop"
               onClick={closeMenu}
@@ -336,7 +370,6 @@ function Navbar() {
               NEW ARRIVALS
             </Link>
 
-            {/* COLLECTIONS */}
             <Link
               to="/collections"
               onClick={closeMenu}
@@ -350,7 +383,6 @@ function Navbar() {
               COLLECTIONS
             </Link>
 
-            {/* LOOKBOOK */}
             <Link
               to="/lookbook"
               onClick={closeMenu}
@@ -364,6 +396,7 @@ function Navbar() {
               LOOKBOOK
             </Link>
 
+<<<<<<< Updated upstream
             {/* ABOUT */}
            {/* ABOUT */}
 <Link
@@ -392,13 +425,36 @@ function Navbar() {
   <span>06</span>
   CONTACT
 </Link>
+=======
+            <Link
+              to="/about"
+              onClick={closeMenu}
+              className={
+                isActive("/about")
+                  ? "active"
+                  : ""
+              }
+            >
+              <span>05</span>
+              ABOUT
+            </Link>
+>>>>>>> Stashed changes
 
+            <Link
+              to="/contact"
+              onClick={closeMenu}
+              className={
+                isActive("/contact")
+                  ? "active"
+                  : ""
+              }
+            >
+              <span>06</span>
+              CONTACT
+            </Link>
           </nav>
 
-          {/* ================= MOBILE QUICK ACTIONS ================= */}
           <div className="mobile-menu-actions">
-
-            {/* SEARCH */}
             <Link
               to="/search"
               onClick={closeMenu}
@@ -410,7 +466,6 @@ function Navbar() {
               SEARCH
             </Link>
 
-            {/* WISHLIST */}
             <Link
               to="/wishlist"
               onClick={closeMenu}
@@ -422,7 +477,6 @@ function Navbar() {
               WISHLIST
             </Link>
 
-            {/* ACCOUNT */}
             <Link
               to="/account"
               onClick={closeMenu}
@@ -434,7 +488,6 @@ function Navbar() {
               ACCOUNT
             </Link>
 
-            {/* CART */}
             <Link
               to="/cart"
               onClick={closeMenu}
@@ -452,12 +505,9 @@ function Navbar() {
                 </span>
               )}
             </Link>
-
           </div>
 
-          {/* ================= MOBILE FOOTER ================= */}
           <div className="mobile-menu-footer">
-
             <span>
               EST. 2026
             </span>
@@ -465,14 +515,10 @@ function Navbar() {
             <span>
               INDEPENDENT LABEL
             </span>
-
           </div>
-
         </div>
-
       </div>
 
-      {/* ================= MOBILE OVERLAY ================= */}
       {menuOpen && (
         <button
           type="button"

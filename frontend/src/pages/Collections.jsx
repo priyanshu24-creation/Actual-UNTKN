@@ -1,4 +1,8 @@
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { AlertCircle, Layers } from "lucide-react";
+
+import api from "../services/api";
 
 import product1 from "../assets/images/product-1.jpg";
 import product2 from "../assets/images/product-2.jpg";
@@ -7,52 +11,307 @@ import product4 from "../assets/images/product-4.jpg";
 import collectionImage from "../assets/images/collection.jpg";
 
 function Collections() {
-  const collections = [
-    {
-      id: 1,
-      title: "NEW ARRIVALS",
-      subtitle: "LATEST DROP",
-      description:
-        "Fresh pieces designed for the new season.",
-      image: product1,
-      link: "/shop",
-    },
+  const [collections, setCollections] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-    {
-      id: 2,
-      title: "ESSENTIALS",
-      subtitle: "EVERYDAY WEAR",
-      description:
-        "Clean silhouettes made for everyday rotation.",
-      image: product2,
-      link: "/shop?category=Hoodies",
-    },
+  /*
+  ==========================================================
+  FALLBACK IMAGES
+  ==========================================================
+  Used only when an admin collection does not have an image_url.
+  */
 
-    {
-      id: 3,
-      title: "WAFFLE PROGRAMME",
-      subtitle: "CAPSULE 01",
-      description:
-        "Heavyweight thermals built for colder days.",
-      image: collectionImage,
-      link: "/shop?category=Thermals",
-    },
+  const fallbackImages = useMemo(
+    () => [
+      product1,
+      product2,
+      collectionImage,
+      product3,
+      product4,
+    ],
+    []
+  );
 
-    {
-      id: 4,
-      title: "GRAPHIC SERIES",
-      subtitle: "LIMITED RUN",
-      description:
-        "Statement graphics created in short runs.",
-      image: product3,
-      link: "/shop?category=T-Shirts",
-    },
-  ];
+  /*
+  ==========================================================
+  LOAD COLLECTIONS
+  ==========================================================
+  */
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadCollections = async () => {
+      try {
+        setLoading(true);
+        setError("");
+
+        const response = await api.get("/collections");
+
+        const data = response.data;
+
+        const loadedCollections =
+          data?.collections ||
+          data?.data?.collections ||
+          data?.data ||
+          [];
+
+        if (!Array.isArray(loadedCollections)) {
+          throw new Error(
+            "Invalid collections response from server."
+          );
+        }
+
+        /*
+        ------------------------------------------------------
+        Only display ACTIVE collections on customer side.
+        Admin can control this using Show/Hide.
+        ------------------------------------------------------
+        */
+
+        const activeCollections =
+          loadedCollections.filter(
+            (collection) =>
+              Boolean(collection?.is_active)
+          );
+
+        if (!cancelled) {
+          setCollections(activeCollections);
+        }
+      } catch (requestError) {
+        console.error(
+          "Collections page error:",
+          requestError
+        );
+
+        if (!cancelled) {
+          setError(
+            requestError?.response?.data?.message ||
+              requestError?.message ||
+              "Unable to load collections."
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadCollections();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /*
+  ==========================================================
+  GET COLLECTION IMAGE
+  ==========================================================
+  */
+
+  const getCollectionImage = (
+    collection,
+    index
+  ) => {
+    if (
+      collection?.image_url &&
+      typeof collection.image_url === "string" &&
+      collection.image_url.trim()
+    ) {
+      return collection.image_url;
+    }
+
+    return fallbackImages[
+      index % fallbackImages.length
+    ];
+  };
+
+  /*
+  ==========================================================
+  GET COLLECTION LINK
+  ==========================================================
+  */
+
+  const getCollectionLink = (collection) => {
+    if (!collection?.slug) {
+      return "/shop";
+    }
+
+    return `/shop?collection=${encodeURIComponent(
+      collection.slug
+    )}`;
+  };
+
+  /*
+  ==========================================================
+  LOADING
+  ==========================================================
+  */
+
+  if (loading) {
+    return (
+      <main className="collections-page">
+
+        <section className="collections-header">
+          <div>
+            <p className="eyebrow">
+              THE WORLD OF THE LABEL
+            </p>
+
+            <h1>
+              COLLECTIONS
+            </h1>
+          </div>
+
+          <p className="collections-intro">
+            Explore our latest drops, capsule
+            releases and essential pieces.
+          </p>
+        </section>
+
+        <section className="collections-empty">
+          <Layers
+            size={36}
+            strokeWidth={1.2}
+          />
+
+          <h2>
+            LOADING COLLECTIONS
+          </h2>
+
+          <p>
+            Fetching the latest collections.
+          </p>
+        </section>
+
+      </main>
+    );
+  }
+
+  /*
+  ==========================================================
+  ERROR
+  ==========================================================
+  */
+
+  if (error) {
+    return (
+      <main className="collections-page">
+
+        <section className="collections-header">
+          <div>
+            <p className="eyebrow">
+              THE WORLD OF THE LABEL
+            </p>
+
+            <h1>
+              COLLECTIONS
+            </h1>
+          </div>
+
+          <p className="collections-intro">
+            Explore our latest drops, capsule
+            releases and essential pieces.
+          </p>
+        </section>
+
+        <section className="collections-empty">
+
+          <AlertCircle
+            size={36}
+            strokeWidth={1.2}
+          />
+
+          <h2>
+            UNABLE TO LOAD COLLECTIONS
+          </h2>
+
+          <p>
+            {error}
+          </p>
+
+          <Link to="/shop">
+            CONTINUE SHOPPING →
+          </Link>
+
+        </section>
+
+      </main>
+    );
+  }
+
+  /*
+  ==========================================================
+  EMPTY
+  ==========================================================
+  */
+
+  if (collections.length === 0) {
+    return (
+      <main className="collections-page">
+
+        <section className="collections-header">
+
+          <div>
+
+            <p className="eyebrow">
+              THE WORLD OF THE LABEL
+            </p>
+
+            <h1>
+              COLLECTIONS
+            </h1>
+
+          </div>
+
+          <p className="collections-intro">
+            Explore our latest drops, capsule
+            releases and essential pieces.
+          </p>
+
+        </section>
+
+        <section className="collections-empty">
+
+          <Layers
+            size={36}
+            strokeWidth={1.2}
+          />
+
+          <h2>
+            NO COLLECTIONS AVAILABLE
+          </h2>
+
+          <p>
+            New collections will appear here
+            when they are published.
+          </p>
+
+          <Link to="/shop">
+            SHOP ALL PRODUCTS →
+          </Link>
+
+        </section>
+
+      </main>
+    );
+  }
+
+  /*
+  ==========================================================
+  MAIN COLLECTIONS PAGE
+  ==========================================================
+  */
 
   return (
-    <div className="collections-page">
+    <main className="collections-page">
 
-      {/* ================= HEADER ================= */}
+      {/* =====================================================
+          HEADER
+      ===================================================== */}
 
       <section className="collections-header">
 
@@ -69,81 +328,132 @@ function Collections() {
         </div>
 
         <p className="collections-intro">
-          Explore our latest drops, capsule releases
-          and essential pieces.
+          Explore our latest drops, capsule
+          releases and essential pieces.
         </p>
 
       </section>
 
 
-      {/* ================= COLLECTION GRID ================= */}
+      {/* =====================================================
+          COLLECTION GRID
+      ===================================================== */}
 
       <section className="collections-grid">
 
-        {collections.map((collection, index) => (
+        {collections.map(
+          (collection, index) => {
 
-          <article
-            className={
+            const image =
+              getCollectionImage(
+                collection,
+                index
+              );
+
+            const link =
+              getCollectionLink(
+                collection
+              );
+
+            const subtitle =
               index === 0
-                ? "collection-card featured"
-                : "collection-card"
-            }
-            key={collection.id}
-          >
+                ? "LATEST DROP"
+                : "COLLECTION";
 
-            <Link
-              to={collection.link}
-              className="collection-image"
-            >
+            return (
+              <article
+                className={
+                  index === 0
+                    ? "collection-card featured"
+                    : "collection-card"
+                }
+                key={collection.id}
+              >
 
-              <img
-                src={collection.image}
-                alt={collection.title}
-              />
+                {/* IMAGE */}
 
-              <div className="collection-number">
-                {String(index + 1).padStart(2, "0")}
-              </div>
+                <Link
+                  to={link}
+                  className="collection-image"
+                >
 
-            </Link>
+                  <img
+                    src={image}
+                    alt={
+                      collection.name ||
+                      "UNTKN Collection"
+                    }
+                    loading={
+                      index === 0
+                        ? "eager"
+                        : "lazy"
+                    }
+                    onError={(event) => {
+                      event.currentTarget.onerror =
+                        null;
+
+                      event.currentTarget.src =
+                        fallbackImages[
+                          index %
+                            fallbackImages.length
+                        ];
+                    }}
+                  />
+
+                  <div className="collection-number">
+                    {String(index + 1).padStart(
+                      2,
+                      "0"
+                    )}
+                  </div>
+
+                </Link>
 
 
-            <div className="collection-info">
+                {/* COLLECTION INFO */}
 
-              <div>
+                <div className="collection-info">
 
-                <p className="collection-label">
-                  {collection.subtitle}
+                  <div>
+
+                    <p className="collection-label">
+                      {subtitle}
+                    </p>
+
+                    <h2>
+                      {collection.name}
+                    </h2>
+
+                  </div>
+
+                  <Link
+                    to={link}
+                    className="collection-link"
+                  >
+                    EXPLORE →
+                  </Link>
+
+                </div>
+
+
+                {/* DESCRIPTION */}
+
+                <p className="collection-description">
+                  {collection.description ||
+                    "Explore the latest pieces from UNTKN."}
                 </p>
 
-                <h2>
-                  {collection.title}
-                </h2>
-
-              </div>
-
-              <Link
-                to={collection.link}
-                className="collection-link"
-              >
-                EXPLORE →
-              </Link>
-
-            </div>
-
-
-            <p className="collection-description">
-              {collection.description}
-            </p>
-
-          </article>
-
-        ))}
+              </article>
+            );
+          }
+        )}
 
       </section>
 
 
-      {/* ================= CATEGORY BAR ================= */}
+      {/* =====================================================
+          CATEGORY BAR
+      ===================================================== */}
 
       <section className="category-section">
 
@@ -194,46 +504,57 @@ function Collections() {
       </section>
 
 
-      {/* ================= FEATURED COLLECTION ================= */}
+      {/* =====================================================
+          FEATURED COLLECTION
+          Uses the first active database collection.
+      ===================================================== */}
 
-      <section
-        className="featured-collection"
-        style={{
-          backgroundImage: `url(${collectionImage})`,
-        }}
-      >
+      {collections.length > 0 && (
+        <section
+          className="featured-collection"
+          style={{
+            backgroundImage: `url(${getCollectionImage(
+              collections[0],
+              0
+            )})`,
+          }}
+        >
 
-        <div className="featured-collection-overlay"></div>
+          <div className="featured-collection-overlay"></div>
 
-        <div className="featured-collection-content">
+          <div className="featured-collection-content">
 
-          <p className="eyebrow">
-            CAPSULE 01
-          </p>
+            <p className="eyebrow">
+              {collections[0].slug
+                ? collections[0].slug
+                    .replace(/-/g, " ")
+                    .toUpperCase()
+                : "FEATURED COLLECTION"}
+            </p>
 
-          <h2>
-            THE WAFFLE
-            <br />
-            PROGRAMME
-          </h2>
+            <h2>
+              {collections[0].name}
+            </h2>
 
-          <p>
-            Textured layers.
-            <br />
-            Heavyweight construction.
-            <br />
-            Everyday comfort.
-          </p>
+            <p>
+              {collections[0].description ||
+                "Explore the latest collection from UNTKN."}
+            </p>
 
-          <Link to="/shop?category=Thermals">
-            SHOP THERMALS →
-          </Link>
+            <Link
+              to={getCollectionLink(
+                collections[0]
+              )}
+            >
+              EXPLORE COLLECTION →
+            </Link>
 
-        </div>
+          </div>
 
-      </section>
+        </section>
+      )}
 
-    </div>
+    </main>
   );
 }
 

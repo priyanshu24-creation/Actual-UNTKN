@@ -1,143 +1,349 @@
-import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
-import {
-  Search,
-  Eye,
-  ShoppingBag,
-} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Search, Eye, Package, AlertCircle } from "lucide-react";
 
-const demoOrders = [
-  {
-    id: "UNT-1024",
-    customer: "Rahul Sharma",
-    email: "rahul@example.com",
-    product: "Karma T-Shirt",
-    items: 1,
-    amount: 549,
-    date: "18 Sep 2026",
-    payment: "Paid",
-    status: "Delivered",
-  },
-  {
-    id: "UNT-1023",
-    customer: "Priya Das",
-    email: "priya@example.com",
-    product: "History T-Shirt",
-    items: 1,
-    amount: 549,
-    date: "18 Sep 2026",
-    payment: "Paid",
-    status: "Processing",
-  },
-  {
-    id: "UNT-1022",
-    customer: "Arjun Mehta",
-    email: "arjun@example.com",
-    product: "Misery World",
-    items: 2,
-    amount: 1798,
-    date: "17 Sep 2026",
-    payment: "Paid",
-    status: "Shipped",
-  },
-  {
-    id: "UNT-1021",
-    customer: "Ananya Roy",
-    email: "ananya@example.com",
-    product: "Dragon Flame",
-    items: 1,
-    amount: 899,
-    date: "17 Sep 2026",
-    payment: "Pending",
-    status: "Processing",
-  },
-  {
-    id: "UNT-1020",
-    customer: "Aditya Singh",
-    email: "aditya@example.com",
-    product: "Karma T-Shirt",
-    items: 1,
-    amount: 549,
-    date: "16 Sep 2026",
-    payment: "Paid",
-    status: "Delivered",
-  },
-  {
-    id: "UNT-1019",
-    customer: "Sneha Roy",
-    email: "sneha@example.com",
-    product: "History T-Shirt",
-    items: 2,
-    amount: 1098,
-    date: "15 Sep 2026",
-    payment: "Paid",
-    status: "Shipped",
-  },
-  {
-    id: "UNT-1018",
-    customer: "Rohan Das",
-    email: "rohan@example.com",
-    product: "Misery World",
-    items: 1,
-    amount: 899,
-    date: "14 Sep 2026",
-    payment: "Failed",
-    status: "Cancelled",
-  },
-];
+import api from "../../services/api.js";
+
+function formatCurrency(value, currency = "INR") {
+  const amount = Number(value || 0);
+
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency,
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
+function formatDate(value) {
+  if (!value) {
+    return "—";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "—";
+  }
+
+  return date.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function normalizeStatus(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase();
+}
+
+function getOrderStatusLabel(status) {
+  switch (normalizeStatus(status)) {
+    case "pending":
+      return "PENDING";
+
+    case "confirmed":
+      return "CONFIRMED";
+
+    case "processing":
+      return "PROCESSING";
+
+    case "shipped":
+      return "SHIPPED";
+
+    case "delivered":
+      return "DELIVERED";
+
+    case "cancelled":
+      return "CANCELLED";
+
+    default:
+      return String(status || "PENDING").toUpperCase();
+  }
+}
+
+function getPaymentStatusLabel(status) {
+  switch (normalizeStatus(status)) {
+    case "paid":
+      return "PAID";
+
+    case "pending":
+      return "PENDING";
+
+    case "failed":
+      return "FAILED";
+
+    case "refunded":
+      return "REFUNDED";
+
+    case "cancelled":
+      return "CANCELLED";
+
+    default:
+      return String(status || "PENDING").toUpperCase();
+  }
+}
 
 function AdminOrders() {
-  const [orders] = useState(demoOrders);
+  const [orders, setOrders] = useState([]);
 
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("All");
-  const [paymentFilter, setPaymentFilter] = useState("All");
+
+  const [orderStatusFilter, setOrderStatusFilter] =
+    useState("All");
+
+  const [paymentStatusFilter, setPaymentStatusFilter] =
+    useState("All");
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  /*
+  ==========================================================
+  LOAD REAL ORDERS
+  ==========================================================
+  */
+
+  const loadOrders = async () => {
+    try {
+      setLoading(true);
+      setError("");
+
+      const response = await api.get("/orders/admin");
+
+      if (!response.data?.success) {
+        throw new Error(
+          response.data?.message ||
+            "Failed to load orders."
+        );
+      }
+
+      const backendOrders = Array.isArray(
+        response.data?.orders
+      )
+        ? response.data.orders
+        : [];
+
+      setOrders(backendOrders);
+    } catch (requestError) {
+      console.error(
+        "Admin orders load error:",
+        requestError
+      );
+
+      setError(
+        requestError.response?.data?.message ||
+          requestError.message ||
+          "Unable to load orders."
+      );
+
+      setOrders([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadOrders();
+  }, []);
+
+  /*
+  ==========================================================
+  FILTER ORDERS
+  ==========================================================
+  */
 
   const filteredOrders = useMemo(() => {
+    const query = search
+      .trim()
+      .toLowerCase();
+
     return orders.filter((order) => {
-      const searchValue = search.toLowerCase();
+      const orderNumber = String(
+        order?.order_number || ""
+      ).toLowerCase();
+
+      const customerName = String(
+        order?.customer_name ||
+          order?.shipping_name ||
+          ""
+      ).toLowerCase();
+
+      const customerEmail = String(
+        order?.shipping_email ||
+          order?.customer_email ||
+          ""
+      ).toLowerCase();
+
+      const customerPhone = String(
+        order?.shipping_phone || ""
+      ).toLowerCase();
+
+      const productName = String(
+        order?.product_name || ""
+      ).toLowerCase();
+
+      const orderStatus =
+        normalizeStatus(
+          order?.order_status
+        );
+
+      const paymentStatus =
+        normalizeStatus(
+          order?.payment_status
+        );
 
       const matchesSearch =
-        order.id.toLowerCase().includes(searchValue) ||
-        order.customer.toLowerCase().includes(searchValue) ||
-        order.email.toLowerCase().includes(searchValue) ||
-        order.product.toLowerCase().includes(searchValue);
+        !query ||
+        orderNumber.includes(query) ||
+        customerName.includes(query) ||
+        customerEmail.includes(query) ||
+        customerPhone.includes(query) ||
+        productName.includes(query);
 
-      const matchesStatus =
-        statusFilter === "All" ||
-        order.status === statusFilter;
+      const matchesOrderStatus =
+        orderStatusFilter === "All" ||
+        orderStatus ===
+          normalizeStatus(orderStatusFilter);
 
-      const matchesPayment =
-        paymentFilter === "All" ||
-        order.payment === paymentFilter;
+      const matchesPaymentStatus =
+        paymentStatusFilter === "All" ||
+        paymentStatus ===
+          normalizeStatus(paymentStatusFilter);
 
       return (
         matchesSearch &&
-        matchesStatus &&
-        matchesPayment
+        matchesOrderStatus &&
+        matchesPaymentStatus
       );
     });
   }, [
     orders,
     search,
-    statusFilter,
-    paymentFilter,
+    orderStatusFilter,
+    paymentStatusFilter,
   ]);
 
-  return (
-    <section className="admin-orders-page">
+  /*
+  ==========================================================
+  LOADING
+  ==========================================================
+  */
 
-      {/* HEADER */}
+  if (loading) {
+    return (
+      <div className="admin-page">
+
+        <div className="admin-page-header">
+          <div>
+            <p className="admin-eyebrow">
+              SALES
+            </p>
+
+            <h1>Orders</h1>
+
+            <p>
+              Manage customer orders and fulfillment.
+            </p>
+          </div>
+        </div>
+
+        <div className="admin-empty-state">
+          <Package
+            size={32}
+            strokeWidth={1.3}
+          />
+
+          <h3>
+            Loading orders...
+          </h3>
+
+          <p>
+            Fetching orders from the database.
+          </p>
+        </div>
+
+      </div>
+    );
+  }
+
+  /*
+  ==========================================================
+  ERROR
+  ==========================================================
+  */
+
+  if (error) {
+    return (
+      <div className="admin-page">
+
+        <div className="admin-page-header">
+          <div>
+            <p className="admin-eyebrow">
+              SALES
+            </p>
+
+            <h1>Orders</h1>
+
+            <p>
+              Manage customer orders and fulfillment.
+            </p>
+          </div>
+        </div>
+
+        <div className="admin-empty-state">
+
+          <AlertCircle
+            size={32}
+            strokeWidth={1.3}
+          />
+
+          <h3>
+            Failed to load orders
+          </h3>
+
+          <p>
+            {error}
+          </p>
+
+          <button
+            type="button"
+            className="admin-primary-button"
+            onClick={loadOrders}
+          >
+            TRY AGAIN
+          </button>
+
+        </div>
+
+      </div>
+    );
+  }
+
+  /*
+  ==========================================================
+  MAIN PAGE
+  ==========================================================
+  */
+
+  return (
+    <div className="admin-page">
+
+      {/* =====================================================
+          HEADER
+      ===================================================== */}
 
       <div className="admin-page-header">
 
         <div>
 
-          <p className="admin-page-eyebrow">
+          <p className="admin-eyebrow">
             SALES
           </p>
 
-          <h1>Orders</h1>
+          <h1>
+            Orders
+          </h1>
 
           <p>
             Manage customer orders and fulfillment.
@@ -147,11 +353,16 @@ function AdminOrders() {
 
       </div>
 
-      {/* FILTERS */}
 
-      <div className="admin-orders-toolbar">
+      {/* =====================================================
+          FILTERS
+      ===================================================== */}
 
-        <div className="admin-orders-search">
+      <div className="admin-filters">
+
+        {/* SEARCH */}
+
+        <div className="admin-search">
 
           <Search
             size={18}
@@ -169,65 +380,106 @@ function AdminOrders() {
 
         </div>
 
-        <select
-          value={statusFilter}
-          onChange={(event) =>
-            setStatusFilter(event.target.value)
-          }
-          className="admin-orders-filter"
-        >
-          <option value="All">
-            All Order Status
-          </option>
 
-          <option value="Processing">
-            Processing
-          </option>
+        {/* ORDER STATUS */}
 
-          <option value="Shipped">
-            Shipped
-          </option>
+        <div className="admin-filter-group">
 
-          <option value="Delivered">
-            Delivered
-          </option>
+          <select
+            value={orderStatusFilter}
+            onChange={(event) =>
+              setOrderStatusFilter(
+                event.target.value
+              )
+            }
+            aria-label="Filter by order status"
+          >
 
-          <option value="Cancelled">
-            Cancelled
-          </option>
-        </select>
+            <option value="All">
+              All Order Status
+            </option>
 
-        <select
-          value={paymentFilter}
-          onChange={(event) =>
-            setPaymentFilter(event.target.value)
-          }
-          className="admin-orders-filter"
-        >
-          <option value="All">
-            All Payments
-          </option>
+            <option value="pending">
+              Pending
+            </option>
 
-          <option value="Paid">
-            Paid
-          </option>
+            <option value="confirmed">
+              Confirmed
+            </option>
 
-          <option value="Pending">
-            Pending
-          </option>
+            <option value="processing">
+              Processing
+            </option>
 
-          <option value="Failed">
-            Failed
-          </option>
-        </select>
+            <option value="shipped">
+              Shipped
+            </option>
+
+            <option value="delivered">
+              Delivered
+            </option>
+
+            <option value="cancelled">
+              Cancelled
+            </option>
+
+          </select>
+
+        </div>
+
+
+        {/* PAYMENT STATUS */}
+
+        <div className="admin-filter-group">
+
+          <select
+            value={paymentStatusFilter}
+            onChange={(event) =>
+              setPaymentStatusFilter(
+                event.target.value
+              )
+            }
+            aria-label="Filter by payment status"
+          >
+
+            <option value="All">
+              All Payments
+            </option>
+
+            <option value="paid">
+              Paid
+            </option>
+
+            <option value="pending">
+              Pending
+            </option>
+
+            <option value="failed">
+              Failed
+            </option>
+
+            <option value="refunded">
+              Refunded
+            </option>
+
+            <option value="cancelled">
+              Cancelled
+            </option>
+
+          </select>
+
+        </div>
 
       </div>
 
-      {/* ORDERS PANEL */}
 
-      <div className="admin-orders-panel">
+      {/* =====================================================
+          ORDERS TABLE
+      ===================================================== */}
 
-        <div className="admin-panel-heading">
+      <div className="admin-table-card">
+
+        <div className="admin-table-header">
 
           <div>
 
@@ -235,20 +487,281 @@ function AdminOrders() {
               All Orders
             </h2>
 
-            <span>
-              {filteredOrders.length} orders
-            </span>
+            <p>
+              {filteredOrders.length} order
+              {filteredOrders.length !== 1
+                ? "s"
+                : ""}
+            </p>
 
           </div>
 
         </div>
 
-        {filteredOrders.length === 0 ? (
 
-          <div className="admin-orders-empty">
+        <div className="admin-table-wrapper">
 
-            <ShoppingBag
-              size={38}
+          <table className="admin-table">
+
+            <thead>
+
+              <tr>
+
+                <th>
+                  ORDER
+                </th>
+
+                <th>
+                  CUSTOMER
+                </th>
+
+                <th>
+                  PRODUCT
+                </th>
+
+                <th>
+                  AMOUNT
+                </th>
+
+                <th>
+                  DATE
+                </th>
+
+                <th>
+                  PAYMENT
+                </th>
+
+                <th>
+                  STATUS
+                </th>
+
+                <th>
+                  ACTION
+                </th>
+
+              </tr>
+
+            </thead>
+
+
+            <tbody>
+
+              {filteredOrders.map((order) => {
+
+                const orderId =
+                  Number(order?.id);
+
+                const customerName =
+                  order?.customer_name ||
+                  order?.shipping_name ||
+                  "Unknown Customer";
+
+                const customerEmail =
+                  order?.shipping_email ||
+                  order?.customer_email ||
+                  "—";
+
+                const productName =
+                  order?.product_name ||
+                  order?.product ||
+                  "—";
+
+                const itemCount =
+                  Number(
+                    order?.item_count ||
+                      order?.items_count ||
+                      0
+                  );
+
+                const totalAmount =
+                  Number(
+                    order?.total_amount || 0
+                  );
+
+                const currency =
+                  order?.currency ||
+                  "INR";
+
+                return (
+                  <tr
+                    key={
+                      orderId ||
+                      order?.order_number
+                    }
+                  >
+
+                    {/* ORDER */}
+
+                    <td>
+
+                      <strong>
+                        #
+                        {order?.order_number ||
+                          orderId}
+                      </strong>
+
+                    </td>
+
+
+                    {/* CUSTOMER */}
+
+                    <td>
+
+                      <div className="admin-table-primary">
+
+                        <strong>
+                          {customerName}
+                        </strong>
+
+                        <span>
+                          {customerEmail}
+                        </span>
+
+                      </div>
+
+                    </td>
+
+
+                    {/* PRODUCT */}
+
+                    <td>
+
+                      <div className="admin-table-primary">
+
+                        <strong>
+                          {productName}
+                        </strong>
+
+                        <span>
+                          {itemCount > 0
+                            ? `${itemCount} item${
+                                itemCount !== 1
+                                  ? "s"
+                                  : ""
+                              }`
+                            : "Order items"}
+                        </span>
+
+                      </div>
+
+                    </td>
+
+
+                    {/* AMOUNT */}
+
+                    <td>
+
+                      <strong>
+                        {formatCurrency(
+                          totalAmount,
+                          currency
+                        )}
+                      </strong>
+
+                    </td>
+
+
+                    {/* DATE */}
+
+                    <td>
+                      {formatDate(
+                        order?.created_at
+                      )}
+                    </td>
+
+
+                    {/* PAYMENT */}
+
+                    <td>
+
+                      <span
+                        className={`admin-status-badge payment-${normalizeStatus(
+                          order?.payment_status
+                        )}`}
+                      >
+                        {getPaymentStatusLabel(
+                          order?.payment_status
+                        )}
+                      </span>
+
+                    </td>
+
+
+                    {/* ORDER STATUS */}
+
+                    <td>
+
+                      <span
+                        className={`admin-status-badge status-${normalizeStatus(
+                          order?.order_status
+                        )}`}
+                      >
+                        {getOrderStatusLabel(
+                          order?.order_status
+                        )}
+                      </span>
+
+                    </td>
+
+
+                    {/* ACTION */}
+
+                    <td>
+
+                      {orderId > 0 ? (
+
+                        <button
+                          type="button"
+                          className="admin-icon-button"
+                          title="View order"
+                          aria-label={`View order ${
+                            order?.order_number ||
+                            orderId
+                          }`}
+                          onClick={() => {
+                            window.location.href =
+                              `/admin/orders/${orderId}`;
+                          }}
+                        >
+
+                          <Eye
+                            size={16}
+                            strokeWidth={1.5}
+                          />
+
+                        </button>
+
+                      ) : (
+
+                        <span>
+                          —
+                        </span>
+
+                      )}
+
+                    </td>
+
+                  </tr>
+                );
+              })}
+
+            </tbody>
+
+          </table>
+
+        </div>
+
+
+        {/* ===================================================
+            EMPTY FILTER RESULT
+        =================================================== */}
+
+        {filteredOrders.length === 0 && (
+
+          <div className="admin-empty-state">
+
+            <Package
+              size={32}
               strokeWidth={1.3}
             />
 
@@ -257,152 +770,9 @@ function AdminOrders() {
             </h3>
 
             <p>
-              Try changing your search or filters.
+              No database orders match the
+              current search or filters.
             </p>
-
-          </div>
-
-        ) : (
-
-          <div className="admin-orders-table-wrapper">
-
-            <table className="admin-orders-table">
-
-              <thead>
-
-                <tr>
-                  <th>ORDER</th>
-                  <th>CUSTOMER</th>
-                  <th>PRODUCT</th>
-                  <th>AMOUNT</th>
-                  <th>DATE</th>
-                  <th>PAYMENT</th>
-                  <th>STATUS</th>
-                  <th>ACTION</th>
-                </tr>
-
-              </thead>
-
-              <tbody>
-
-                {filteredOrders.map((order) => (
-
-                  <tr key={order.id}>
-
-                    {/* ORDER */}
-
-                    <td>
-
-                      <strong className="admin-order-id">
-                        #{order.id}
-                      </strong>
-
-                    </td>
-
-                    {/* CUSTOMER */}
-
-                    <td>
-
-                      <div className="admin-order-customer">
-
-                        <strong>
-                          {order.customer}
-                        </strong>
-
-                        <span>
-                          {order.email}
-                        </span>
-
-                      </div>
-
-                    </td>
-
-                    {/* PRODUCT */}
-
-                    <td>
-
-                      <div className="admin-order-product">
-
-                        <span>
-                          {order.product}
-                        </span>
-
-                        <small>
-                          {order.items}{" "}
-                          {order.items === 1
-                            ? "item"
-                            : "items"}
-                        </small>
-
-                      </div>
-
-                    </td>
-
-                    {/* AMOUNT */}
-
-                    <td>
-                      <strong>
-                        ₹{order.amount.toLocaleString("en-IN")}
-                      </strong>
-                    </td>
-
-                    {/* DATE */}
-
-                    <td>
-                      {order.date}
-                    </td>
-
-                    {/* PAYMENT */}
-
-                    <td>
-
-                      <span
-                        className={`admin-payment-status ${order.payment
-                          .toLowerCase()
-                          .replace(" ", "-")}`}
-                      >
-                        {order.payment}
-                      </span>
-
-                    </td>
-
-                    {/* ORDER STATUS */}
-
-                    <td>
-
-                      <span
-                        className={`admin-order-status ${order.status
-                          .toLowerCase()}`}
-                      >
-                        {order.status}
-                      </span>
-
-                    </td>
-
-                    {/* ACTION */}
-
-                    <td>
-
-                      <Link
-                        to={`/admin/orders/${order.id}`}
-                        className="admin-order-view-button"
-                        aria-label={`View ${order.id}`}
-                      >
-                        <Eye
-                          size={16}
-                          strokeWidth={1.5}
-                        />
-                      </Link>
-
-                    </td>
-
-                  </tr>
-
-                ))}
-
-              </tbody>
-
-            </table>
 
           </div>
 
@@ -410,7 +780,7 @@ function AdminOrders() {
 
       </div>
 
-    </section>
+    </div>
   );
 }
 

@@ -10,7 +10,11 @@ function Orders() {
   const [error, setError] = useState("");
 
   const formatPrice = (value) => {
-    return Number(value || 0).toLocaleString("en-IN");
+    const amount = Number(value || 0);
+
+    return amount.toLocaleString("en-IN", {
+      maximumFractionDigits: 2,
+    });
   };
 
   const formatDate = (value) => {
@@ -32,7 +36,7 @@ function Orders() {
   };
 
   const getStatusLabel = (status) => {
-    switch (status) {
+    switch (String(status || "").toLowerCase()) {
       case "pending":
         return "ORDER PLACED";
 
@@ -52,10 +56,18 @@ function Orders() {
         return "CANCELLED";
 
       default:
-        return String(
-          status || "PENDING"
-        ).toUpperCase();
+        return String(status || "PENDING").toUpperCase();
     }
+  };
+
+  const getOrderId = (order) => {
+    const id = Number(order?.id);
+
+    if (Number.isInteger(id) && id > 0) {
+      return id;
+    }
+
+    return null;
   };
 
   useEffect(() => {
@@ -66,33 +78,27 @@ function Orders() {
         setLoading(true);
         setError("");
 
-        const response = await api.get(
-          "/orders"
-        );
+        const response = await api.get("/orders");
 
         if (!response.data?.success) {
           throw new Error(
-            response.data?.message ||
-              "Failed to load orders."
+            response.data?.message || "Failed to load orders."
           );
         }
 
-        const backendOrders =
-          response.data?.orders || [];
+        const backendOrders = Array.isArray(response.data?.orders)
+          ? response.data.orders
+          : [];
 
         if (!cancelled) {
           setOrders(backendOrders);
         }
       } catch (requestError) {
-        console.error(
-          "Orders page error:",
-          requestError
-        );
+        console.error("Orders page error:", requestError);
 
         if (!cancelled) {
           setError(
-            requestError.response?.data
-              ?.message ||
+            requestError.response?.data?.message ||
               requestError.message ||
               "Unable to load orders."
           );
@@ -119,16 +125,17 @@ function Orders() {
 
   if (loading) {
     return (
-      <div className="orders-page">
-        <section
-          style={{
-            padding: "100px 20px",
-            textAlign: "center",
-          }}
-        >
-          LOADING ORDERS...
+      <main className="orders-page">
+        <section className="orders-empty">
+          <Package size={36} strokeWidth={1.2} />
+
+          <h2>LOADING ORDERS</h2>
+
+          <p>
+            Please wait while we load your order history.
+          </p>
         </section>
-      </div>
+      </main>
     );
   }
 
@@ -140,45 +147,26 @@ function Orders() {
 
   if (error) {
     return (
-      <div className="orders-page">
-        <section
-          style={{
-            padding: "100px 20px",
-            textAlign: "center",
-          }}
-        >
-          <AlertCircle
-            size={32}
-            strokeWidth={1.2}
-          />
+      <main className="orders-page">
+        <section className="orders-header">
+          <div>
+            <p className="eyebrow">YOUR ACCOUNT</p>
+            <h1>ORDERS</h1>
+          </div>
+        </section>
 
-          <h1
-            style={{
-              marginTop: "20px",
-            }}
-          >
-            UNABLE TO LOAD ORDERS
-          </h1>
+        <section className="orders-empty">
+          <AlertCircle size={36} strokeWidth={1.2} />
 
-          <p
-            style={{
-              marginTop: "12px",
-            }}
-          >
-            {error}
-          </p>
+          <h2>UNABLE TO LOAD ORDERS</h2>
 
-          <Link
-            to="/shop"
-            style={{
-              display: "inline-block",
-              marginTop: "30px",
-            }}
-          >
+          <p>{error}</p>
+
+          <Link to="/shop">
             CONTINUE SHOPPING
           </Link>
         </section>
-      </div>
+      </main>
     );
   }
 
@@ -190,57 +178,33 @@ function Orders() {
 
   if (orders.length === 0) {
     return (
-      <div className="orders-page">
-
+      <main className="orders-page">
         <section className="orders-header">
           <div>
-            <p className="eyebrow">
-              YOUR ACCOUNT
-            </p>
+            <p className="eyebrow">YOUR ACCOUNT</p>
 
             <h1>ORDERS</h1>
           </div>
+
+          <p className="orders-intro">
+            YOUR ORDER HISTORY WILL APPEAR HERE.
+          </p>
         </section>
 
-        <section
-          style={{
-            padding: "100px 20px",
-            textAlign: "center",
-          }}
-        >
-          <Package
-            size={36}
-            strokeWidth={1.2}
-          />
+        <section className="orders-empty">
+          <Package size={36} strokeWidth={1.2} />
 
-          <h2
-            style={{
-              marginTop: "20px",
-            }}
-          >
-            NO ORDERS YET
-          </h2>
+          <h2>NO ORDERS YET</h2>
 
-          <p
-            style={{
-              marginTop: "12px",
-            }}
-          >
+          <p>
             You haven't placed any orders yet.
           </p>
 
-          <Link
-            to="/shop"
-            style={{
-              display: "inline-block",
-              marginTop: "30px",
-            }}
-          >
+          <Link to="/shop">
             START SHOPPING →
           </Link>
         </section>
-
-      </div>
+      </main>
     );
   }
 
@@ -251,168 +215,158 @@ function Orders() {
   */
 
   return (
-    <div className="orders-page">
+    <main className="orders-page">
 
-      {/* HEADER */}
+      {/* =====================================================
+          HEADER
+      ===================================================== */}
 
       <section className="orders-header">
-
         <div>
-
-          <p className="eyebrow">
-            YOUR ACCOUNT
-          </p>
+          <p className="eyebrow">YOUR ACCOUNT</p>
 
           <h1>ORDERS</h1>
-
         </div>
 
-        <p>
+        <p className="orders-intro">
           {orders.length} ORDER
-          {orders.length !== 1
-            ? "S"
-            : ""}
+          {orders.length !== 1 ? "S" : ""}
         </p>
-
       </section>
 
+      {/* =====================================================
+          ORDERS LIST
+      ===================================================== */}
 
-      {/* ORDERS LIST */}
+      <section className="orders-content">
+        <div className="orders-list">
 
-      <section className="orders-list">
+          {orders.map((order) => {
+            const orderId = getOrderId(order);
 
-        {orders.map((order) => {
+            const orderNumber =
+              order?.order_number ||
+              `ORDER #${order?.id || ""}`;
 
-          /*
-          IMPORTANT:
-          Use database ID in URL.
+            const orderDate = formatDate(
+              order?.created_at
+            );
 
-          Example:
-          /orders/125
+            const status = getStatusLabel(
+              order?.order_status
+            );
 
-          NOT:
-          /orders/UNT-2026-00125
-          */
+            const total = formatPrice(
+              order?.total_amount
+            );
 
-          const orderId =
-            Number(order.id);
+            return (
+              <article
+                className="order-card"
+                key={order?.id || order?.order_number}
+              >
 
-          return (
-            <article
-              className="order-card"
-              key={order.id}
-            >
+                {/* =================================================
+                    ORDER HEADER
+                ================================================= */}
 
-              {/* ORDER INFORMATION */}
+                <div className="order-card-top">
 
-              <div className="order-card-main">
+                  <div>
+                    <p className="order-label">
+                      ORDER
+                    </p>
 
-                <div className="order-card-icon">
-                  <Package
-                    size={22}
-                    strokeWidth={1.2}
-                  />
-                </div>
+                    <h2>
+                      {orderNumber}
+                    </h2>
+                  </div>
 
-                <div className="order-card-info">
-
-                  <p className="eyebrow">
-                    ORDER
-                  </p>
-
-                  <h2>
-                    {order.order_number ||
-                      `ORDER #${order.id}`}
-                  </h2>
-
-                  <p>
-                    ORDERED ON{" "}
-                    {formatDate(
-                      order.created_at
-                    )}
-                  </p>
+                  <span className="order-status">
+                    {status}
+                  </span>
 
                 </div>
 
-              </div>
+                {/* =================================================
+                    ORDER META
+                ================================================= */}
 
+                <div className="order-meta">
 
-              {/* STATUS */}
+                  <div>
+                    <span>ORDERED ON</span>
 
-              <div className="order-card-status">
+                    <strong>
+                      {orderDate || "—"}
+                    </strong>
+                  </div>
 
-                <span>
-                  STATUS
-                </span>
+                  <div>
+                    <span>ORDER STATUS</span>
 
-                <strong>
-                  {getStatusLabel(
-                    order.order_status
-                  )}
-                </strong>
+                    <strong>
+                      {status}
+                    </strong>
+                  </div>
 
-              </div>
+                  <div>
+                    <span>TOTAL</span>
 
+                    <strong>
+                      ₹{total}
+                    </strong>
+                  </div>
 
-              {/* TOTAL */}
+                </div>
 
-              <div className="order-card-total">
+                {/* =================================================
+                    VIEW ORDER
+                ================================================= */}
 
-                <span>
-                  TOTAL
-                </span>
+                {orderId ? (
+                  <Link
+                    to={`/orders/${orderId}`}
+                    className="order-details-link"
+                  >
+                    <span>
+                      VIEW ORDER
+                    </span>
 
-                <strong>
-                  ₹
-                  {formatPrice(
-                    order.total_amount
-                  )}
-                </strong>
+                    <ChevronRight
+                      size={16}
+                      strokeWidth={1.3}
+                    />
+                  </Link>
+                ) : (
+                  <div
+                    className="order-details-link"
+                    style={{
+                      opacity: 0.5,
+                      cursor: "not-allowed",
+                    }}
+                  >
+                    <span>
+                      ORDER ID UNAVAILABLE
+                    </span>
+                  </div>
+                )}
 
-              </div>
+              </article>
+            );
+          })}
 
-
-              {/* VIEW ORDER */}
-
-              {Number.isInteger(orderId) &&
-              orderId > 0 ? (
-
-                <Link
-                  to={`/orders/${orderId}`}
-                  className="order-card-link"
-                >
-                  VIEW ORDER
-                  <ChevronRight
-                    size={16}
-                    strokeWidth={1.3}
-                  />
-                </Link>
-
-              ) : (
-
-                <span
-                  className="order-card-link"
-                  style={{
-                    opacity: 0.5,
-                  }}
-                >
-                  ORDER ID UNAVAILABLE
-                </span>
-
-              )}
-
-            </article>
-          );
-        })}
-
+        </div>
       </section>
 
-
-      {/* CONTINUE SHOPPING */}
+      {/* =====================================================
+          CONTINUE SHOPPING
+      ===================================================== */}
 
       <div
         style={{
           marginTop: "50px",
+          textAlign: "center",
         }}
       >
         <Link
@@ -423,7 +377,7 @@ function Orders() {
         </Link>
       </div>
 
-    </div>
+    </main>
   );
 }
 
