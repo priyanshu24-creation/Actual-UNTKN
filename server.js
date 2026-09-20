@@ -4,4 +4,4 @@ dotenv.config({
     path: "./backend/UNTKN-Backend/.env"
 });
 
-await import("./backend/UNTKN-Backend/src/server.js");
+import("./backend/UNTKN-Backend/src/server.js");
