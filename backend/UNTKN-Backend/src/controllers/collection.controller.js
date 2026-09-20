@@ -1,16 +1,43 @@
 import pool from "../config/database.js";
+import cloudinary from "../config/cloudinary.js";
+import { Readable } from "stream";
 
-/*
-|--------------------------------------------------------------------------
-| GET ALL COLLECTIONS
-|--------------------------------------------------------------------------
-| GET /api/collections
-|--------------------------------------------------------------------------
-*/
+const parseBoolean = (value, defaultValue = true) => {
+    if (value === undefined || value === null || value === "") {
+        return defaultValue;
+    }
+
+    if (typeof value === "boolean") {
+        return value;
+    }
+
+    return String(value).toLowerCase() === "true";
+};
+
+const uploadToCloudinary = (buffer) => {
+    return new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+            {
+                folder: "untkn/collections",
+                resource_type: "image"
+            },
+            (error, result) => {
+                if (error) {
+                    reject(error);
+                } else {
+                    resolve(result);
+                }
+            }
+        );
+
+        Readable.from(buffer).pipe(stream);
+    });
+};
 
 export const getCollections = async (req, res) => {
     try {
-        const [collections] = await pool.execute(`
+        const [collections] = await pool.execute(
+            `
             SELECT
                 id,
                 name,
@@ -21,13 +48,13 @@ export const getCollections = async (req, res) => {
                 created_at,
                 updated_at
             FROM collections
-            ORDER BY created_at DESC
-        `);
+            ORDER BY id DESC
+            `
+        );
 
         return res.status(200).json({
             success: true,
             count: collections.length,
-
             collections: collections.map((collection) => ({
                 id: collection.id,
                 name: collection.name,
@@ -39,9 +66,8 @@ export const getCollections = async (req, res) => {
                 updated_at: collection.updated_at
             }))
         });
-
     } catch (error) {
-        console.error("GET COLLECTIONS ERROR:");
+        console.error("GET COLLECTIONS ERROR");
         console.error(error);
 
         return res.status(500).json({
@@ -51,30 +77,9 @@ export const getCollections = async (req, res) => {
     }
 };
 
-
-/*
-|--------------------------------------------------------------------------
-| GET COLLECTION BY SLUG
-|--------------------------------------------------------------------------
-| GET /api/collections/slug/:slug
-|--------------------------------------------------------------------------
-*/
-
 export const getCollectionBySlug = async (req, res) => {
     try {
         const { slug } = req.params;
-
-        const cleanSlug =
-            typeof slug === "string"
-                ? slug.trim().toLowerCase()
-                : "";
-
-        if (!cleanSlug) {
-            return res.status(400).json({
-                success: false,
-                message: "Collection slug is required"
-            });
-        }
 
         const [collections] = await pool.execute(
             `
@@ -91,7 +96,7 @@ export const getCollectionBySlug = async (req, res) => {
             WHERE slug = ?
             LIMIT 1
             `,
-            [cleanSlug]
+            [slug]
         );
 
         if (collections.length === 0) {
@@ -105,7 +110,6 @@ export const getCollectionBySlug = async (req, res) => {
 
         return res.status(200).json({
             success: true,
-
             collection: {
                 id: collection.id,
                 name: collection.name,
@@ -117,9 +121,8 @@ export const getCollectionBySlug = async (req, res) => {
                 updated_at: collection.updated_at
             }
         });
-
     } catch (error) {
-        console.error("GET COLLECTION BY SLUG ERROR:");
+        console.error("GET COLLECTION BY SLUG ERROR");
         console.error(error);
 
         return res.status(500).json({
@@ -129,20 +132,11 @@ export const getCollectionBySlug = async (req, res) => {
     }
 };
 
-
-/*
-|--------------------------------------------------------------------------
-| GET SINGLE COLLECTION
-|--------------------------------------------------------------------------
-| GET /api/collections/:id
-|--------------------------------------------------------------------------
-*/
-
-export const getCollectionById = async (req, res) => {
+export const getCollection = async (req, res) => {
     try {
-        const { id } = req.params;
+        const numericId = Number(req.params.id);
 
-        if (!id || !/^\d+$/.test(id)) {
+        if (!Number.isInteger(numericId) || numericId <= 0) {
             return res.status(400).json({
                 success: false,
                 message: "Invalid collection ID"
@@ -164,7 +158,7 @@ export const getCollectionById = async (req, res) => {
             WHERE id = ?
             LIMIT 1
             `,
-            [id]
+            [numericId]
         );
 
         if (collections.length === 0) {
@@ -178,7 +172,6 @@ export const getCollectionById = async (req, res) => {
 
         return res.status(200).json({
             success: true,
-
             collection: {
                 id: collection.id,
                 name: collection.name,
@@ -190,9 +183,8 @@ export const getCollectionById = async (req, res) => {
                 updated_at: collection.updated_at
             }
         });
-
     } catch (error) {
-        console.error("GET COLLECTION ERROR:");
+        console.error("GET COLLECTION ERROR");
         console.error(error);
 
         return res.status(500).json({
@@ -202,55 +194,47 @@ export const getCollectionById = async (req, res) => {
     }
 };
 
-
-/*
-|--------------------------------------------------------------------------
-| CREATE COLLECTION
-|--------------------------------------------------------------------------
-| POST /api/collections
-|--------------------------------------------------------------------------
-*/
-
 export const createCollection = async (req, res) => {
     try {
         const {
             name,
             slug,
-            description,
-            image_url,
-            is_active
+            description
         } = req.body;
 
-        const cleanName =
-            typeof name === "string"
-                ? name.trim()
-                : "";
+        const isActive = parseBoolean(
+            req.body.is_active,
+            true
+        );
 
-        const cleanSlug =
-            typeof slug === "string"
-                ? slug.trim().toLowerCase()
-                : "";
-
-        const cleanDescription =
-            typeof description === "string"
-                ? description.trim()
-                : null;
-
-        if (!cleanName) {
+        if (!name || !String(name).trim()) {
             return res.status(400).json({
                 success: false,
                 message: "Collection name is required"
             });
         }
 
-        if (!cleanSlug) {
+        if (!slug || !String(slug).trim()) {
             return res.status(400).json({
                 success: false,
                 message: "Collection slug is required"
             });
         }
 
-        const [existingCollections] = await pool.execute(
+        if (!req.file) {
+            return res.status(400).json({
+                success: false,
+                message: "Collection image is required"
+            });
+        }
+
+        const cleanName = String(name).trim();
+        const cleanSlug = String(slug).trim().toLowerCase();
+        const cleanDescription = description
+            ? String(description).trim()
+            : null;
+
+        const [existing] = await pool.execute(
             `
             SELECT id
             FROM collections
@@ -260,17 +244,15 @@ export const createCollection = async (req, res) => {
             [cleanSlug]
         );
 
-        if (existingCollections.length > 0) {
+        if (existing.length > 0) {
             return res.status(409).json({
                 success: false,
                 message: "A collection with this slug already exists"
             });
         }
 
-        const activeValue =
-            typeof is_active === "boolean"
-                ? is_active
-                : true;
+        const cloudinaryResult =
+            await uploadToCloudinary(req.file.buffer);
 
         const [result] = await pool.execute(
             `
@@ -287,200 +269,61 @@ export const createCollection = async (req, res) => {
             [
                 cleanName,
                 cleanSlug,
-                cleanDescription || null,
-                image_url || null,
-                activeValue
+                cleanDescription,
+                cloudinaryResult.secure_url,
+                isActive ? 1 : 0
             ]
-        );
-
-        const [createdRows] = await pool.execute(
-            `
-            SELECT
-                id,
-                name,
-                slug,
-                description,
-                image_url,
-                is_active,
-                created_at,
-                updated_at
-            FROM collections
-            WHERE id = ?
-            LIMIT 1
-            `,
-            [result.insertId]
         );
 
         return res.status(201).json({
             success: true,
             message: "Collection created successfully",
-
             collection: {
-                ...createdRows[0],
-                is_active: Boolean(
-                    createdRows[0].is_active
-                )
+                id: result.insertId,
+                name: cleanName,
+                slug: cleanSlug,
+                description: cleanDescription,
+                image_url: cloudinaryResult.secure_url,
+                is_active: isActive
             }
         });
-
     } catch (error) {
-        console.error("CREATE COLLECTION ERROR:");
+        console.error("CREATE COLLECTION ERROR");
         console.error(error);
-
-        if (error.code === "ER_DUP_ENTRY") {
-            return res.status(409).json({
-                success: false,
-                message: "A collection with this slug already exists"
-            });
-        }
+        console.error(error.message);
+        console.error(error.stack);
 
         return res.status(500).json({
             success: false,
-            message: "Failed to create collection"
+            message: "Failed to create collection",
+            error: error.message
         });
     }
 };
 
-
-/*
-|--------------------------------------------------------------------------
-| UPDATE COLLECTION
-|--------------------------------------------------------------------------
-| PUT /api/collections/:id
-|--------------------------------------------------------------------------
-*/
-
 export const updateCollection = async (req, res) => {
     try {
-        const { id } = req.params;
+        const numericId = Number(req.params.id);
 
-        if (!id || !/^\d+$/.test(id)) {
+        if (!Number.isInteger(numericId) || numericId <= 0) {
             return res.status(400).json({
                 success: false,
                 message: "Invalid collection ID"
-            });
-        }
-
-        const [existingRows] = await pool.execute(
-            `
-            SELECT id
-            FROM collections
-            WHERE id = ?
-            LIMIT 1
-            `,
-            [id]
-        );
-
-        if (existingRows.length === 0) {
-            return res.status(404).json({
-                success: false,
-                message: "Collection not found"
             });
         }
 
         const {
             name,
             slug,
-            description,
-            image_url,
-            is_active
+            description
         } = req.body;
 
-        const updates = [];
-        const values = [];
-
-        if (name !== undefined) {
-            if (
-                typeof name !== "string" ||
-                !name.trim()
-            ) {
-                return res.status(400).json({
-                    success: false,
-                    message: "Collection name cannot be empty"
-                });
-            }
-
-            updates.push("name = ?");
-            values.push(name.trim());
-        }
-
-        if (slug !== undefined) {
-            if (
-                typeof slug !== "string" ||
-                !slug.trim()
-            ) {
-                return res.status(400).json({
-                    success: false,
-                    message: "Collection slug cannot be empty"
-                });
-            }
-
-            const cleanSlug =
-                slug.trim().toLowerCase();
-
-            const [duplicateRows] =
-                await pool.execute(
-                    `
-                    SELECT id
-                    FROM collections
-                    WHERE slug = ?
-                    AND id != ?
-                    LIMIT 1
-                    `,
-                    [cleanSlug, id]
-                );
-
-            if (duplicateRows.length > 0) {
-                return res.status(409).json({
-                    success: false,
-                    message:
-                        "A collection with this slug already exists"
-                });
-            }
-
-            updates.push("slug = ?");
-            values.push(cleanSlug);
-        }
-
-        if (description !== undefined) {
-            updates.push("description = ?");
-
-            values.push(
-                typeof description === "string"
-                    ? description.trim() || null
-                    : null
-            );
-        }
-
-        if (image_url !== undefined) {
-            updates.push("image_url = ?");
-            values.push(image_url || null);
-        }
-
-        if (is_active !== undefined) {
-            updates.push("is_active = ?");
-            values.push(Boolean(is_active));
-        }
-
-        if (updates.length === 0) {
-            return res.status(400).json({
-                success: false,
-                message: "No fields provided for update"
-            });
-        }
-
-        values.push(id);
-
-        await pool.execute(
-            `
-            UPDATE collections
-            SET ${updates.join(", ")}
-            WHERE id = ?
-            `,
-            values
+        const isActive = parseBoolean(
+            req.body.is_active,
+            true
         );
 
-        const [updatedRows] = await pool.execute(
+        const [existingCollections] = await pool.execute(
             `
             SELECT
                 id,
@@ -488,106 +331,172 @@ export const updateCollection = async (req, res) => {
                 slug,
                 description,
                 image_url,
-                is_active,
-                created_at,
-                updated_at
+                is_active
             FROM collections
             WHERE id = ?
             LIMIT 1
             `,
-            [id]
+            [numericId]
         );
 
-        return res.status(200).json({
-            success: true,
-            message: "Collection updated successfully",
-
-            collection: {
-                ...updatedRows[0],
-                is_active: Boolean(
-                    updatedRows[0].is_active
-                )
-            }
-        });
-
-    } catch (error) {
-        console.error("UPDATE COLLECTION ERROR:");
-        console.error(error);
-
-        if (error.code === "ER_DUP_ENTRY") {
-            return res.status(409).json({
-                success: false,
-                message:
-                    "A collection with this slug already exists"
-            });
-        }
-
-        return res.status(500).json({
-            success: false,
-            message: "Failed to update collection"
-        });
-    }
-};
-
-
-/*
-|--------------------------------------------------------------------------
-| DELETE COLLECTION
-|--------------------------------------------------------------------------
-| DELETE /api/collections/:id
-|--------------------------------------------------------------------------
-*/
-
-export const deleteCollection = async (req, res) => {
-    try {
-        const { id } = req.params;
-
-        if (!id || !/^\d+$/.test(id)) {
-            return res.status(400).json({
-                success: false,
-                message: "Invalid collection ID"
-            });
-        }
-
-        const [existingRows] = await pool.execute(
-            `
-            SELECT
-                id,
-                name
-            FROM collections
-            WHERE id = ?
-            LIMIT 1
-            `,
-            [id]
-        );
-
-        if (existingRows.length === 0) {
+        if (existingCollections.length === 0) {
             return res.status(404).json({
                 success: false,
                 message: "Collection not found"
             });
         }
 
-        await pool.execute(
+        const existing = existingCollections[0];
+
+        const cleanName =
+            name !== undefined
+                ? String(name).trim()
+                : existing.name;
+
+        const cleanSlug =
+            slug !== undefined
+                ? String(slug).trim().toLowerCase()
+                : existing.slug;
+
+        const cleanDescription =
+            description !== undefined
+                ? String(description).trim()
+                : existing.description;
+
+        if (!cleanName) {
+            return res.status(400).json({
+                success: false,
+                message: "Collection name is required"
+            });
+        }
+
+        if (!cleanSlug) {
+            return res.status(400).json({
+                success: false,
+                message: "Collection slug is required"
+            });
+        }
+
+        const [duplicate] = await pool.execute(
+            `
+            SELECT id
+            FROM collections
+            WHERE slug = ?
+            AND id != ?
+            LIMIT 1
+            `,
+            [cleanSlug, numericId]
+        );
+
+        if (duplicate.length > 0) {
+            return res.status(409).json({
+                success: false,
+                message: "A collection with this slug already exists"
+            });
+        }
+
+        let imageUrl = existing.image_url;
+
+        if (req.file) {
+            const cloudinaryResult =
+                await uploadToCloudinary(req.file.buffer);
+
+            imageUrl = cloudinaryResult.secure_url;
+        }
+
+        if (
+            String(req.body.remove_image).toLowerCase() === "true" &&
+            !req.file
+        ) {
+            imageUrl = null;
+        }
+
+        const [result] = await pool.execute(
+            `
+            UPDATE collections
+            SET
+                name = ?,
+                slug = ?,
+                description = ?,
+                image_url = ?,
+                is_active = ?
+            WHERE id = ?
+            `,
+            [
+                cleanName,
+                cleanSlug,
+                cleanDescription,
+                imageUrl,
+                isActive ? 1 : 0,
+                numericId
+            ]
+        );
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "Collection not found"
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "Collection updated successfully",
+            collection: {
+                id: numericId,
+                name: cleanName,
+                slug: cleanSlug,
+                description: cleanDescription,
+                image_url: imageUrl,
+                is_active: isActive
+            }
+        });
+    } catch (error) {
+        console.error("UPDATE COLLECTION ERROR");
+        console.error(error);
+        console.error(error.message);
+        console.error(error.stack);
+
+        return res.status(500).json({
+            success: false,
+            message: "Failed to update collection",
+            error: error.message
+        });
+    }
+};
+
+export const deleteCollection = async (req, res) => {
+    try {
+        const numericId = Number(req.params.id);
+
+        if (!Number.isInteger(numericId) || numericId <= 0) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid collection ID"
+            });
+        }
+
+        const [result] = await pool.execute(
             `
             DELETE FROM collections
             WHERE id = ?
             `,
-            [id]
+            [numericId]
         );
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "Collection not found"
+            });
+        }
 
         return res.status(200).json({
             success: true,
-            message: "Collection deleted successfully",
-
-            collection: {
-                id: existingRows[0].id,
-                name: existingRows[0].name
-            }
+            message: "Collection deleted successfully"
         });
-
     } catch (error) {
-        console.error("DELETE COLLECTION ERROR:");
+        console.error("DELETE COLLECTION ERROR");
         console.error(error);
 
         return res.status(500).json({

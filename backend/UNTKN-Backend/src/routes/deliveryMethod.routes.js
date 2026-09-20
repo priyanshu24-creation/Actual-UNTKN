@@ -1,35 +1,35 @@
 import express from "express";
 
 import {
-    getPublicSettings,
-    getSettings,
-    updateSettings,
-} from "../controllers/settings.controller.js";
+    getDeliveryMethods,
+    getAdminDeliveryMethods,
+    updateDeliveryMethods
+} from "../controllers/deliveryMethod.controller.js";
 
 import {
     authenticate,
-    requireAdmin,
+    requireAdmin
 } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
 router.get(
-    "/public",
-    getPublicSettings
+    "/",
+    getDeliveryMethods
 );
 
 router.get(
     "/admin",
     authenticate,
     requireAdmin,
-    getSettings
+    getAdminDeliveryMethods
 );
 
 router.put(
     "/admin",
     authenticate,
     requireAdmin,
-    updateSettings
+    updateDeliveryMethods
 );
 
 export default router;

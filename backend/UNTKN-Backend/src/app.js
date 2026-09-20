@@ -3,6 +3,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
+import path from "path";
 
 import authRoutes from "./routes/auth.routes.js";
 import categoryRoutes from "./routes/category.routes.js";
@@ -17,68 +18,61 @@ import wishlistRoutes from "./routes/wishlist.routes.js";
 import orderRoutes from "./routes/order.routes.js";
 import paymentRoutes from "./routes/payment.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
-import { errorHandler } from "./middleware/error.middleware.js";
 import addressRoutes from "./routes/address.routes.js";
 import newsletterRoutes from "./routes/newsletter.routes.js";
 import inquiryRoutes from "./routes/inquiry.routes.js";
 import settingsRoutes from "./routes/settings.routes.js";
+import lookbookRoutes from "./routes/lookbook.routes.js";
+
+import { errorHandler } from "./middleware/error.middleware.js";
+import deliveryMethodRoutes from "./routes/deliveryMethod.routes.js";
+import runningBannerRoutes from "./routes/runningBanner.routes.js";
 
 const app = express();
-
-
-// ==================================================
-// SECURITY HEADERS
-// ==================================================
 
 app.use(
     helmet({
         contentSecurityPolicy: {
             directives: {
                 defaultSrc: ["'self'"],
-
                 scriptSrc: [
                     "'self'",
                     "https://checkout.razorpay.com",
                     "https://cdn.razorpay.com"
                 ],
-
                 styleSrc: [
                     "'self'",
                     "'unsafe-inline'",
                     "https:"
                 ],
-
                 imgSrc: [
                     "'self'",
                     "data:",
                     "blob:",
+                    "http://localhost:5000",
+                    "http://localhost:5173",
                     "https:"
                 ],
-
                 connectSrc: [
                     "'self'",
                     "http://localhost:5000",
+                    "http://localhost:5173",
                     "https://checkout.razorpay.com",
                     "https://api.razorpay.com",
                     "https://cdn.razorpay.com"
                 ],
-
                 frameSrc: [
                     "'self'",
                     "https://checkout.razorpay.com",
                     "https://api.razorpay.com"
                 ],
-
                 fontSrc: [
                     "'self'",
                     "https:",
                     "data:"
                 ],
-
                 objectSrc: ["'none'"],
-
                 baseUri: ["'self'"],
-
                 formAction: [
                     "'self'",
                     "https://checkout.razorpay.com"
@@ -88,22 +82,12 @@ app.use(
     })
 );
 
-
-// ==================================================
-// CORS
-// ==================================================
-
 app.use(
     cors({
         origin: "http://localhost:5173",
         credentials: true
     })
 );
-
-
-// ==================================================
-// REQUEST BODY LIMITS
-// ==================================================
 
 app.use(
     express.json({
@@ -120,18 +104,11 @@ app.use(
 
 app.use(cookieParser());
 
-
-// ==================================================
-// API RATE LIMITING
-// ==================================================
-
 const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     limit: 200,
-
     standardHeaders: "draft-8",
     legacyHeaders: false,
-
     message: {
         success: false,
         message: "Too many requests. Please try again later."
@@ -140,10 +117,9 @@ const apiLimiter = rateLimit({
 
 app.use("/api", apiLimiter);
 
+const uploadsPath = path.resolve(process.cwd(), "uploads");
 
-// ==================================================
-// HEALTH
-// ==================================================
+app.use("/uploads", express.static(uploadsPath));
 
 app.get("/api/health", (req, res) => {
     res.status(200).json({
@@ -152,123 +128,37 @@ app.get("/api/health", (req, res) => {
     });
 });
 
-
-// ==================================================
-// AUTH
-// ==================================================
-
 app.use("/api/auth", authRoutes);
-
-
-// ==================================================
-// CATEGORIES
-// ==================================================
-
 app.use("/api/categories", categoryRoutes);
-
-
-// ==================================================
-// COLLECTIONS
-// ==================================================
-
 app.use("/api/collections", collectionRoutes);
-
-
-// ==================================================
-// PRODUCTS
-// ==================================================
-
 app.use("/api/products", productRoutes);
-
-
-// ==================================================
-// PRODUCT IMAGES
-// ==================================================
-
 app.use("/api/products", productImageRoutes);
-
-
-// ==================================================
-// SIZES
-// ==================================================
-
 app.use("/api/sizes", sizeRoutes);
-
-
-// ==================================================
-// COLORS
-// ==================================================
-
 app.use("/api/colors", colorRoutes);
-
-
-// ==================================================
-// VARIANTS
-// ==================================================
-
 app.use("/api", variantRoutes);
-
-
-// ==================================================
-// CART
-// ==================================================
-
 app.use("/api/cart", cartRoutes);
-
-
-// ==================================================
-// WISHLIST
-// ==================================================
-
 app.use("/api/wishlist", wishlistRoutes);
-
-
-// ==================================================
-// ORDERS
-// ==================================================
-
 app.use("/api/orders", orderRoutes);
-
-
-// ==================================================
-// PAYMENTS
-// ==================================================
-
 app.use("/api/payments", paymentRoutes);
-
-
-// ==================================================
-// TEST PAGES
-// ==================================================
-
 app.use("/test", express.static("test"));
-
-
-// =========================
-// ADMIN
-// =========================
-
 app.use("/api/admin", adminRoutes);
-
 app.use("/api/addresses", addressRoutes);
+app.use("/api/newsletter", newsletterRoutes);
+app.use("/api/inquiries", inquiryRoutes);
+app.use("/api/settings", settingsRoutes);
+app.use("/api/lookbook", lookbookRoutes);
+app.use("/api/delivery-methods", deliveryMethodRoutes);
 
 app.use(
-    "/api/newsletter",
-    newsletterRoutes
+    "/api/settings/running-banner",
+    runningBannerRoutes
 );
-
-app.use("/api/inquiries", inquiryRoutes);
-
-app.use("/api/settings", settingsRoutes);
-
-// ==================================================
-// 404
-// ==================================================
 
 app.use((req, res) => {
     res.status(404).json({
         success: false,
-        message: "API route not found"
+        message: "API route not found",
+        path: req.originalUrl
     });
 });
 

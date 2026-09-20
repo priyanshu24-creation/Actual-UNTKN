@@ -1,24 +1,12 @@
 import crypto from "crypto";
 import pool from "../config/database.js";
 import razorpay from "../config/razorpay.js";
-
-
-/*
-|--------------------------------------------------------------------------
-| CREATE RAZORPAY PAYMENT ORDER
-|--------------------------------------------------------------------------
-*/
+import { sendOrderConfirmationEmail } from "../services/order-confirmation.service.js";
 
 export const createPaymentOrder = async (req, res) => {
     try {
         const userId = req.user.id;
         const { order_id } = req.body;
-
-        /*
-        |--------------------------------------------------------------------------
-        | VALIDATE ORDER ID
-        |--------------------------------------------------------------------------
-        */
 
         const numericOrderId = Number(order_id);
 
@@ -31,13 +19,6 @@ export const createPaymentOrder = async (req, res) => {
                 message: "Valid Order ID is required"
             });
         }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | GET ORDER
-        |--------------------------------------------------------------------------
-        */
 
         const [orders] = await pool.execute(
             `
@@ -62,13 +43,6 @@ export const createPaymentOrder = async (req, res) => {
             ]
         );
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | ORDER NOT FOUND
-        |--------------------------------------------------------------------------
-        */
-
         if (orders.length === 0) {
             return res.status(404).json({
                 success: false,
@@ -76,52 +50,23 @@ export const createPaymentOrder = async (req, res) => {
             });
         }
 
-
         const order = orders[0];
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | ALREADY PAID
-        |--------------------------------------------------------------------------
-        */
-
-        if (
-            order.payment_status === "paid"
-        ) {
+        if (order.payment_status === "paid") {
             return res.status(400).json({
                 success: false,
                 message: "Order is already paid"
             });
         }
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | CANCELLED ORDER
-        |--------------------------------------------------------------------------
-        */
-
-        if (
-            order.order_status === "cancelled"
-        ) {
+        if (order.order_status === "cancelled") {
             return res.status(400).json({
                 success: false,
-                message:
-                    "Cancelled order cannot be paid"
+                message: "Cancelled order cannot be paid"
             });
         }
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | VALIDATE TOTAL
-        |--------------------------------------------------------------------------
-        */
-
-        const totalAmount =
-            Number(order.total_amount);
-
+        const totalAmount = Number(order.total_amount);
 
         if (
             !Number.isFinite(totalAmount) ||
@@ -129,175 +74,91 @@ export const createPaymentOrder = async (req, res) => {
         ) {
             return res.status(400).json({
                 success: false,
-                message:
-                    "Invalid order amount"
+                message: "Invalid order amount"
             });
         }
 
+        const amountInPaise = Math.round(
+            totalAmount * 100
+        );
 
-        /*
-        |--------------------------------------------------------------------------
-        | RAZORPAY AMOUNT
-        |--------------------------------------------------------------------------
-        |
-        | Razorpay requires amount in paise.
-        |
-        | Example:
-        |
-        | ₹1299 = 129900 paise
-        |
-        */
+        const currency = order.currency || "INR";
 
-        const amountInPaise =
-            Math.round(
-                totalAmount * 100
-            );
+        const [existingPayments] = await pool.execute(
+            `
+            SELECT
+                id,
+                order_id,
+                razorpay_order_id,
+                amount,
+                currency,
+                status,
+                created_at
+            FROM payments
+            WHERE order_id = ?
+            AND status = 'created'
+            ORDER BY created_at DESC
+            LIMIT 1
+            `,
+            [order.id]
+        );
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | CURRENCY
-        |--------------------------------------------------------------------------
-        */
-
-        const currency =
-            order.currency || "INR";
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | CHECK FOR EXISTING CREATED PAYMENT
-        |--------------------------------------------------------------------------
-        |
-        | This prevents unnecessary duplicate Razorpay
-        | orders when the customer clicks PAY NOW again.
-        |
-        */
-
-        const [existingPayments] =
-            await pool.execute(
-                `
-                SELECT
-                    id,
-                    order_id,
-                    razorpay_order_id,
-                    amount,
-                    currency,
-                    status,
-                    created_at
-                FROM payments
-                WHERE order_id = ?
-                AND status = 'created'
-                ORDER BY created_at DESC
-                LIMIT 1
-                `,
-                [
-                    order.id
-                ]
-            );
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | REUSE EXISTING RAZORPAY ORDER
-        |--------------------------------------------------------------------------
-        */
-
-        if (
-            existingPayments.length > 0
-        ) {
+        if (existingPayments.length > 0) {
             const existingPayment =
                 existingPayments[0];
 
             return res.status(200).json({
                 success: true,
-                message:
-                    "Existing payment order returned",
+                message: "Existing payment order returned",
                 payment: {
                     razorpay_order_id:
                         existingPayment.razorpay_order_id,
-
                     order_id:
                         order.id,
-
                     order_number:
                         order.order_number,
-
                     amount:
                         Math.round(
                             Number(
                                 existingPayment.amount
                             ) * 100
                         ),
-
                     amount_in_rupees:
                         Number(
                             existingPayment.amount
                         ),
-
                     currency:
                         existingPayment.currency,
-
                     razorpay_key_id:
-                        process.env
-                            .RAZORPAY_KEY_ID
+                        process.env.RAZORPAY_KEY_ID
                 }
             });
         }
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | CREATE RAZORPAY ORDER
-        |--------------------------------------------------------------------------
-        */
-
         const razorpayOrder =
             await razorpay.orders.create({
-                amount:
-                    amountInPaise,
-
+                amount: amountInPaise,
                 currency,
-
-                receipt:
-                    String(
-                        order.order_number
-                    ),
-
+                receipt: String(
+                    order.order_number
+                ),
                 notes: {
-                    order_id:
-                        String(order.id),
-
-                    order_number:
-                        String(
-                            order.order_number
-                        )
+                    order_id: String(
+                        order.id
+                    ),
+                    order_number: String(
+                        order.order_number
+                    )
                 }
             });
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | VALIDATE RAZORPAY RESPONSE
-        |--------------------------------------------------------------------------
-        */
-
-        if (
-            !razorpayOrder?.id
-        ) {
+        if (!razorpayOrder?.id) {
             return res.status(500).json({
                 success: false,
                 message:
                     "Razorpay did not return an order ID"
             });
         }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | SAVE PAYMENT RECORD
-        |--------------------------------------------------------------------------
-        */
 
         await pool.execute(
             `
@@ -312,66 +173,38 @@ export const createPaymentOrder = async (req, res) => {
             `,
             [
                 order.id,
-
                 razorpayOrder.id,
-
                 totalAmount,
-
                 currency
             ]
         );
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | RETURN PAYMENT INFORMATION
-        |--------------------------------------------------------------------------
-        */
-
         return res.status(201).json({
             success: true,
-
             message:
                 "Payment order created successfully",
-
             payment: {
                 razorpay_order_id:
                     razorpayOrder.id,
-
                 order_id:
                     order.id,
-
                 order_number:
                     order.order_number,
-
                 amount:
                     amountInPaise,
-
                 amount_in_rupees:
                     totalAmount,
-
                 currency,
-
                 razorpay_key_id:
-                    process.env
-                        .RAZORPAY_KEY_ID
+                    process.env.RAZORPAY_KEY_ID
             }
         });
-
     } catch (error) {
-
         console.error(
             "Create payment order error:"
         );
 
         console.error(error);
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | RAZORPAY ERROR
-        |--------------------------------------------------------------------------
-        */
 
         if (
             error?.error ||
@@ -384,7 +217,6 @@ export const createPaymentOrder = async (req, res) => {
             );
         }
 
-
         return res.status(500).json({
             success: false,
             message:
@@ -393,27 +225,17 @@ export const createPaymentOrder = async (req, res) => {
     }
 };
 
-
-/*
-|--------------------------------------------------------------------------
-| VERIFY RAZORPAY PAYMENT
-|--------------------------------------------------------------------------
-*/
-
 export const verifyPayment = async (
     req,
     res
 ) => {
-
     const connection =
         await pool.getConnection();
 
+    let transactionStarted = false;
 
     try {
-
-        const userId =
-            req.user.id;
-
+        const userId = req.user.id;
 
         const {
             order_id,
@@ -422,16 +244,8 @@ export const verifyPayment = async (
             razorpay_signature
         } = req.body;
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | VALIDATE INPUT
-        |--------------------------------------------------------------------------
-        */
-
         const numericOrderId =
             Number(order_id);
-
 
         if (
             !Number.isInteger(
@@ -446,7 +260,6 @@ export const verifyPayment = async (
             });
         }
 
-
         if (
             !razorpay_order_id ||
             !razorpay_payment_id ||
@@ -458,13 +271,6 @@ export const verifyPayment = async (
                     "Payment verification data is incomplete"
             });
         }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | FIND ORDER
-        |--------------------------------------------------------------------------
-        */
 
         const [orders] =
             await connection.execute(
@@ -486,10 +292,7 @@ export const verifyPayment = async (
                 ]
             );
 
-
-        if (
-            orders.length === 0
-        ) {
+        if (orders.length === 0) {
             return res.status(404).json({
                 success: false,
                 message:
@@ -497,46 +300,26 @@ export const verifyPayment = async (
             });
         }
 
-
-        const order =
-            orders[0];
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | ALREADY PAID
-        |--------------------------------------------------------------------------
-        */
+        const order = orders[0];
 
         if (
             order.payment_status ===
             "paid"
         ) {
-
             return res.status(200).json({
                 success: true,
                 message:
                     "Payment already verified",
-
                 order: {
                     id:
                         numericOrderId,
-
                     payment_status:
                         "paid",
-
                     order_status:
                         order.order_status
                 }
             });
         }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | FIND PAYMENT RECORD
-        |--------------------------------------------------------------------------
-        */
 
         const [payments] =
             await connection.execute(
@@ -561,10 +344,7 @@ export const verifyPayment = async (
                 ]
             );
 
-
-        if (
-            payments.length === 0
-        ) {
+        if (payments.length === 0) {
             return res.status(404).json({
                 success: false,
                 message:
@@ -572,19 +352,8 @@ export const verifyPayment = async (
             });
         }
 
-
         const payment =
             payments[0];
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | CHECK PAYMENT AMOUNT
-        |--------------------------------------------------------------------------
-        |
-        | Compare the payment record with the order.
-        |
-        */
 
         const orderAmount =
             Math.round(
@@ -593,14 +362,12 @@ export const verifyPayment = async (
                 ) * 100
             );
 
-
         const paymentAmount =
             Math.round(
                 Number(
                     payment.amount
                 ) * 100
             );
-
 
         if (
             orderAmount !==
@@ -612,13 +379,6 @@ export const verifyPayment = async (
                     "Payment amount does not match order amount"
             });
         }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | VERIFY RAZORPAY SIGNATURE
-        |--------------------------------------------------------------------------
-        */
 
         const generatedSignature =
             crypto
@@ -632,13 +392,6 @@ export const verifyPayment = async (
                 )
                 .digest("hex");
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | TIMING-SAFE SIGNATURE COMPARISON
-        |--------------------------------------------------------------------------
-        */
-
         const generatedBuffer =
             Buffer.from(
                 generatedSignature,
@@ -651,10 +404,9 @@ export const verifyPayment = async (
                 "utf8"
             );
 
-
         if (
             generatedBuffer.length !==
-            receivedBuffer.length ||
+                receivedBuffer.length ||
             !crypto.timingSafeEqual(
                 generatedBuffer,
                 receivedBuffer
@@ -667,21 +419,8 @@ export const verifyPayment = async (
             });
         }
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | START DATABASE TRANSACTION
-        |--------------------------------------------------------------------------
-        */
-
         await connection.beginTransaction();
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | LOCK PAYMENT RECORD
-        |--------------------------------------------------------------------------
-        */
+        transactionStarted = true;
 
         const [lockedPayments] =
             await connection.execute(
@@ -693,16 +432,14 @@ export const verifyPayment = async (
                 WHERE id = ?
                 FOR UPDATE
                 `,
-                [
-                    payment.id
-                ]
+                [payment.id]
             );
-
 
         if (
             lockedPayments.length === 0
         ) {
             await connection.rollback();
+            transactionStarted = false;
 
             return res.status(404).json({
                 success: false,
@@ -711,54 +448,34 @@ export const verifyPayment = async (
             });
         }
 
-
         const lockedPayment =
             lockedPayments[0];
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | PREVENT DUPLICATE VERIFICATION
-        |--------------------------------------------------------------------------
-        */
 
         if (
             lockedPayment.status ===
             "paid"
         ) {
-
             await connection.commit();
+            transactionStarted = false;
 
             return res.status(200).json({
                 success: true,
                 message:
                     "Payment already verified",
-
                 order: {
                     id:
                         numericOrderId,
-
                     payment_status:
                         "paid",
-
                     order_status:
                         "confirmed"
                 },
-
                 payment: {
                     razorpay_order_id,
-
                     razorpay_payment_id
                 }
             });
         }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | GET ORDER ITEMS
-        |--------------------------------------------------------------------------
-        */
 
         const [items] =
             await connection.execute(
@@ -770,40 +487,15 @@ export const verifyPayment = async (
                 FROM order_items
                 WHERE order_id = ?
                 `,
-                [
-                    numericOrderId
-                ]
+                [numericOrderId]
             );
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | CHECK AND LOCK STOCK
-        |--------------------------------------------------------------------------
-        */
 
         for (
             const item of items
         ) {
-
-            /*
-            |--------------------------------------------------------------
-            | No variant
-            |--------------------------------------------------------------
-            */
-
-            if (
-                !item.variant_id
-            ) {
+            if (!item.variant_id) {
                 continue;
             }
-
-
-            /*
-            |--------------------------------------------------------------
-            | Lock variant
-            |--------------------------------------------------------------
-            */
 
             const [variants] =
                 await connection.execute(
@@ -815,17 +507,14 @@ export const verifyPayment = async (
                     WHERE id = ?
                     FOR UPDATE
                     `,
-                    [
-                        item.variant_id
-                    ]
+                    [item.variant_id]
                 );
-
 
             if (
                 variants.length === 0
             ) {
-
                 await connection.rollback();
+                transactionStarted = false;
 
                 return res.status(400).json({
                     success: false,
@@ -834,16 +523,8 @@ export const verifyPayment = async (
                 });
             }
 
-
             const variant =
                 variants[0];
-
-
-            /*
-            |--------------------------------------------------------------
-            | Check stock
-            |--------------------------------------------------------------
-            */
 
             if (
                 Number(
@@ -853,8 +534,8 @@ export const verifyPayment = async (
                     item.quantity
                 )
             ) {
-
                 await connection.rollback();
+                transactionStarted = false;
 
                 return res.status(400).json({
                     success: false,
@@ -864,23 +545,12 @@ export const verifyPayment = async (
             }
         }
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | REDUCE STOCK
-        |--------------------------------------------------------------------------
-        */
-
         for (
             const item of items
         ) {
-
-            if (
-                !item.variant_id
-            ) {
+            if (!item.variant_id) {
                 continue;
             }
-
 
             await connection.execute(
                 `
@@ -897,13 +567,6 @@ export const verifyPayment = async (
             );
         }
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | UPDATE PAYMENT
-        |--------------------------------------------------------------------------
-        */
-
         await connection.execute(
             `
             UPDATE payments
@@ -915,19 +578,10 @@ export const verifyPayment = async (
             `,
             [
                 razorpay_payment_id,
-
                 razorpay_signature,
-
                 payment.id
             ]
         );
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | UPDATE ORDER
-        |--------------------------------------------------------------------------
-        */
 
         await connection.execute(
             `
@@ -937,59 +591,52 @@ export const verifyPayment = async (
                 order_status = 'confirmed'
             WHERE id = ?
             `,
-            [
-                numericOrderId
-            ]
+            [numericOrderId]
         );
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | COMMIT
-        |--------------------------------------------------------------------------
-        */
-
         await connection.commit();
+        transactionStarted = false;
 
+        let emailSent = false;
 
-        /*
-        |--------------------------------------------------------------------------
-        | SUCCESS RESPONSE
-        |--------------------------------------------------------------------------
-        */
+        try {
+            await sendOrderConfirmationEmail(
+                numericOrderId
+            );
+
+            emailSent = true;
+        } catch (emailError) {
+            console.error(
+                "Order confirmation email error:",
+                emailError
+            );
+        }
 
         return res.status(200).json({
             success: true,
-
             message:
                 "Payment verified successfully",
-
             order: {
                 id:
                     numericOrderId,
-
                 payment_status:
                     "paid",
-
                 order_status:
                     "confirmed"
             },
-
             payment: {
                 razorpay_order_id,
-
                 razorpay_payment_id
-            }
+            },
+            email_sent:
+                emailSent
         });
-
     } catch (error) {
-
-        try {
-            await connection.rollback();
-        } catch {
-            // Transaction may not have started.
+        if (transactionStarted) {
+            try {
+                await connection.rollback();
+            } catch {}
         }
-
 
         console.error(
             "Verify payment error:"
@@ -997,31 +644,19 @@ export const verifyPayment = async (
 
         console.error(error);
 
-
         return res.status(500).json({
             success: false,
             message:
                 "Payment verification failed"
         });
-
     } finally {
-
         connection.release();
     }
 };
 
-
-/*
-|--------------------------------------------------------------------------
-| GET PAYMENT BY ORDER
-|--------------------------------------------------------------------------
-*/
-
 export const getPaymentByOrder =
     async (req, res) => {
-
         try {
-
             const userId =
                 req.user.id;
 
@@ -1029,13 +664,6 @@ export const getPaymentByOrder =
                 Number(
                     req.params.orderId
                 );
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | VALIDATE ORDER ID
-            |--------------------------------------------------------------------------
-            */
 
             if (
                 !Number.isInteger(
@@ -1049,13 +677,6 @@ export const getPaymentByOrder =
                         "Invalid Order ID"
                 });
             }
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | GET PAYMENT
-            |--------------------------------------------------------------------------
-            */
 
             const [payments] =
                 await pool.execute(
@@ -1083,13 +704,6 @@ export const getPaymentByOrder =
                     ]
                 );
 
-
-            /*
-            |--------------------------------------------------------------------------
-            | PAYMENT NOT FOUND
-            |--------------------------------------------------------------------------
-            */
-
             if (
                 payments.length === 0
             ) {
@@ -1100,24 +714,14 @@ export const getPaymentByOrder =
                 });
             }
 
-
-            /*
-            |--------------------------------------------------------------------------
-            | RESPONSE
-            |--------------------------------------------------------------------------
-            */
-
             return res.status(200).json({
                 success: true,
-
                 count:
                     payments.length,
-
                 payments:
                     payments.map(
                         (payment) => ({
                             ...payment,
-
                             amount:
                                 Number(
                                     payment.amount
@@ -1125,14 +729,11 @@ export const getPaymentByOrder =
                         })
                     )
             });
-
         } catch (error) {
-
             console.error(
                 "Get payment error:",
                 error
             );
-
 
             return res.status(500).json({
                 success: false,

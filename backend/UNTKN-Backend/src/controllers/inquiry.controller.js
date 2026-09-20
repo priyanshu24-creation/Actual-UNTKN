@@ -1,4 +1,14 @@
 import pool from "../config/database.js";
+import { sendEmail } from "../services/email.service.js";
+
+const escapeHtml = (value) => {
+    return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+};
 
 export const createInquiry = async (req, res) => {
     try {
@@ -6,13 +16,13 @@ export const createInquiry = async (req, res) => {
             name,
             email,
             subject,
-            message,
+            message
         } = req.body;
 
         if (!name || !email || !subject || !message) {
             return res.status(400).json({
                 success: false,
-                message: "Name, email, subject and message are required",
+                message: "Name, email, subject and message are required"
             });
         }
 
@@ -25,9 +35,13 @@ export const createInquiry = async (req, res) => {
         if (!emailRegex.test(normalizedEmail)) {
             return res.status(400).json({
                 success: false,
-                message: "Please provide a valid email",
+                message: "Please provide a valid email"
             });
         }
+
+        const cleanName = String(name).trim();
+        const cleanSubject = String(subject).trim();
+        const cleanMessage = String(message).trim();
 
         const [result] = await pool.execute(
             `
@@ -37,24 +51,56 @@ export const createInquiry = async (req, res) => {
                 (?, ?, ?, ?)
             `,
             [
-                String(name).trim(),
+                cleanName,
                 normalizedEmail,
-                String(subject).trim(),
-                String(message).trim(),
+                cleanSubject,
+                cleanMessage
             ]
         );
+
+        try {
+            await sendEmail({
+                to: process.env.SMTP_FROM_EMAIL,
+                subject: `New Inquiry - ${cleanSubject}`,
+                text: `
+New inquiry received on UNTKN.
+
+Name: ${cleanName}
+Email: ${normalizedEmail}
+Subject: ${cleanSubject}
+
+Message:
+${cleanMessage}
+
+Inquiry ID: ${Number(result.insertId)}
+                `.trim(),
+                html: `
+                    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #222;">
+                        <h2>New Inquiry Received</h2>
+                        <p><strong>Inquiry ID:</strong> ${Number(result.insertId)}</p>
+                        <p><strong>Name:</strong> ${escapeHtml(cleanName)}</p>
+                        <p><strong>Email:</strong> ${escapeHtml(normalizedEmail)}</p>
+                        <p><strong>Subject:</strong> ${escapeHtml(cleanSubject)}</p>
+                        <h3>Message</h3>
+                        <p style="white-space: pre-line;">${escapeHtml(cleanMessage)}</p>
+                    </div>
+                `
+            });
+        } catch (emailError) {
+            console.error("Inquiry notification email error:", emailError);
+        }
 
         return res.status(201).json({
             success: true,
             message: "Your inquiry has been submitted successfully",
-            inquiry_id: Number(result.insertId),
+            inquiry_id: Number(result.insertId)
         });
     } catch (error) {
         console.error("Create inquiry error:", error);
 
         return res.status(500).json({
             success: false,
-            message: "Failed to submit inquiry",
+            message: "Failed to submit inquiry"
         });
     }
 };
@@ -85,20 +131,20 @@ export const getAdminInquiries = async (req, res) => {
             status: inquiry.status,
             admin_response: inquiry.admin_response || "",
             created_at: inquiry.created_at,
-            updated_at: inquiry.updated_at,
+            updated_at: inquiry.updated_at
         }));
 
         return res.status(200).json({
             success: true,
             count: inquiries.length,
-            inquiries,
+            inquiries
         });
     } catch (error) {
         console.error("Get admin inquiries error:", error);
 
         return res.status(500).json({
             success: false,
-            message: "Failed to fetch inquiries",
+            message: "Failed to fetch inquiries"
         });
     }
 };
@@ -110,7 +156,7 @@ export const getAdminInquiryById = async (req, res) => {
         if (!id || !/^\d+$/.test(id)) {
             return res.status(400).json({
                 success: false,
-                message: "Valid inquiry ID is required",
+                message: "Valid inquiry ID is required"
             });
         }
 
@@ -136,7 +182,7 @@ export const getAdminInquiryById = async (req, res) => {
         if (rows.length === 0) {
             return res.status(404).json({
                 success: false,
-                message: "Inquiry not found",
+                message: "Inquiry not found"
             });
         }
 
@@ -153,15 +199,15 @@ export const getAdminInquiryById = async (req, res) => {
                 status: inquiry.status,
                 admin_response: inquiry.admin_response || "",
                 created_at: inquiry.created_at,
-                updated_at: inquiry.updated_at,
-            },
+                updated_at: inquiry.updated_at
+            }
         });
     } catch (error) {
         console.error("Get inquiry details error:", error);
 
         return res.status(500).json({
             success: false,
-            message: "Failed to fetch inquiry",
+            message: "Failed to fetch inquiry"
         });
     }
 };
@@ -171,13 +217,13 @@ export const updateAdminInquiry = async (req, res) => {
         const { id } = req.params;
         const {
             status,
-            admin_response,
+            admin_response
         } = req.body;
 
         if (!id || !/^\d+$/.test(id)) {
             return res.status(400).json({
                 success: false,
-                message: "Valid inquiry ID is required",
+                message: "Valid inquiry ID is required"
             });
         }
 
@@ -185,19 +231,23 @@ export const updateAdminInquiry = async (req, res) => {
             "New",
             "In Progress",
             "Resolved",
-            "Closed",
+            "Closed"
         ];
 
         if (!allowedStatuses.includes(status)) {
             return res.status(400).json({
                 success: false,
-                message: "Invalid inquiry status",
+                message: "Invalid inquiry status"
             });
         }
 
         const [existing] = await pool.execute(
             `
-            SELECT id
+            SELECT
+                id,
+                name,
+                email,
+                subject
             FROM inquiries
             WHERE id = ?
             LIMIT 1
@@ -208,9 +258,15 @@ export const updateAdminInquiry = async (req, res) => {
         if (existing.length === 0) {
             return res.status(404).json({
                 success: false,
-                message: "Inquiry not found",
+                message: "Inquiry not found"
             });
         }
+
+        const inquiry = existing[0];
+
+        const cleanResponse = admin_response
+            ? String(admin_response).trim()
+            : null;
 
         await pool.execute(
             `
@@ -222,23 +278,58 @@ export const updateAdminInquiry = async (req, res) => {
             `,
             [
                 status,
-                admin_response
-                    ? String(admin_response).trim()
-                    : null,
-                id,
+                cleanResponse,
+                id
             ]
         );
 
+        if (cleanResponse) {
+            try {
+                await sendEmail({
+                    to: inquiry.email,
+                    subject: `UNTKN Support - ${inquiry.subject}`,
+                    text: `
+Hello ${inquiry.name},
+
+Thank you for contacting UNTKN.
+
+We have reviewed your inquiry.
+
+Status: ${status}
+
+Response:
+${cleanResponse}
+
+Regards,
+UNTKN Support
+                    `.trim(),
+                    html: `
+                        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #222;">
+                            <h2>UNTKN Support</h2>
+                            <p>Hello ${escapeHtml(inquiry.name)},</p>
+                            <p>Thank you for contacting UNTKN.</p>
+                            <p><strong>Status:</strong> ${escapeHtml(status)}</p>
+                            <h3>Our Response</h3>
+                            <p style="white-space: pre-line;">${escapeHtml(cleanResponse)}</p>
+                            <p>Regards,<br>UNTKN Support</p>
+                        </div>
+                    `
+                });
+            } catch (emailError) {
+                console.error("Inquiry response email error:", emailError);
+            }
+        }
+
         return res.status(200).json({
             success: true,
-            message: "Inquiry updated successfully",
+            message: "Inquiry updated successfully"
         });
     } catch (error) {
         console.error("Update inquiry error:", error);
 
         return res.status(500).json({
             success: false,
-            message: "Failed to update inquiry",
+            message: "Failed to update inquiry"
         });
     }
 };
@@ -250,7 +341,7 @@ export const deleteAdminInquiry = async (req, res) => {
         if (!id || !/^\d+$/.test(id)) {
             return res.status(400).json({
                 success: false,
-                message: "Valid inquiry ID is required",
+                message: "Valid inquiry ID is required"
             });
         }
 
@@ -267,7 +358,7 @@ export const deleteAdminInquiry = async (req, res) => {
         if (existing.length === 0) {
             return res.status(404).json({
                 success: false,
-                message: "Inquiry not found",
+                message: "Inquiry not found"
             });
         }
 
@@ -281,14 +372,14 @@ export const deleteAdminInquiry = async (req, res) => {
 
         return res.status(200).json({
             success: true,
-            message: "Inquiry deleted successfully",
+            message: "Inquiry deleted successfully"
         });
     } catch (error) {
         console.error("Delete inquiry error:", error);
 
         return res.status(500).json({
             success: false,
-            message: "Failed to delete inquiry",
+            message: "Failed to delete inquiry"
         });
     }
 };
