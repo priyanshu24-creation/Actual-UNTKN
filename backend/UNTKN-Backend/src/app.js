@@ -29,6 +29,8 @@ import runningBannerRoutes from "./routes/runningBanner.routes.js";
 
 import { errorHandler } from "./middleware/error.middleware.js";
 
+import reviewRoutes from "./routes/review.routes.js";
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -167,6 +169,8 @@ app.use("/api/delivery-methods", deliveryMethodRoutes);
 app.use("/api/settings/running-banner", runningBannerRoutes);
 
 app.use(express.static(frontendPath));
+
+app.use("/api/products", reviewRoutes);
 
 app.use((req, res, next) => {
     if (req.method !== "GET") {
