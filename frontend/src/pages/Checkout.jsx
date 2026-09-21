@@ -10,6 +10,21 @@ import {
 import api from "../services/api";
 import { useCart } from "../context/CartContext";
 
+const DEFAULT_DELIVERY_METHODS = [
+  {
+    id: "standard",
+    name: "STANDARD DELIVERY",
+    description: "5–7 BUSINESS DAYS",
+    price: 99,
+  },
+  {
+    id: "express",
+    name: "EXPRESS DELIVERY",
+    description: "2–3 BUSINESS DAYS",
+    price: 199,
+  },
+];
+
 function Checkout() {
   const navigate = useNavigate();
 
@@ -20,9 +35,15 @@ function Checkout() {
     refreshCart,
   } = useCart();
 
-  const [deliveryMethods, setDeliveryMethods] = useState([]);
-  const [deliveryMethod, setDeliveryMethod] = useState("");
-  const [deliveryLoading, setDeliveryLoading] = useState(true);
+  const [deliveryMethods, setDeliveryMethods] = useState(
+    DEFAULT_DELIVERY_METHODS
+  );
+
+  const [deliveryMethod, setDeliveryMethod] =
+    useState("standard");
+
+  const [deliveryLoading, setDeliveryLoading] =
+    useState(false);
 
   const [formData, setFormData] = useState({
     firstName: "",
@@ -46,14 +67,9 @@ function Checkout() {
       try {
         setDeliveryLoading(true);
 
-        const response = await api.get("/delivery-methods");
-
-        if (!response.data?.success) {
-          throw new Error(
-            response.data?.message ||
-              "Failed to load delivery methods."
-          );
-        }
+        const response = await api.get(
+          "/delivery-methods"
+        );
 
         const methods = Array.isArray(
           response.data?.deliveryMethods
@@ -65,9 +81,9 @@ function Checkout() {
           return;
         }
 
-        setDeliveryMethods(methods);
-
         if (methods.length > 0) {
+          setDeliveryMethods(methods);
+
           setDeliveryMethod((current) => {
             const exists = methods.some(
               (method) => method.id === current
@@ -76,7 +92,11 @@ function Checkout() {
             return exists ? current : methods[0].id;
           });
         } else {
-          setDeliveryMethod("");
+          setDeliveryMethods(
+            DEFAULT_DELIVERY_METHODS
+          );
+
+          setDeliveryMethod("standard");
         }
       } catch (requestError) {
         console.error(
@@ -88,14 +108,11 @@ function Checkout() {
           return;
         }
 
-        setDeliveryMethods([]);
-        setDeliveryMethod("");
-
-        setError(
-          requestError.response?.data?.message ||
-            requestError.message ||
-            "Unable to load delivery methods."
+        setDeliveryMethods(
+          DEFAULT_DELIVERY_METHODS
         );
+
+        setDeliveryMethod("standard");
       } finally {
         if (mounted) {
           setDeliveryLoading(false);
@@ -112,8 +129,11 @@ function Checkout() {
 
   const selectedDeliveryMethod =
     deliveryMethods.find(
-      (method) => method.id === deliveryMethod
-    ) || null;
+      (method) =>
+        method.id === deliveryMethod
+    ) ||
+    deliveryMethods[0] ||
+    DEFAULT_DELIVERY_METHODS[0];
 
   const shipping = Number(
     selectedDeliveryMethod?.price || 0
@@ -155,22 +175,6 @@ function Checkout() {
     }
 
     setError("");
-
-    if (deliveryLoading) {
-      setError(
-        "Please wait while delivery methods are loading."
-      );
-
-      return;
-    }
-
-    if (!selectedDeliveryMethod) {
-      setError(
-        "Please select an available delivery method."
-      );
-
-      return;
-    }
 
     const firstName =
       formData.firstName.trim();
@@ -241,6 +245,14 @@ function Checkout() {
       return;
     }
 
+    if (!selectedDeliveryMethod) {
+      setError(
+        "Please select a delivery method."
+      );
+
+      return;
+    }
+
     try {
       setSubmitting(true);
 
@@ -258,8 +270,9 @@ function Checkout() {
         shipping_state: state,
         shipping_postal_code: pincode,
         shipping_country: "India",
-        delivery_method: deliveryMethod,
-        notes: `Delivery method: ${deliveryMethod}`,
+        delivery_method:
+          selectedDeliveryMethod.id,
+        notes: `Delivery method: ${selectedDeliveryMethod.id}`,
       };
 
       const response = await api.post(
@@ -283,8 +296,6 @@ function Checkout() {
         );
       }
 
-      await refreshCart();
-
       const checkoutData = {
         customer: {
           firstName,
@@ -302,7 +313,8 @@ function Checkout() {
           country: "India",
         },
 
-        deliveryMethod,
+        deliveryMethod:
+          selectedDeliveryMethod.id,
 
         deliveryMethodName:
           selectedDeliveryMethod.name,
@@ -324,6 +336,15 @@ function Checkout() {
         JSON.stringify(checkoutData)
       );
 
+      try {
+        await refreshCart();
+      } catch (cartRefreshError) {
+        console.error(
+          "Cart refresh after order failed:",
+          cartRefreshError
+        );
+      }
+
       navigate("/payment", {
         state: {
           order: createdOrder,
@@ -337,8 +358,9 @@ function Checkout() {
       );
 
       const message =
-        requestError.response?.data?.message ||
-        requestError.message ||
+        requestError?.response?.data
+          ?.message ||
+        requestError?.message ||
         "Unable to create your order.";
 
       setError(message);
@@ -705,15 +727,6 @@ function Checkout() {
                 >
                   LOADING DELIVERY OPTIONS...
                 </div>
-              ) : deliveryMethods.length === 0 ? (
-                <div
-                  style={{
-                    padding: "20px 0",
-                    fontSize: "13px",
-                  }}
-                >
-                  NO DELIVERY METHODS ARE CURRENTLY AVAILABLE.
-                </div>
               ) : (
                 <div className="delivery-methods">
                   {deliveryMethods.map(
@@ -736,12 +749,12 @@ function Checkout() {
                               method.id
                             )
                           }
-                          disabled={
-                            submitting
-                          }
+                          disabled={submitting}
                         >
                           <div className="delivery-radio">
-                            <span />
+                            {selected && (
+                              <span />
+                            )}
                           </div>
 
                           <div className="delivery-info">
@@ -955,11 +968,7 @@ function Checkout() {
           <button
             type="submit"
             className="checkout-submit"
-            disabled={
-              submitting ||
-              deliveryLoading ||
-              !selectedDeliveryMethod
-            }
+            disabled={submitting}
           >
             {submitting
               ? "CREATING ORDER..."

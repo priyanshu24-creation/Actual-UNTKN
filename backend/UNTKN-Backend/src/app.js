@@ -165,7 +165,86 @@ app.use("/api/newsletter", newsletterRoutes);
 app.use("/api/inquiries", inquiryRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/lookbook", lookbookRoutes);
+
+app.get("/api/delivery-methods", (req, res) => {
+    res.status(200).json({
+        success: true,
+        deliveryMethods: [
+            {
+                id: "standard",
+                name: "STANDARD DELIVERY",
+                description: "5–7 BUSINESS DAYS",
+                price: 99,
+                isActive: true
+            },
+            {
+                id: "express",
+                name: "EXPRESS DELIVERY",
+                description: "2–3 BUSINESS DAYS",
+                price: 199,
+                isActive: true
+            }
+        ]
+    });
+});
+
 app.use("/api/delivery-methods", deliveryMethodRoutes);
+
+app.get("/api/settings/running-banner", async (req, res) => {
+    try {
+        const pool = (await import("./config/database.js")).default;
+
+        const [rows] = await pool.query(
+            `SELECT id, enabled, message_1, message_2, message_3
+             FROM running_banner_settings
+             WHERE id = 1
+             LIMIT 1`
+        );
+
+        if (!rows.length) {
+            return res.status(200).json({
+                success: true,
+                settings: {
+                    enabled: true,
+                    messages: [
+                        "FREE SHIPPING ON ORDERS ABOVE ₹999",
+                        "NEW COLLECTION NOW LIVE",
+                        "MORE THAN CLOTHES. WEAR YOUR STORY."
+                    ]
+                }
+            });
+        }
+
+        const row = rows[0];
+
+        return res.status(200).json({
+            success: true,
+            settings: {
+                enabled: Boolean(row.enabled),
+                messages: [
+                    row.message_1,
+                    row.message_2,
+                    row.message_3
+                ].filter(Boolean)
+            }
+        });
+    } catch (error) {
+        console.error("Running banner GET error:", error);
+
+        return res.status(200).json({
+            success: true,
+            settings: {
+                enabled: true,
+                messages: [
+                    "FREE SHIPPING ON ORDERS ABOVE ₹999",
+                    "NEW COLLECTION NOW LIVE",
+                    "MORE THAN CLOTHES. WEAR YOUR STORY."
+                ]
+            }
+        });
+    }
+});
+
 app.use("/api/settings/running-banner", runningBannerRoutes);
 
 app.use(express.static(frontendPath));
