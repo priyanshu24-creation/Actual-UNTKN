@@ -2,11 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 
 import {
+  Check,
   Heart,
   Minus,
   Plus,
   Truck,
   RotateCcw,
+  X,
 } from "lucide-react";
 
 import api from "../services/api";
@@ -40,6 +42,21 @@ function ProductDetails() {
   const [selectedImage, setSelectedImage] = useState("");
 
   const [addingToCart, setAddingToCart] = useState(false);
+  const [bagNotification, setBagNotification] = useState(null);
+  const [actionNotification, setActionNotification] = useState(null);
+
+  useEffect(() => {
+    if (!bagNotification && !actionNotification) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setBagNotification(null);
+      setActionNotification(null);
+    }, 3500);
+
+    return () => clearTimeout(timer);
+  }, [bagNotification, actionNotification]);
 
   /* =====================================================
      IMAGE URL HELPER
@@ -943,9 +960,10 @@ function ProductDetails() {
         sizes.length > 0 &&
         !selectedSize
       ) {
-        alert(
-          "Please select a size."
-        );
+        setActionNotification({
+          type: "warning",
+          message: "Please select a size.",
+        });
         return;
       }
 
@@ -953,9 +971,10 @@ function ProductDetails() {
         colors.length > 0 &&
         !selectedColor
       ) {
-        alert(
-          "Please select a color."
-        );
+        setActionNotification({
+          type: "warning",
+          message: "Please select a color.",
+        });
         return;
       }
 
@@ -963,9 +982,10 @@ function ProductDetails() {
         hasVariants &&
         !selectedVariant
       ) {
-        alert(
-          "This size and color combination is unavailable."
-        );
+        setActionNotification({
+          type: "warning",
+          message: "This size and color combination is unavailable.",
+        });
         return;
       }
 
@@ -973,9 +993,10 @@ function ProductDetails() {
         selectedVariant &&
         stock <= 0
       ) {
-        alert(
-          "This variant is out of stock."
-        );
+        setActionNotification({
+          type: "warning",
+          message: "This variant is out of stock.",
+        });
         return;
       }
 
@@ -999,33 +1020,23 @@ function ProductDetails() {
             null
         );
 
-        alert(
-          `${product.name}${
-            selectedSize ||
-            selectedColor
-              ? ` (${
-                  [
-                    selectedColor,
-                    selectedSize,
-                  ]
-                    .filter(
-                      Boolean
-                    )
-                    .join(" / ")
-                })`
-              : ""
-          } added to bag.`
-        );
+        setBagNotification({
+          name: product.name,
+          size: selectedSize || "",
+          color: selectedColor || "",
+        });
       } catch (addError) {
         console.error(
           "Add to cart failed:",
           addError
         );
 
-        alert(
-          addError.message ||
-            "Unable to add product to bag."
-        );
+        setActionNotification({
+          type: "error",
+          message:
+            addError.message ||
+            "Unable to add product to bag.",
+        });
       } finally {
         setAddingToCart(false);
       }
@@ -1118,6 +1129,70 @@ function ProductDetails() {
 
   return (
     <div className="product-details-page">
+      {bagNotification && (
+        <div className="bag-toast" role="status" aria-live="polite">
+          <div className="bag-toast-icon">
+            <Check size={18} strokeWidth={2} />
+          </div>
+
+          <div className="bag-toast-content">
+            <span className="bag-toast-label">ADDED TO BAG</span>
+            <strong>{bagNotification.name}</strong>
+            <p>
+              {[bagNotification.color, bagNotification.size]
+                .filter(Boolean)
+                .join(" / ") || "Product added successfully"}
+            </p>
+          </div>
+
+          <Link
+            to="/cart"
+            className="bag-toast-action"
+            onClick={() => setBagNotification(null)}
+          >
+            VIEW BAG
+          </Link>
+
+          <button
+            type="button"
+            className="bag-toast-close"
+            onClick={() => setBagNotification(null)}
+            aria-label="Close notification"
+          >
+            <X size={15} />
+          </button>
+        </div>
+      )}
+
+      {actionNotification && (
+        <div
+          className={`action-toast ${actionNotification.type}`}
+          role="alert"
+          aria-live="assertive"
+        >
+          <div className="action-toast-icon">
+            <X size={16} strokeWidth={2} />
+          </div>
+
+          <div className="action-toast-content">
+            <span>
+              {actionNotification.type === "warning"
+                ? "PLEASE CHECK"
+                : "UNABLE TO ADD"}
+            </span>
+            <strong>{actionNotification.message}</strong>
+          </div>
+
+          <button
+            type="button"
+            className="action-toast-close"
+            onClick={() => setActionNotification(null)}
+            aria-label="Close notification"
+          >
+            <X size={15} />
+          </button>
+        </div>
+      )}
 
       {/* =================================================
           PRODUCT
@@ -1755,6 +1830,5 @@ function ProductDetails() {
 
     </div>
   );
-}
-
+} 
 export default ProductDetails;
