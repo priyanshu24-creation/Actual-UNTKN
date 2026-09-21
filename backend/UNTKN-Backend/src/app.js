@@ -177,6 +177,10 @@ app.use((req, res, next) => {
         return next();
     }
 
+    if (req.path.includes(".")) {
+        return next();
+    }
+
     res.sendFile(path.join(frontendPath, "index.html"));
 });
 
