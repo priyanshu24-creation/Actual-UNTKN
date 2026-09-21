@@ -71,7 +71,7 @@ function Wishlist() {
               <div className="wishlist-image">
 
                 <Link
-                  to={`/product/${product.id}`}
+                  to={`/product/${product.slug}`}
                 >
                   <img
                     src={product.image}

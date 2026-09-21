@@ -1806,7 +1806,7 @@ function ProductDetails() {
                 return (
                   <Link
                     key={item.id}
-                    to={`/product/${item.id}`}
+                    to={`/product/${item.slug}`}
                     className="related-card"
                   >
 

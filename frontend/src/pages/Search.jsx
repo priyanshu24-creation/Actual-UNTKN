@@ -136,7 +136,7 @@ function Search() {
 
               <Link
                 key={product.id}
-                to={`/product/${product.id}`}
+                to={`/product/${product.slug}`}
                 className="search-card"
               >
 

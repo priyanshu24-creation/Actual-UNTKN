@@ -228,7 +228,7 @@ function Home() {
                   key={product.id}
                 >
                   <Link
-                    to={`/product/${product.id}`}
+                    to={`/product/${product.slug}`}
                     className="product-image"
                   >
                     {product.image ? (

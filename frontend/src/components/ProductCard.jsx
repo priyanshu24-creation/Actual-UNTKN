@@ -152,7 +152,7 @@ function ProductCard({ product }) {
     <article className="product-card">
       <div className="product-image">
         <Link
-          to={`/product/${product.id}`}
+          to={`/product/${product.slug}`}
         >
           {imageUrl ? (
             <img
@@ -202,7 +202,7 @@ function ProductCard({ product }) {
       </div>
 
       <Link
-        to={`/product/${product.id}`}
+        to={`/product/${product.slug}`}
         className="product-info"
       >
         <div>
