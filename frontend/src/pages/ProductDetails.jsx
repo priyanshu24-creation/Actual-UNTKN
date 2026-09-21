@@ -1024,6 +1024,7 @@ function ProductDetails() {
           name: product.name,
           size: selectedSize || "",
           color: selectedColor || "",
+          image: selectedImage || product.image || "",
         });
       } catch (addError) {
         console.error(
@@ -1130,67 +1131,94 @@ function ProductDetails() {
   return (
     <div className="product-details-page">
       {bagNotification && (
-        <div className="bag-toast" role="status" aria-live="polite">
-          <div className="bag-toast-icon">
-            <Check size={18} strokeWidth={2} />
+        <div className="untkn-toast-stack">
+          <div className="untkn-bag-toast" role="status" aria-live="polite">
+            <div className="untkn-toast-topline">
+              <div className="untkn-toast-success">
+                <span className="untkn-toast-check">
+                  <Check size={14} strokeWidth={2.6} />
+                </span>
+                <span>ADDED TO BAG</span>
+              </div>
+
+              <button
+                type="button"
+                className="untkn-toast-close"
+                onClick={() => setBagNotification(null)}
+                aria-label="Close notification"
+              >
+                <X size={16} strokeWidth={1.8} />
+              </button>
+            </div>
+
+            <div className="untkn-toast-product">
+              <div className="untkn-toast-product-image">
+                {bagNotification.image ? (
+                  <img
+                    src={bagNotification.image}
+                    alt={bagNotification.name}
+                    onError={(event) => {
+                      event.currentTarget.style.display = "none";
+                    }}
+                  />
+                ) : (
+                  <span>UNTKN</span>
+                )}
+              </div>
+
+              <div className="untkn-toast-details">
+                <strong>{bagNotification.name}</strong>
+                <span>
+                  {[bagNotification.color, bagNotification.size]
+                    .filter(Boolean)
+                    .join(" / ") || "Ready for checkout"}
+                </span>
+              </div>
+            </div>
+
+            <Link
+              to="/cart"
+              className="untkn-toast-view-bag"
+              onClick={() => setBagNotification(null)}
+            >
+              <span>VIEW BAG</span>
+              <span aria-hidden="true">→</span>
+            </Link>
+
+            <div className="untkn-toast-progress" />
           </div>
-
-          <div className="bag-toast-content">
-            <span className="bag-toast-label">ADDED TO BAG</span>
-            <strong>{bagNotification.name}</strong>
-            <p>
-              {[bagNotification.color, bagNotification.size]
-                .filter(Boolean)
-                .join(" / ") || "Product added successfully"}
-            </p>
-          </div>
-
-          <Link
-            to="/cart"
-            className="bag-toast-action"
-            onClick={() => setBagNotification(null)}
-          >
-            VIEW BAG
-          </Link>
-
-          <button
-            type="button"
-            className="bag-toast-close"
-            onClick={() => setBagNotification(null)}
-            aria-label="Close notification"
-          >
-            <X size={15} />
-          </button>
         </div>
       )}
 
       {actionNotification && (
-        <div
-          className={`action-toast ${actionNotification.type}`}
-          role="alert"
-          aria-live="assertive"
-        >
-          <div className="action-toast-icon">
-            <X size={16} strokeWidth={2} />
-          </div>
-
-          <div className="action-toast-content">
-            <span>
-              {actionNotification.type === "warning"
-                ? "PLEASE CHECK"
-                : "UNABLE TO ADD"}
-            </span>
-            <strong>{actionNotification.message}</strong>
-          </div>
-
-          <button
-            type="button"
-            className="action-toast-close"
-            onClick={() => setActionNotification(null)}
-            aria-label="Close notification"
+        <div className="untkn-toast-stack untkn-toast-stack-action">
+          <div
+            className={`untkn-action-toast ${actionNotification.type}`}
+            role="alert"
+            aria-live="assertive"
           >
-            <X size={15} />
-          </button>
+            <div className="untkn-action-icon">
+              <X size={15} strokeWidth={2.4} />
+            </div>
+
+            <div className="untkn-action-content">
+              <span>
+                {actionNotification.type === "warning"
+                  ? "PLEASE CHECK"
+                  : "UNABLE TO ADD"}
+              </span>
+              <strong>{actionNotification.message}</strong>
+            </div>
+
+            <button
+              type="button"
+              className="untkn-action-close"
+              onClick={() => setActionNotification(null)}
+              aria-label="Close notification"
+            >
+              <X size={15} strokeWidth={1.8} />
+            </button>
+          </div>
         </div>
       )}
 
