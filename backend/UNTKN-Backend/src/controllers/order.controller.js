@@ -1,11 +1,5 @@
 import pool from "../config/database.js";
-
-
-/*
-|--------------------------------------------------------------------------
-| GENERATE ORDER NUMBER
-|--------------------------------------------------------------------------
-*/
+import { sendOrderEmails } from "../services/order-confirmation.js";
 
 const generateOrderNumber = () => {
     const timestamp = Date.now().toString();
@@ -16,23 +10,11 @@ const generateOrderNumber = () => {
     return `UNTKN-${timestamp.slice(-8)}-${random}`;
 };
 
-
-/*
-|--------------------------------------------------------------------------
-| CREATE ORDER
-|--------------------------------------------------------------------------
-*/
-
 export const createOrder = async (req, res) => {
-
-    const connection =
-        await pool.getConnection();
+    const connection = await pool.getConnection();
 
     try {
-
-        const userId =
-            req.user.id;
-
+        const userId = req.user.id;
 
         const {
             shipping_name,
@@ -48,13 +30,6 @@ export const createOrder = async (req, res) => {
             notes
         } = req.body;
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | VALIDATE SHIPPING INFORMATION
-        |--------------------------------------------------------------------------
-        */
-
         if (
             !shipping_name ||
             !shipping_phone ||
@@ -63,79 +38,39 @@ export const createOrder = async (req, res) => {
             !shipping_state ||
             !shipping_postal_code
         ) {
-
             return res.status(400).json({
                 success: false,
-                message:
-                    "Required shipping information is missing"
+                message: "Required shipping information is missing"
             });
         }
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | VALIDATE DELIVERY METHOD
-        |--------------------------------------------------------------------------
-        */
-
         const selectedDeliveryMethod =
             delivery_method || "standard";
-
 
         const allowedDeliveryMethods = [
             "standard",
             "express"
         ];
 
-
         if (
             !allowedDeliveryMethods.includes(
                 selectedDeliveryMethod
             )
         ) {
-
             return res.status(400).json({
                 success: false,
-                message:
-                    "Invalid delivery method"
+                message: "Invalid delivery method"
             });
         }
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | SHIPPING FEES
-        |--------------------------------------------------------------------------
-        |
-        | Standard = ₹100
-        | Express  = ₹150
-        |
-        */
-
         const shippingFee =
-            selectedDeliveryMethod ===
-            "express"
+            selectedDeliveryMethod === "express"
                 ? 150
                 : 100;
 
-
         const discount = 0;
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | START TRANSACTION
-        |--------------------------------------------------------------------------
-        */
-
         await connection.beginTransaction();
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | GET USER CART
-        |--------------------------------------------------------------------------
-        */
 
         const [carts] =
             await connection.execute(
@@ -148,30 +83,16 @@ export const createOrder = async (req, res) => {
                 [userId]
             );
 
-
-        if (
-            carts.length === 0
-        ) {
-
+        if (carts.length === 0) {
             await connection.rollback();
 
             return res.status(400).json({
                 success: false,
-                message:
-                    "Cart is empty"
+                message: "Cart is empty"
             });
         }
 
-
-        const cartId =
-            carts[0].id;
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | GET CART ITEMS
-        |--------------------------------------------------------------------------
-        */
+        const cartId = carts[0].id;
 
         const [items] =
             await connection.execute(
@@ -214,52 +135,21 @@ export const createOrder = async (req, res) => {
                 [cartId]
             );
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | CHECK EMPTY CART
-        |--------------------------------------------------------------------------
-        */
-
-        if (
-            items.length === 0
-        ) {
-
+        if (items.length === 0) {
             await connection.rollback();
 
             return res.status(400).json({
                 success: false,
-                message:
-                    "Cart is empty"
+                message: "Cart is empty"
             });
         }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | CALCULATE SUBTOTAL
-        |--------------------------------------------------------------------------
-        */
 
         let subtotal = 0;
 
         const orderItems = [];
 
-
-        for (
-            const item of items
-        ) {
-
-            /*
-            |------------------------------------------------------------------
-            | PRODUCT AVAILABILITY
-            |------------------------------------------------------------------
-            */
-
-            if (
-                !item.published
-            ) {
-
+        for (const item of items) {
+            if (!item.published) {
                 await connection.rollback();
 
                 return res.status(400).json({
@@ -269,21 +159,8 @@ export const createOrder = async (req, res) => {
                 });
             }
 
-
-            /*
-            |------------------------------------------------------------------
-            | VARIANT VALIDATION
-            |------------------------------------------------------------------
-            */
-
-            if (
-                item.variant_id
-            ) {
-
-                if (
-                    !item.variant_active
-                ) {
-
+            if (item.variant_id) {
+                if (!item.variant_active) {
                     await connection.rollback();
 
                     return res.status(400).json({
@@ -293,22 +170,10 @@ export const createOrder = async (req, res) => {
                     });
                 }
 
-
-                /*
-                |--------------------------------------------------------------
-                | STOCK CHECK
-                |--------------------------------------------------------------
-                */
-
                 if (
-                    Number(
-                        item.stock_quantity
-                    ) <
-                    Number(
-                        item.quantity
-                    )
+                    Number(item.stock_quantity) <
+                    Number(item.quantity)
                 ) {
-
                     await connection.rollback();
 
                     return res.status(400).json({
@@ -319,58 +184,29 @@ export const createOrder = async (req, res) => {
                 }
             }
 
-
-            /*
-            |------------------------------------------------------------------
-            | DETERMINE UNIT PRICE
-            |------------------------------------------------------------------
-            */
-
             let unitPrice;
-
 
             if (
                 item.variant_price !== null &&
                 item.variant_price !== undefined
             ) {
-
                 unitPrice =
-                    Number(
-                        item.variant_price
-                    );
-
+                    Number(item.variant_price);
             } else if (
                 item.sale_price !== null &&
                 item.sale_price !== undefined
             ) {
-
                 unitPrice =
-                    Number(
-                        item.sale_price
-                    );
-
+                    Number(item.sale_price);
             } else {
-
                 unitPrice =
-                    Number(
-                        item.base_price
-                    );
+                    Number(item.base_price);
             }
 
-
-            /*
-            |------------------------------------------------------------------
-            | VALIDATE PRICE
-            |------------------------------------------------------------------
-            */
-
             if (
-                !Number.isFinite(
-                    unitPrice
-                ) ||
+                !Number.isFinite(unitPrice) ||
                 unitPrice < 0
             ) {
-
                 await connection.rollback();
 
                 return res.status(400).json({
@@ -380,32 +216,13 @@ export const createOrder = async (req, res) => {
                 });
             }
 
-
-            /*
-            |------------------------------------------------------------------
-            | ITEM TOTAL
-            |------------------------------------------------------------------
-            */
-
             const totalPrice =
                 unitPrice *
-                Number(
-                    item.quantity
-                );
+                Number(item.quantity);
 
-
-            subtotal +=
-                totalPrice;
-
-
-            /*
-            |------------------------------------------------------------------
-            | ORDER ITEM SNAPSHOT
-            |------------------------------------------------------------------
-            */
+            subtotal += totalPrice;
 
             orderItems.push({
-
                 product_id:
                     item.product_id,
 
@@ -425,9 +242,7 @@ export const createOrder = async (req, res) => {
                     item.color_name,
 
                 quantity:
-                    Number(
-                        item.quantity
-                    ),
+                    Number(item.quantity),
 
                 unit_price:
                     unitPrice,
@@ -437,18 +252,8 @@ export const createOrder = async (req, res) => {
             });
         }
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | CALCULATE FINAL TOTAL
-        |--------------------------------------------------------------------------
-        */
-
         subtotal =
-            Number(
-                subtotal.toFixed(2)
-            );
-
+            Number(subtotal.toFixed(2));
 
         const totalAmount =
             Number(
@@ -459,22 +264,8 @@ export const createOrder = async (req, res) => {
                 ).toFixed(2)
             );
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | GENERATE ORDER NUMBER
-        |--------------------------------------------------------------------------
-        */
-
         const orderNumber =
             generateOrderNumber();
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | CREATE ORDER
-        |--------------------------------------------------------------------------
-        */
 
         const [orderResult] =
             await connection.execute(
@@ -552,21 +343,10 @@ export const createOrder = async (req, res) => {
                 ]
             );
 
-
         const orderId =
             orderResult.insertId;
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | CREATE ORDER ITEMS
-        |--------------------------------------------------------------------------
-        */
-
-        for (
-            const item of orderItems
-        ) {
-
+        for (const item of orderItems) {
             await connection.execute(
                 `
                 INSERT INTO order_items (
@@ -617,13 +397,6 @@ export const createOrder = async (req, res) => {
             );
         }
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | CLEAR CART
-        |--------------------------------------------------------------------------
-        */
-
         await connection.execute(
             `
             DELETE FROM cart_items
@@ -632,31 +405,22 @@ export const createOrder = async (req, res) => {
             [cartId]
         );
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | COMMIT
-        |--------------------------------------------------------------------------
-        */
-
         await connection.commit();
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | RESPONSE
-        |--------------------------------------------------------------------------
-        */
+        sendOrderEmails(orderId).catch((error) => {
+            console.error(
+                "Order email processing failed:",
+                error
+            );
+        });
 
         return res.status(201).json({
-
             success: true,
 
             message:
                 "Order created successfully",
 
             order: {
-
                 id:
                     orderId,
 
@@ -692,22 +456,16 @@ export const createOrder = async (req, res) => {
             }
         });
 
-
     } catch (error) {
-
         try {
             await connection.rollback();
-        } catch {
-            // Transaction rollback failed or was not started.
-        }
-
+        } catch {}
 
         console.error(
             "Create order error:"
         );
 
         console.error(error);
-
 
         return res.status(500).json({
             success: false,
@@ -716,28 +474,17 @@ export const createOrder = async (req, res) => {
         });
 
     } finally {
-
         connection.release();
     }
 };
-
-
-/*
-|--------------------------------------------------------------------------
-| GET USER ORDERS
-|--------------------------------------------------------------------------
-*/
 
 export const getOrders = async (
     req,
     res
 ) => {
-
     try {
-
         const userId =
             req.user.id;
-
 
         const [orders] =
             await pool.execute(
@@ -773,9 +520,7 @@ export const getOrders = async (
                 [userId]
             );
 
-
         return res.status(200).json({
-
             success: true,
 
             count:
@@ -809,14 +554,11 @@ export const getOrders = async (
                 )
         });
 
-
     } catch (error) {
-
         console.error(
             "Get orders error:",
             error
         );
-
 
         return res.status(500).json({
             success: false,
@@ -826,20 +568,11 @@ export const getOrders = async (
     }
 };
 
-
-/*
-|--------------------------------------------------------------------------
-| GET SINGLE USER ORDER
-|--------------------------------------------------------------------------
-*/
-
 export const getOrderById = async (
     req,
     res
 ) => {
-
     try {
-
         const userId =
             req.user.id;
 
@@ -848,21 +581,16 @@ export const getOrderById = async (
                 req.params.id
             );
 
-
         if (
-            !Number.isInteger(
-                orderId
-            ) ||
+            !Number.isInteger(orderId) ||
             orderId <= 0
         ) {
-
             return res.status(400).json({
                 success: false,
                 message:
                     "Invalid Order ID"
             });
         }
-
 
         const [orders] =
             await pool.execute(
@@ -879,11 +607,7 @@ export const getOrderById = async (
                 ]
             );
 
-
-        if (
-            orders.length === 0
-        ) {
-
+        if (orders.length === 0) {
             return res.status(404).json({
                 success: false,
                 message:
@@ -891,10 +615,8 @@ export const getOrderById = async (
             });
         }
 
-
         const order =
             orders[0];
-
 
         const [items] =
             await pool.execute(
@@ -926,13 +648,10 @@ export const getOrderById = async (
                 [orderId]
             );
 
-
         return res.status(200).json({
-
             success: true,
 
             order: {
-
                 ...order,
 
                 subtotal:
@@ -959,14 +678,11 @@ export const getOrderById = async (
             }
         });
 
-
     } catch (error) {
-
         console.error(
             "Get order error:",
             error
         );
-
 
         return res.status(500).json({
             success: false,
@@ -976,20 +692,11 @@ export const getOrderById = async (
     }
 };
 
-
-/*
-|--------------------------------------------------------------------------
-| CANCEL ORDER
-|--------------------------------------------------------------------------
-*/
-
 export const cancelOrder = async (
     req,
     res
 ) => {
-
     try {
-
         const userId =
             req.user.id;
 
@@ -998,21 +705,16 @@ export const cancelOrder = async (
                 req.params.id
             );
 
-
         if (
-            !Number.isInteger(
-                orderId
-            ) ||
+            !Number.isInteger(orderId) ||
             orderId <= 0
         ) {
-
             return res.status(400).json({
                 success: false,
                 message:
                     "Invalid Order ID"
             });
         }
-
 
         const [orders] =
             await pool.execute(
@@ -1035,11 +737,7 @@ export const cancelOrder = async (
                 ]
             );
 
-
-        if (
-            orders.length === 0
-        ) {
-
+        if (orders.length === 0) {
             return res.status(404).json({
                 success: false,
                 message:
@@ -1047,16 +745,8 @@ export const cancelOrder = async (
             });
         }
 
-
         const order =
             orders[0];
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | CHECK STATUS
-        |--------------------------------------------------------------------------
-        */
 
         if (
             order.order_status !==
@@ -1064,7 +754,6 @@ export const cancelOrder = async (
             order.order_status !==
                 "confirmed"
         ) {
-
             return res.status(400).json({
                 success: false,
                 message:
@@ -1072,31 +761,16 @@ export const cancelOrder = async (
             });
         }
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | PAID ORDERS REQUIRE REFUND
-        |--------------------------------------------------------------------------
-        */
-
         if (
             order.payment_status ===
             "paid"
         ) {
-
             return res.status(400).json({
                 success: false,
                 message:
                     "Paid orders require refund processing"
             });
         }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | CANCEL
-        |--------------------------------------------------------------------------
-        */
 
         await pool.execute(
             `
@@ -1113,21 +787,17 @@ export const cancelOrder = async (
             ]
         );
 
-
         return res.status(200).json({
             success: true,
             message:
                 "Order cancelled successfully"
         });
 
-
     } catch (error) {
-
         console.error(
             "Cancel order error:",
             error
         );
-
 
         return res.status(500).json({
             success: false,
@@ -1137,18 +807,9 @@ export const cancelOrder = async (
     }
 };
 
-
-/*
-|--------------------------------------------------------------------------
-| ADMIN: GET ALL ORDERS
-|--------------------------------------------------------------------------
-*/
-
 export const getAdminOrders =
     async (req, res) => {
-
         try {
-
             const [orders] =
                 await pool.execute(
                     `
@@ -1192,9 +853,7 @@ export const getAdminOrders =
                     `
                 );
 
-
             return res.status(200).json({
-
                 success: true,
 
                 count:
@@ -1228,14 +887,11 @@ export const getAdminOrders =
                     )
             });
 
-
         } catch (error) {
-
             console.error(
                 "Admin get orders error:",
                 error
             );
-
 
             return res.status(500).json({
                 success: false,
@@ -1245,38 +901,24 @@ export const getAdminOrders =
         }
     };
 
-
-/*
-|--------------------------------------------------------------------------
-| ADMIN: GET SINGLE ORDER
-|--------------------------------------------------------------------------
-*/
-
 export const getAdminOrderById =
     async (req, res) => {
-
         try {
-
             const orderId =
                 Number(
                     req.params.id
                 );
 
-
             if (
-                !Number.isInteger(
-                    orderId
-                ) ||
+                !Number.isInteger(orderId) ||
                 orderId <= 0
             ) {
-
                 return res.status(400).json({
                     success: false,
                     message:
                         "Order ID must be a valid positive integer"
                 });
             }
-
 
             const [orders] =
                 await pool.execute(
@@ -1300,11 +942,7 @@ export const getAdminOrderById =
                     [orderId]
                 );
 
-
-            if (
-                orders.length === 0
-            ) {
-
+            if (orders.length === 0) {
                 return res.status(404).json({
                     success: false,
                     message:
@@ -1312,10 +950,8 @@ export const getAdminOrderById =
                 });
             }
 
-
             const order =
                 orders[0];
-
 
             const [items] =
                 await pool.execute(
@@ -1347,7 +983,6 @@ export const getAdminOrderById =
                     [orderId]
                 );
 
-
             const [payments] =
                 await pool.execute(
                     `
@@ -1376,13 +1011,10 @@ export const getAdminOrderById =
                     [orderId]
                 );
 
-
             return res.status(200).json({
-
                 success: true,
 
                 order: {
-
                     ...order,
 
                     subtotal:
@@ -1421,14 +1053,11 @@ export const getAdminOrderById =
                 }
             });
 
-
         } catch (error) {
-
             console.error(
                 "Admin get order error:",
                 error
             );
-
 
             return res.status(500).json({
                 success: false,
@@ -1438,18 +1067,9 @@ export const getAdminOrderById =
         }
     };
 
-
-/*
-|--------------------------------------------------------------------------
-| ADMIN: UPDATE ORDER STATUS
-|--------------------------------------------------------------------------
-*/
-
 export const updateAdminOrderStatus =
     async (req, res) => {
-
         try {
-
             const orderId =
                 Number(
                     req.params.id
@@ -1459,33 +1079,16 @@ export const updateAdminOrderStatus =
                 order_status
             } = req.body;
 
-
-            /*
-            |--------------------------------------------------------------------------
-            | VALIDATE ID
-            |--------------------------------------------------------------------------
-            */
-
             if (
-                !Number.isInteger(
-                    orderId
-                ) ||
+                !Number.isInteger(orderId) ||
                 orderId <= 0
             ) {
-
                 return res.status(400).json({
                     success: false,
                     message:
                         "Order ID must be a valid positive integer"
                 });
             }
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | ALLOWED STATUSES
-            |--------------------------------------------------------------------------
-            */
 
             const allowedStatuses = [
                 "pending",
@@ -1496,7 +1099,6 @@ export const updateAdminOrderStatus =
                 "cancelled"
             ];
 
-
             if (
                 typeof order_status !==
                     "string" ||
@@ -1504,7 +1106,6 @@ export const updateAdminOrderStatus =
                     order_status
                 )
             ) {
-
                 return res.status(400).json({
                     success: false,
                     message:
@@ -1514,13 +1115,6 @@ export const updateAdminOrderStatus =
                         allowedStatuses
                 });
             }
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | GET CURRENT ORDER
-            |--------------------------------------------------------------------------
-            */
 
             const [orders] =
                 await pool.execute(
@@ -1539,11 +1133,7 @@ export const updateAdminOrderStatus =
                     [orderId]
                 );
 
-
-            if (
-                orders.length === 0
-            ) {
-
+            if (orders.length === 0) {
                 return res.status(404).json({
                     success: false,
                     message:
@@ -1551,22 +1141,13 @@ export const updateAdminOrderStatus =
                 });
             }
 
-
             const order =
                 orders[0];
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | SAME STATUS
-            |--------------------------------------------------------------------------
-            */
 
             if (
                 order.order_status ===
                 order_status
             ) {
-
                 return res.status(400).json({
                     success: false,
                     message:
@@ -1574,33 +1155,18 @@ export const updateAdminOrderStatus =
                 });
             }
 
-
-            /*
-            |--------------------------------------------------------------------------
-            | PAID ORDER CANNOT GO BACK TO PENDING
-            |--------------------------------------------------------------------------
-            */
-
             if (
                 order.payment_status ===
                     "paid" &&
                 order_status ===
                     "pending"
             ) {
-
                 return res.status(400).json({
                     success: false,
                     message:
                         "A paid order cannot be moved back to pending"
                 });
             }
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | UNPAID ORDER CANNOT SHIP
-            |--------------------------------------------------------------------------
-            */
 
             if (
                 order.payment_status !==
@@ -1612,20 +1178,12 @@ export const updateAdminOrderStatus =
                         "delivered"
                 )
             ) {
-
                 return res.status(400).json({
                     success: false,
                     message:
                         "Order must be paid before it can be shipped or delivered"
                 });
             }
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | UPDATE
-            |--------------------------------------------------------------------------
-            */
 
             await pool.execute(
                 `
@@ -1640,13 +1198,6 @@ export const updateAdminOrderStatus =
                     orderId
                 ]
             );
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | GET UPDATED ORDER
-            |--------------------------------------------------------------------------
-            */
 
             const [
                 updatedOrders
@@ -1675,9 +1226,7 @@ export const updateAdminOrderStatus =
                     [orderId]
                 );
 
-
             return res.status(200).json({
-
                 success: true,
 
                 message:
@@ -1687,14 +1236,11 @@ export const updateAdminOrderStatus =
                     updatedOrders[0]
             });
 
-
         } catch (error) {
-
             console.error(
                 "Admin update order status error:",
                 error
             );
-
 
             return res.status(500).json({
                 success: false,
