@@ -96,6 +96,7 @@ export const getAdminDashboard = async (req, res) => {
                 email,
                 phone,
                 role,
+                is_active,
                 created_at
             FROM users
             WHERE role = 'customer'
@@ -130,42 +131,51 @@ export const getAdminDashboard = async (req, res) => {
             success: true,
 
             statistics: {
-                total_users: Number(userRows[0].total),
-                total_products: Number(productRows[0].total),
-                total_orders: Number(orderRows[0].total),
-                paid_orders: Number(paidOrderRows[0].total),
-                pending_orders: Number(pendingOrderRows[0].total),
+                total_users: Number(userRows[0]?.total || 0),
+                total_products: Number(productRows[0]?.total || 0),
+                total_orders: Number(orderRows[0]?.total || 0),
+                paid_orders: Number(paidOrderRows[0]?.total || 0),
+                pending_orders: Number(pendingOrderRows[0]?.total || 0),
                 low_stock_variants: Number(
-                    lowStockRows[0].total
+                    lowStockRows[0]?.total || 0
                 ),
                 total_revenue: Number(
-                    revenueRows[0].total
+                    revenueRows[0]?.total || 0
                 ),
                 currency: "INR"
             },
 
             order_status: orderStatusRows.map((row) => ({
                 order_status: row.order_status,
-                count: Number(row.count)
+                count: Number(row.count || 0)
             })),
 
             payment_status: paymentStatusRows.map((row) => ({
                 payment_status: row.payment_status,
-                count: Number(row.count)
+                count: Number(row.count || 0)
             })),
 
             recent_orders: recentOrders.map((order) => ({
                 ...order,
-                total_amount: Number(order.total_amount)
+                total_amount: Number(
+                    order.total_amount || 0
+                )
             })),
 
-            recent_users: recentUsers,
+            recent_users: recentUsers.map((user) => ({
+                ...user,
+                is_active: Boolean(user.is_active),
+                status:
+                    Number(user.is_active) === 1
+                        ? "Active"
+                        : "Blocked"
+            })),
 
             low_stock_products: lowStockProducts.map(
                 (product) => ({
                     ...product,
                     stock_quantity: Number(
-                        product.stock_quantity
+                        product.stock_quantity || 0
                     )
                 })
             )
@@ -190,6 +200,7 @@ export const getAdminCustomers = async (req, res) => {
                 u.email,
                 u.phone,
                 u.created_at,
+                u.is_active,
 
                 COUNT(DISTINCT o.id) AS orders,
 
@@ -216,7 +227,8 @@ export const getAdminCustomers = async (req, res) => {
                 u.name,
                 u.email,
                 u.phone,
-                u.created_at
+                u.created_at,
+                u.is_active
 
             ORDER BY u.created_at DESC
         `);
@@ -241,7 +253,13 @@ export const getAdminCustomers = async (req, res) => {
 
                 registered: customer.created_at,
 
-                status: "Active"
+                is_active:
+                    Number(customer.is_active) === 1,
+
+                status:
+                    Number(customer.is_active) === 1
+                        ? "Active"
+                        : "Blocked"
             }))
         });
     } catch (error) {
@@ -257,9 +275,7 @@ export const getAdminCustomers = async (req, res) => {
 
 export const getAdminCustomerDetails = async (req, res) => {
     try {
-        const customerId = Number(
-            req.params.id
-        );
+        const customerId = Number(req.params.id);
 
         if (
             !Number.isInteger(customerId) ||
@@ -278,6 +294,7 @@ export const getAdminCustomerDetails = async (req, res) => {
                 name,
                 email,
                 phone,
+                is_active,
                 created_at
             FROM users
             WHERE id = ?
@@ -305,24 +322,18 @@ export const getAdminCustomerDetails = async (req, res) => {
                 currency,
                 payment_status,
                 order_status,
-
                 shipping_name,
                 shipping_phone,
                 shipping_email,
-
                 shipping_address_line1,
                 shipping_address_line2,
                 shipping_city,
                 shipping_state,
                 shipping_postal_code,
                 shipping_country,
-
                 created_at
-
             FROM orders
-
             WHERE user_id = ?
-
             ORDER BY created_at DESC
             `,
             [customerId]
@@ -354,38 +365,31 @@ export const getAdminCustomerDetails = async (req, res) => {
         const address = latestOrder
             ? {
                   full_name:
-                      latestOrder.shipping_name ||
-                      customer.name ||
-                      "",
+                      latestOrder.shipping_name,
 
                   phone:
-                      latestOrder.shipping_phone ||
-                      customer.phone ||
-                      "",
+                      latestOrder.shipping_phone,
+
+                  email:
+                      latestOrder.shipping_email,
 
                   address_line1:
-                      latestOrder.shipping_address_line1 ||
-                      "",
+                      latestOrder.shipping_address_line1,
 
                   address_line2:
-                      latestOrder.shipping_address_line2 ||
-                      "",
+                      latestOrder.shipping_address_line2,
 
                   city:
-                      latestOrder.shipping_city ||
-                      "",
+                      latestOrder.shipping_city,
 
                   state:
-                      latestOrder.shipping_state ||
-                      "",
+                      latestOrder.shipping_state,
 
                   postal_code:
-                      latestOrder.shipping_postal_code ||
-                      "",
+                      latestOrder.shipping_postal_code,
 
                   country:
-                      latestOrder.shipping_country ||
-                      ""
+                      latestOrder.shipping_country
               }
             : null;
 
@@ -394,42 +398,37 @@ export const getAdminCustomerDetails = async (req, res) => {
 
             customer: {
                 id: customer.id,
-
-                name:
-                    customer.name,
-
-                email:
-                    customer.email,
-
-                phone:
-                    customer.phone,
+                name: customer.name,
+                email: customer.email,
+                phone: customer.phone,
 
                 registered:
                     customer.created_at,
 
+                is_active:
+                    Number(customer.is_active) === 1,
+
                 status:
-                    "Active",
+                    Number(customer.is_active) === 1
+                        ? "Active"
+                        : "Blocked",
 
-                orders:
-                    orderRows.length,
+                orders: orderRows.length,
 
-                totalSpent:
-                    Number(totalSpent)
+                totalSpent
             },
 
             address,
 
             orders: orderRows.map((order) => ({
-                id:
-                    order.id,
+                id: order.id,
 
                 order_number:
                     order.order_number,
 
-                total_amount:
-                    Number(
-                        order.total_amount || 0
-                    ),
+                total_amount: Number(
+                    order.total_amount || 0
+                ),
 
                 currency:
                     order.currency,
@@ -439,33 +438,6 @@ export const getAdminCustomerDetails = async (req, res) => {
 
                 order_status:
                     order.order_status,
-
-                shipping_name:
-                    order.shipping_name,
-
-                shipping_phone:
-                    order.shipping_phone,
-
-                shipping_email:
-                    order.shipping_email,
-
-                shipping_address_line1:
-                    order.shipping_address_line1,
-
-                shipping_address_line2:
-                    order.shipping_address_line2,
-
-                shipping_city:
-                    order.shipping_city,
-
-                shipping_state:
-                    order.shipping_state,
-
-                shipping_postal_code:
-                    order.shipping_postal_code,
-
-                shipping_country:
-                    order.shipping_country,
 
                 created_at:
                     order.created_at
@@ -483,5 +455,281 @@ export const getAdminCustomerDetails = async (req, res) => {
             message:
                 "Failed to fetch customer details"
         });
+    }
+};
+
+export const updateAdminCustomerStatus = async (
+    req,
+    res
+) => {
+    try {
+        const customerId = Number(req.params.id);
+
+        const requestedStatus = String(
+            req.body?.status || ""
+        )
+            .trim()
+            .toLowerCase();
+
+        if (
+            !Number.isInteger(customerId) ||
+            customerId <= 0
+        ) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid customer ID"
+            });
+        }
+
+        if (
+            !["active", "blocked"].includes(
+                requestedStatus
+            )
+        ) {
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Status must be Active or Blocked"
+            });
+        }
+
+        const isActive =
+            requestedStatus === "active"
+                ? 1
+                : 0;
+
+        const [result] = await pool.execute(
+            `
+            UPDATE users
+            SET is_active = ?
+            WHERE id = ?
+            AND role = 'customer'
+            `,
+            [
+                isActive,
+                customerId
+            ]
+        );
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "Customer not found"
+            });
+        }
+
+        const [rows] = await pool.execute(
+            `
+            SELECT
+                id,
+                name,
+                email,
+                phone,
+                is_active,
+                created_at
+            FROM users
+            WHERE id = ?
+            AND role = 'customer'
+            LIMIT 1
+            `,
+            [customerId]
+        );
+
+        if (rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "Customer not found"
+            });
+        }
+
+        const customer = rows[0];
+
+        return res.status(200).json({
+            success: true,
+
+            message:
+                isActive === 1
+                    ? "Customer activated successfully"
+                    : "Customer blocked successfully",
+
+            customer: {
+                id: customer.id,
+                name: customer.name,
+                email: customer.email,
+                phone: customer.phone,
+
+                registered:
+                    customer.created_at,
+
+                is_active:
+                    Number(customer.is_active) === 1,
+
+                status:
+                    Number(customer.is_active) === 1
+                        ? "Active"
+                        : "Blocked"
+            }
+        });
+    } catch (error) {
+        console.error(
+            "ADMIN CUSTOMER STATUS ERROR:"
+        );
+
+        console.error(error);
+
+        return res.status(500).json({
+            success: false,
+            message:
+                "Failed to update customer status"
+        });
+    }
+};
+
+export const deleteAdminCustomer = async (
+    req,
+    res
+) => {
+    const connection =
+        await pool.getConnection();
+
+    try {
+        const customerId = Number(
+            req.params.id
+        );
+
+        if (
+            !Number.isInteger(customerId) ||
+            customerId <= 0
+        ) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid customer ID"
+            });
+        }
+
+        const [customerRows] =
+            await connection.execute(
+                `
+                SELECT
+                    id,
+                    name,
+                    email
+                FROM users
+                WHERE id = ?
+                AND role = 'customer'
+                LIMIT 1
+                `,
+                [customerId]
+            );
+
+        if (customerRows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "Customer not found"
+            });
+        }
+
+        await connection.beginTransaction();
+
+        await connection.execute(
+            `
+            DELETE wi
+            FROM wishlist_items wi
+            INNER JOIN wishlists w
+                ON wi.wishlist_id = w.id
+            WHERE w.user_id = ?
+            `,
+            [customerId]
+        );
+
+        await connection.execute(
+            `
+            DELETE FROM wishlists
+            WHERE user_id = ?
+            `,
+            [customerId]
+        );
+
+        await connection.execute(
+            `
+            DELETE ci
+            FROM cart_items ci
+            INNER JOIN carts c
+                ON ci.cart_id = c.id
+            WHERE c.user_id = ?
+            `,
+            [customerId]
+        );
+
+        await connection.execute(
+            `
+            DELETE FROM carts
+            WHERE user_id = ?
+            `,
+            [customerId]
+        );
+
+        await connection.execute(
+            `
+            DELETE FROM reviews
+            WHERE user_id = ?
+            `,
+            [customerId]
+        );
+
+        await connection.execute(
+            `
+            DELETE FROM orders
+            WHERE user_id = ?
+            `,
+            [customerId]
+        );
+
+        const [deleteResult] =
+            await connection.execute(
+                `
+                DELETE FROM users
+                WHERE id = ?
+                AND role = 'customer'
+                `,
+                [customerId]
+            );
+
+        if (deleteResult.affectedRows === 0) {
+            throw new Error(
+                "Customer could not be deleted"
+            );
+        }
+
+        await connection.commit();
+
+        return res.status(200).json({
+            success: true,
+            message:
+                "Customer account deleted successfully"
+        });
+    } catch (error) {
+        try {
+            await connection.rollback();
+        } catch (rollbackError) {
+            console.error(
+                "CUSTOMER DELETE ROLLBACK ERROR:",
+                rollbackError
+            );
+        }
+
+        console.error(
+            "ADMIN CUSTOMER DELETE ERROR:"
+        );
+
+        console.error(error);
+
+        return res.status(500).json({
+            success: false,
+            message:
+                "Failed to delete customer account"
+        });
+    } finally {
+        connection.release();
     }
 };

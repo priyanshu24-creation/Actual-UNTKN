@@ -3,7 +3,9 @@ import express from "express";
 import {
     getAdminDashboard,
     getAdminCustomers,
-    getAdminCustomerDetails
+    getAdminCustomerDetails,
+    updateAdminCustomerStatus,
+    deleteAdminCustomer
 } from "../controllers/admin.controller.js";
 
 import {
@@ -32,6 +34,20 @@ router.get(
     authenticate,
     requireAdmin,
     getAdminCustomerDetails
+);
+
+router.patch(
+    "/customers/:id/status",
+    authenticate,
+    requireAdmin,
+    updateAdminCustomerStatus
+);
+
+router.delete(
+    "/customers/:id",
+    authenticate,
+    requireAdmin,
+    deleteAdminCustomer
 );
 
 export default router;
