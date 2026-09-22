@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 
 import {
   Check,
@@ -18,6 +18,7 @@ import { useWishlist } from "../context/WishlistContext";
 
 function ProductDetails() {
   const { id } = useParams();
+  const navigate = useNavigate();
 
   const { addToCart } = useCart();
 
@@ -954,94 +955,142 @@ function ProductDetails() {
      ADD TO BAG
   ===================================================== */
 
-  const handleAddToBag =
-    async () => {
-      if (
-        sizes.length > 0 &&
-        !selectedSize
-      ) {
-        setActionNotification({
-          type: "warning",
-          message: "Please select a size.",
-        });
-        return;
-      }
+ const handleAddToBag =
+  async () => {
+    if (
+      sizes.length > 0 &&
+      !selectedSize
+    ) {
+      setActionNotification({
+        type: "warning",
+        message: "Please select a size.",
+      });
 
-      if (
-        colors.length > 0 &&
-        !selectedColor
-      ) {
-        setActionNotification({
-          type: "warning",
-          message: "Please select a color.",
-        });
-        return;
-      }
+      return false;
+    }
 
-      if (
-        hasVariants &&
-        !selectedVariant
-      ) {
-        setActionNotification({
-          type: "warning",
-          message: "This size and color combination is unavailable.",
-        });
-        return;
-      }
+    if (
+      colors.length > 0 &&
+      !selectedColor
+    ) {
+      setActionNotification({
+        type: "warning",
+        message: "Please select a color.",
+      });
 
-      if (
-        selectedVariant &&
-        stock <= 0
-      ) {
-        setActionNotification({
-          type: "warning",
-          message: "This variant is out of stock.",
-        });
-        return;
-      }
+      return false;
+    }
 
-      if (!product) {
-        return;
-      }
+    if (
+      hasVariants &&
+      !selectedVariant
+    ) {
+      setActionNotification({
+        type: "warning",
+        message:
+          "This size and color combination is unavailable.",
+      });
 
-      try {
-        setAddingToCart(true);
+      return false;
+    }
 
-        /*
-         * IMPORTANT:
-         * Pass the exact variant ID.
-         */
+    if (
+      selectedVariant &&
+      stock <= 0
+    ) {
+      setActionNotification({
+        type: "warning",
+        message:
+          "This variant is out of stock.",
+      });
 
-        await addToCart(
-          product,
-          selectedSize,
-          quantity,
-          selectedVariant?.id ??
-            null
-        );
+      return false;
+    }
 
-        setBagNotification({
-          name: product.name,
-          size: selectedSize || "",
-          color: selectedColor || "",
-          image: selectedImage || product.image || "",
-        });
-      } catch (addError) {
-        console.error(
-          "Add to cart failed:",
-          addError
-        );
+    if (!product) {
+      return false;
+    }
 
-        setActionNotification({
-          type: "error",
-          message:
-            addError.message ||
-            "Unable to add product to bag.",
-        });
-      } finally {
-        setAddingToCart(false);
-      }
-    };
+    try {
+      setAddingToCart(true);
+
+      await addToCart(
+        product,
+        selectedSize,
+        quantity,
+        selectedVariant?.id ?? null
+      );
+
+      setBagNotification({
+        name: product.name,
+        size: selectedSize || "",
+        color: selectedColor || "",
+        image:
+          selectedImage ||
+          product.image ||
+          "",
+      });
+
+      return true;
+    } catch (addError) {
+      console.error(
+        "Add to cart failed:",
+        addError
+      );
+
+      setActionNotification({
+        type: "error",
+        message:
+          addError.message ||
+          "Unable to add product to bag.",
+      });
+
+      return false;
+    } finally {
+      setAddingToCart(false);
+    }
+  };
+
+const handleBuyNow = async () => {
+  if (cannotAddToCart) {
+    return;
+  }
+
+  try {
+    await api.get("/auth/me");
+
+    const added =
+      await handleAddToBag();
+
+    if (added) {
+      navigate("/checkout");
+    }
+  } catch (authError) {
+    if (
+      authError.response?.status === 401
+    ) {
+      navigate("/login", {
+        state: {
+          redirectTo: "/checkout",
+        },
+      });
+
+      return;
+    }
+
+    console.error(
+      "Buy Now authentication check failed:",
+      authError
+    );
+
+    setActionNotification({
+      type: "error",
+      message:
+        authError.response?.data?.message ||
+        "Please log in before buying this product.",
+    });
+  }
+};
 
   /* =====================================================
      IMAGE ERROR
@@ -1671,19 +1720,15 @@ function ProductDetails() {
           ================================================= */}
 
           <button
-            type="button"
-            className="buy-now"
-            disabled={
-              cannotAddToCart
-            }
-            onClick={
-              handleAddToBag
-            }
-          >
-            {addingToCart
-              ? "ADDING..."
-              : "BUY NOW →"}
-          </button>
+  type="button"
+  className="buy-now"
+  disabled={cannotAddToCart}
+  onClick={handleBuyNow}
+>
+  {addingToCart
+    ? "ADDING..."
+    : "BUY NOW →"}
+</button>
 
           {/* =================================================
               DELIVERY
