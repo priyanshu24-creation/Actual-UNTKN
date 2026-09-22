@@ -24,16 +24,13 @@ const formatMoney = (value) => {
 };
 
 const getDeliveryDetails = (notes) => {
-    const value = String(notes || "")
-        .toLowerCase();
-
+    const value = String(notes || "").toLowerCase();
     if (value.includes("express")) {
         return {
             name: "EXPRESS DELIVERY",
             description: "2–3 BUSINESS DAYS"
         };
     }
-
     return {
         name: "STANDARD DELIVERY",
         description: "5–7 BUSINESS DAYS"
