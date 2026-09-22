@@ -120,11 +120,14 @@ function AdminCustomerDetails() {
       setAddress(loadedAddress);
       setOrders(loadedOrders);
 
-      setStatus(
-        loadedCustomer?.status === "Blocked"
+      const loadedStatus =
+        String(loadedCustomer?.status || "")
+          .trim()
+          .toLowerCase() === "blocked"
           ? "Blocked"
-          : "Active"
-      );
+          : "Active";
+
+      setStatus(loadedStatus);
     } catch (requestError) {
       console.error(
         "Failed to load customer:",
@@ -163,20 +166,42 @@ function AdminCustomerDetails() {
     }
 
     const nextStatus =
-      status === "Blocked"
+      String(status).toLowerCase() === "blocked"
         ? "Blocked"
         : "Active";
+
+    if (nextStatus === customerStatus) {
+      return;
+    }
 
     try {
       setSavingStatus(true);
       setError("");
+      setNotice("");
 
-      const response = await api.patch(
-        `/admin/customers/${customer.id}/status`,
-        {
-          status: nextStatus,
+      let response;
+
+      try {
+        response = await api.patch(
+          `/admin/customers/${encodeURIComponent(customer.id)}/status`,
+          {
+            status: nextStatus,
+          }
+        );
+      } catch (patchError) {
+        const httpStatus = patchError.response?.status;
+
+        if (httpStatus !== 404 && httpStatus !== 405) {
+          throw patchError;
         }
-      );
+
+        response = await api.put(
+          `/admin/customers/${encodeURIComponent(customer.id)}/status`,
+          {
+            status: nextStatus,
+          }
+        );
+      }
 
       if (!response.data?.success) {
         throw new Error(
@@ -185,9 +210,15 @@ function AdminCustomerDetails() {
         );
       }
 
+      const updatedCustomer =
+        response.data.customer || {};
+
       const updatedStatus =
-        response.data.customer?.status ||
-        nextStatus;
+        updatedCustomer.status === "Blocked"
+          ? "Blocked"
+          : updatedCustomer.status === "Active"
+            ? "Active"
+            : nextStatus;
 
       setStatus(updatedStatus);
 
@@ -195,6 +226,7 @@ function AdminCustomerDetails() {
         current
           ? {
               ...current,
+              ...updatedCustomer,
               status: updatedStatus,
             }
           : current
@@ -211,11 +243,12 @@ function AdminCustomerDetails() {
         requestError
       );
 
-      setError(
+      const message =
         requestError.response?.data?.message ||
-          requestError.message ||
-          "Unable to update customer status."
-      );
+        requestError.message ||
+        "Unable to update customer status.";
+
+      setError(message);
     } finally {
       setSavingStatus(false);
     }
@@ -319,7 +352,7 @@ function AdminCustomerDetails() {
   );
 
   const customerStatus =
-    status === "Blocked"
+    String(status).toLowerCase() === "blocked"
       ? "Blocked"
       : "Active";
 

@@ -43,6 +43,13 @@ router.patch(
     updateAdminCustomerStatus
 );
 
+router.put(
+    "/customers/:id/status",
+    authenticate,
+    requireAdmin,
+    updateAdminCustomerStatus
+);
+
 router.delete(
     "/customers/:id",
     authenticate,
