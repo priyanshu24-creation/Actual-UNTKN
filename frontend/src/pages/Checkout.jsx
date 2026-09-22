@@ -59,6 +59,49 @@ function Checkout() {
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [authChecking, setAuthChecking] = useState(true);
+
+
+  useEffect(() => {
+    let mounted = true;
+
+    const verifyAuthentication = async () => {
+      try {
+        await api.get("/auth/me");
+
+        if (mounted) {
+          setAuthChecking(false);
+        }
+      } catch (authError) {
+        if (!mounted) {
+          return;
+        }
+
+        if (authError.response?.status === 401) {
+          navigate("/login", {
+            replace: true,
+            state: {
+              redirectTo: "/checkout",
+            },
+          });
+          return;
+        }
+
+        console.error("Checkout authentication check failed:", authError);
+        setError(
+          authError.response?.data?.message ||
+            "Unable to verify your account. Please try again."
+        );
+        setAuthChecking(false);
+      }
+    };
+
+    verifyAuthentication();
+
+    return () => {
+      mounted = false;
+    };
+  }, [navigate]);
 
   useEffect(() => {
     let mounted = true;
@@ -256,6 +299,22 @@ function Checkout() {
     try {
       setSubmitting(true);
 
+      try {
+        await api.get("/auth/me");
+      } catch (authError) {
+        if (authError.response?.status === 401) {
+          navigate("/login", {
+            replace: true,
+            state: {
+              redirectTo: "/checkout",
+            },
+          });
+          return;
+        }
+
+        throw authError;
+      }
+
       const shippingName =
         `${firstName} ${lastName}`.trim();
 
@@ -368,6 +427,20 @@ function Checkout() {
       setSubmitting(false);
     }
   };
+
+  if (authChecking) {
+    return (
+      <div
+        className="checkout-page"
+        style={{
+          padding: "80px 20px",
+          textAlign: "center",
+        }}
+      >
+        VERIFYING ACCOUNT...
+      </div>
+    );
+  }
 
   if (
     !cartLoading &&

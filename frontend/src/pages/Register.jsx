@@ -1,9 +1,13 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import api from "../services/api.js";
 
 function Register() {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const redirectTo = location.state?.redirectTo || "/account";
+  const buyNow = location.state?.buyNow === true;
 
   const [formData, setFormData] = useState({
     firstName: "",
@@ -25,13 +29,28 @@ function Register() {
       [name]: value,
     }));
 
-    setError("");
+    if (error) {
+      setError("");
+    }
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
 
+    if (loading) {
+      return;
+    }
+
     setError("");
+
+    const firstName = formData.firstName.trim();
+    const lastName = formData.lastName.trim();
+    const email = formData.email.trim().toLowerCase();
+
+    if (!firstName || !lastName) {
+      setError("Please enter your first and last name.");
+      return;
+    }
 
     if (formData.password !== formData.confirmPassword) {
       setError("Passwords do not match.");
@@ -43,26 +62,47 @@ function Register() {
       return;
     }
 
-    const fullName =
-      `${formData.firstName} ${formData.lastName}`.trim();
-
     try {
       setLoading(true);
 
       const response = await api.post("/auth/register", {
-        name: fullName,
-        email: formData.email.trim().toLowerCase(),
+        name: `${firstName} ${lastName}`.trim(),
+        email,
         password: formData.password,
       });
 
-      console.log("Registration successful:", response.data);
+      if (!response.data?.success) {
+        throw new Error(
+          response.data?.message || "Registration failed."
+        );
+      }
 
-      navigate("/account", { replace: true });
-    } catch (error) {
-      console.error("Registration error:", error);
+      try {
+        await api.get("/auth/me");
+
+        navigate(redirectTo, {
+          replace: true,
+        });
+      } catch (authError) {
+        if (authError.response?.status === 401) {
+          navigate("/login", {
+            replace: true,
+            state: {
+              redirectTo,
+              buyNow,
+            },
+          });
+          return;
+        }
+
+        throw authError;
+      }
+    } catch (requestError) {
+      console.error("Registration error:", requestError);
 
       setError(
-        error.response?.data?.message ||
+        requestError.response?.data?.message ||
+          requestError.message ||
           "Registration failed. Please try again."
       );
     } finally {
@@ -73,14 +113,8 @@ function Register() {
   return (
     <div className="auth-page">
       <div className="auth-container register-container">
-
-        {/* HEADER */}
-
         <div className="auth-header">
-
-          <p className="eyebrow">
-            JOIN THE LABEL
-          </p>
+          <p className="eyebrow">JOIN THE LABEL</p>
 
           <h1>
             CREATE
@@ -92,42 +126,18 @@ function Register() {
             Create your account to manage orders,
             wishlist and personal details.
           </p>
-
         </div>
 
-        {/* ERROR */}
-
         {error && (
-          <div
-            style={{
-              marginBottom: "20px",
-              padding: "12px 14px",
-              border: "1px solid #e0b4b4",
-              background: "#fff7f7",
-              color: "#a33a3a",
-              fontSize: "13px",
-            }}
-          >
+          <div className="auth-error" role="alert">
             {error}
           </div>
         )}
 
-        {/* FORM */}
-
-        <form
-          className="auth-form"
-          onSubmit={handleSubmit}
-        >
-
-          {/* NAME */}
-
+        <form className="auth-form" onSubmit={handleSubmit}>
           <div className="form-row">
-
             <div className="form-field">
-
-              <label htmlFor="firstName">
-                FIRST NAME
-              </label>
+              <label htmlFor="firstName">FIRST NAME</label>
 
               <input
                 id="firstName"
@@ -140,14 +150,10 @@ function Register() {
                 required
                 disabled={loading}
               />
-
             </div>
 
             <div className="form-field">
-
-              <label htmlFor="lastName">
-                LAST NAME
-              </label>
+              <label htmlFor="lastName">LAST NAME</label>
 
               <input
                 id="lastName"
@@ -160,18 +166,11 @@ function Register() {
                 required
                 disabled={loading}
               />
-
             </div>
-
           </div>
 
-          {/* EMAIL */}
-
           <div className="form-field">
-
-            <label htmlFor="register-email">
-              EMAIL ADDRESS
-            </label>
+            <label htmlFor="register-email">EMAIL ADDRESS</label>
 
             <input
               id="register-email"
@@ -184,39 +183,25 @@ function Register() {
               required
               disabled={loading}
             />
-
           </div>
 
-          {/* PASSWORD */}
-
           <div className="form-field">
-
             <div className="password-label">
-
-              <label htmlFor="register-password">
-                PASSWORD
-              </label>
+              <label htmlFor="register-password">PASSWORD</label>
 
               <button
                 type="button"
-                onClick={() =>
-                  setShowPassword(!showPassword)
-                }
+                onClick={() => setShowPassword((current) => !current)}
                 disabled={loading}
               >
                 {showPassword ? "HIDE" : "SHOW"}
               </button>
-
             </div>
 
             <input
               id="register-password"
               name="password"
-              type={
-                showPassword
-                  ? "text"
-                  : "password"
-              }
+              type={showPassword ? "text" : "password"}
               value={formData.password}
               onChange={handleChange}
               placeholder="CREATE PASSWORD"
@@ -225,16 +210,10 @@ function Register() {
               minLength={6}
               disabled={loading}
             />
-
           </div>
 
-          {/* CONFIRM PASSWORD */}
-
           <div className="form-field">
-
-            <label htmlFor="confirmPassword">
-              CONFIRM PASSWORD
-            </label>
+            <label htmlFor="confirmPassword">CONFIRM PASSWORD</label>
 
             <input
               id="confirmPassword"
@@ -248,13 +227,9 @@ function Register() {
               minLength={6}
               disabled={loading}
             />
-
           </div>
 
-          {/* TERMS */}
-
           <label className="terms-checkbox">
-
             <input
               type="checkbox"
               required
@@ -264,10 +239,7 @@ function Register() {
             <span>
               I AGREE TO THE TERMS AND PRIVACY POLICY.
             </span>
-
           </label>
-
-          {/* SUBMIT */}
 
           <button
             type="submit"
@@ -278,23 +250,21 @@ function Register() {
               ? "CREATING ACCOUNT..."
               : "CREATE ACCOUNT →"}
           </button>
-
         </form>
 
-        {/* LOGIN */}
-
         <div className="auth-switch">
+          <p>ALREADY HAVE AN ACCOUNT?</p>
 
-          <p>
-            ALREADY HAVE AN ACCOUNT?
-          </p>
-
-          <Link to="/login">
+          <Link
+            to="/login"
+            state={{
+              redirectTo,
+              buyNow,
+            }}
+          >
             LOGIN →
           </Link>
-
         </div>
-
       </div>
     </div>
   );

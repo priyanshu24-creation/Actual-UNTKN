@@ -17,11 +17,6 @@ import {
 
 const router = express.Router();
 
-
-// ======================================================
-// CUSTOMER ORDER ROUTES
-// ======================================================
-
 router.post(
     "/",
     authenticate,
@@ -33,12 +28,6 @@ router.get(
     authenticate,
     getOrders
 );
-
-
-// ======================================================
-// ADMIN ORDER ROUTES
-// IMPORTANT: These must come BEFORE /:id
-// ======================================================
 
 router.get(
     "/admin",
@@ -61,11 +50,6 @@ router.patch(
     updateAdminOrderStatus
 );
 
-
-// ======================================================
-// CUSTOMER SINGLE ORDER / CANCEL
-// ======================================================
-
 router.get(
     "/:id",
     authenticate,
@@ -77,6 +61,5 @@ router.patch(
     authenticate,
     cancelOrder
 );
-
 
 export default router;

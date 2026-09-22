@@ -18,6 +18,48 @@ function Payment() {
   const [loading, setLoading] = useState(false);
   const [scriptLoading, setScriptLoading] = useState(true);
   const [error, setError] = useState("");
+  const [authChecking, setAuthChecking] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const verifyAuthentication = async () => {
+      try {
+        await api.get("/auth/me");
+
+        if (mounted) {
+          setAuthChecking(false);
+        }
+      } catch (authError) {
+        if (!mounted) {
+          return;
+        }
+
+        if (authError.response?.status === 401) {
+          navigate("/login", {
+            replace: true,
+            state: {
+              redirectTo: "/payment",
+            },
+          });
+          return;
+        }
+
+        console.error("Payment authentication check failed:", authError);
+        setError(
+          authError.response?.data?.message ||
+            "Unable to verify your account. Please try again."
+        );
+        setAuthChecking(false);
+      }
+    };
+
+    verifyAuthentication();
+
+    return () => {
+      mounted = false;
+    };
+  }, [navigate]);
 
   /*
   |--------------------------------------------------------------------------
@@ -249,6 +291,26 @@ function Payment() {
     event.preventDefault();
 
     setError("");
+
+    try {
+      await api.get("/auth/me");
+    } catch (authError) {
+      if (authError.response?.status === 401) {
+        navigate("/login", {
+          replace: true,
+          state: {
+            redirectTo: "/payment",
+          },
+        });
+        return;
+      }
+
+      setError(
+        authError.response?.data?.message ||
+          "Unable to verify your account. Please try again."
+      );
+      return;
+    }
 
     /*
     |--------------------------------------------------------------------------
@@ -677,6 +739,16 @@ function Payment() {
   | EMPTY / MISSING ORDER
   |--------------------------------------------------------------------------
   */
+
+  if (authChecking) {
+    return (
+      <div className="payment-empty">
+        <p className="eyebrow">SECURE PAYMENT</p>
+        <h1>VERIFYING<br />ACCOUNT.</h1>
+        <p>Please wait while we verify your account.</p>
+      </div>
+    );
+  }
 
   if (
     !order?.id &&

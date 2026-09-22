@@ -885,7 +885,7 @@ function ProductDetails() {
   };
 
 const handleBuyNow = async () => {
-  if (cannotAddToCart) {
+  if (cannotAddToCart || addingToCart) {
     return;
   }
 
@@ -894,6 +894,7 @@ const handleBuyNow = async () => {
 
     if (!response.data?.success || !response.data?.user) {
       navigate("/login", {
+        replace: true,
         state: {
           redirectTo: "/checkout",
           buyNow: true,
@@ -905,13 +906,16 @@ const handleBuyNow = async () => {
     const added = await handleAddToBag();
 
     if (added) {
-      navigate("/checkout", { replace: true });
+      navigate("/checkout", {
+        replace: true,
+      });
     }
   } catch (authError) {
     console.error("Buy Now authentication check failed:", authError);
 
     if (authError.response?.status === 401) {
       navigate("/login", {
+        replace: true,
         state: {
           redirectTo: "/checkout",
           buyNow: true,
@@ -924,7 +928,7 @@ const handleBuyNow = async () => {
       type: "error",
       message:
         authError.response?.data?.message ||
-        "Unable to verify your account. Please try again.",
+        "Please log in before buying this product.",
     });
   }
 };

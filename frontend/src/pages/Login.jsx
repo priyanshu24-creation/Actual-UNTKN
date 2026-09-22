@@ -41,7 +41,7 @@ function Login() {
 
     try {
       const response = await api.post("/auth/login", {
-        email: formData.email.trim(),
+        email: formData.email.trim().toLowerCase(),
         password: formData.password,
       });
 
@@ -51,7 +51,11 @@ function Login() {
         );
       }
 
-      navigate(redirectTo, { replace: true });
+      await api.get("/auth/me");
+
+      navigate(redirectTo, {
+        replace: true,
+      });
     } catch (requestError) {
       console.error("Login error:", requestError);
 
@@ -94,6 +98,7 @@ function Login() {
               placeholder="ENTER YOUR EMAIL"
               autoComplete="email"
               required
+              disabled={loading}
             />
           </div>
 
@@ -103,6 +108,7 @@ function Login() {
               <button
                 type="button"
                 onClick={() => setShowPassword((current) => !current)}
+                disabled={loading}
               >
                 {showPassword ? "HIDE" : "SHOW"}
               </button>
@@ -117,6 +123,7 @@ function Login() {
               placeholder="ENTER YOUR PASSWORD"
               autoComplete="current-password"
               required
+              disabled={loading}
             />
           </div>
 
@@ -137,7 +144,10 @@ function Login() {
           <p>DON'T HAVE AN ACCOUNT?</p>
           <Link
             to="/register"
-            state={{ redirectTo }}
+            state={{
+              redirectTo,
+              buyNow: location.state?.buyNow === true,
+            }}
           >
             CREATE ACCOUNT →
           </Link>
