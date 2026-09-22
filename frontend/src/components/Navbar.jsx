@@ -283,9 +283,9 @@ function Navbar() {
               </Link>
 
               <Link
-                to="/account"
+                to="/login"
                 className={
-                  isActive("/account")
+                  isActive("/login")
                     ? "nav-action-button active"
                     : "nav-action-button"
                 }
@@ -437,7 +437,7 @@ function Navbar() {
             </Link>
 
             <Link
-              to="/account"
+              to="/login"
               onClick={closeMenu}
             >
               <User
