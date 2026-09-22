@@ -1,8 +1,5 @@
-import pool from "../config/database.js";
-import {
-    sendEmail,
-    getAdminEmail
-} from "./email-service.js";
+import pool from "../database.js";
+import { sendEmail, getAdminEmail } from "./email.service.js";
 
 const escapeHtml = (value) => {
     return String(value ?? "")

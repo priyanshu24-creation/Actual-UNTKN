@@ -4,7 +4,7 @@ import { fileURLToPath } from "url";
 
 import app from "./app.js";
 import pool from "./config/database.js";
-import { verifyEmailConnection } from "./services/email-service.js";
+import { verifyEmailConnection } from "./config/services/email.service.js";
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -42,7 +42,7 @@ async function startServer() {
     } catch (error) {
         console.error("MySQL connection failed:");
         console.error(error.message);
-        process.exit(1);
+        // Continue without exiting; the API may still serve routes that don't need DB
     }
 }
 
