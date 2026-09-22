@@ -124,6 +124,11 @@ function Account() {
 
         const user = response.data.user;
 
+        if (user.role !== "customer") {
+  window.location.replace("/admin");
+  return;
+}
+
         const {
           firstName,
           lastName,
