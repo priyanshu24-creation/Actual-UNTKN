@@ -788,8 +788,42 @@ function ProductDetails() {
 
   
 
- const handleAddToBag =
-  async () => {
+  const isAuthenticationError = (requestError) => {
+    const status = requestError?.response?.status;
+
+    if (status === 401 || status === 403) {
+      return true;
+    }
+
+    const message = String(
+      requestError?.response?.data?.message ||
+        requestError?.message ||
+        ""
+    ).toLowerCase();
+
+    return (
+      message.includes("authentication required") ||
+      message.includes("authentication is required") ||
+      message.includes("login required") ||
+      message.includes("log in required") ||
+      message.includes("not authenticated") ||
+      message.includes("unauthorized") ||
+      message.includes("token is required") ||
+      message.includes("token required")
+    );
+  };
+
+  const redirectToLoginForBuyNow = () => {
+    navigate("/login", {
+      replace: false,
+      state: {
+        redirectTo: "/checkout",
+        buyNow: true,
+      },
+    });
+  };
+
+  const handleAddToBag = async (redirectOnAuthentication = false) => {
     if (
       sizes.length > 0 &&
       !selectedSize
@@ -871,9 +905,18 @@ function ProductDetails() {
         addError
       );
 
+      if (
+        redirectOnAuthentication &&
+        isAuthenticationError(addError)
+      ) {
+        redirectToLoginForBuyNow();
+        return false;
+      }
+
       setActionNotification({
         type: "error",
         message:
+          addError.response?.data?.message ||
           addError.message ||
           "Unable to add product to bag.",
       });
@@ -884,54 +927,75 @@ function ProductDetails() {
     }
   };
 
-const handleBuyNow = async () => {
-  if (cannotAddToCart || addingToCart) {
-    return;
-  }
-
-  try {
-    const response = await api.get("/auth/me");
-
-    if (!response.data?.success || !response.data?.user) {
-      navigate("/login", {
-        replace: true,
-        state: {
-          redirectTo: "/checkout",
-          buyNow: true,
-        },
-      });
+  const handleBuyNow = async () => {
+    if (
+      cannotAddToCart ||
+      addingToCart ||
+      !product
+    ) {
       return;
     }
 
-    const added = await handleAddToBag();
+    setActionNotification(null);
 
-    if (added) {
-      navigate("/checkout", {
-        replace: true,
+    try {
+      const response = await api.get("/auth/me", {
+        validateStatus: (status) =>
+          status >= 200 && status < 500,
+      });
+
+      const authenticated =
+        response.status >= 200 &&
+        response.status < 300 &&
+        response.data?.success === true &&
+        !!response.data?.user;
+
+      if (!authenticated) {
+        if (
+          response.status === 401 ||
+          response.status === 403
+        ) {
+          redirectToLoginForBuyNow();
+          return;
+        }
+
+        setActionNotification({
+          type: "error",
+          message:
+            response.data?.message ||
+            "Unable to verify your account. Please try again.",
+        });
+
+        return;
+      }
+
+      const added = await handleAddToBag(true);
+
+      if (added) {
+        navigate("/checkout", {
+          replace: true,
+        });
+      }
+    } catch (authError) {
+      console.error(
+        "Buy Now authentication check failed:",
+        authError
+      );
+
+      if (isAuthenticationError(authError)) {
+        redirectToLoginForBuyNow();
+        return;
+      }
+
+      setActionNotification({
+        type: "error",
+        message:
+          authError.response?.data?.message ||
+          "Unable to verify your account. Please try again.",
       });
     }
-  } catch (authError) {
-    console.error("Buy Now authentication check failed:", authError);
+  };
 
-    if (authError.response?.status === 401) {
-      navigate("/login", {
-        replace: true,
-        state: {
-          redirectTo: "/checkout",
-          buyNow: true,
-        },
-      });
-      return;
-    }
-
-    setActionNotification({
-      type: "error",
-      message:
-        authError.response?.data?.message ||
-        "Please log in before buying this product.",
-    });
-  }
-};
 
   
 

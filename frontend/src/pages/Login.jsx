@@ -1,23 +1,43 @@
 import { useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import {
+  Link,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
 import api from "../services/api";
 
 function Login() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const redirectTo =
+    typeof location.state?.redirectTo === "string" &&
+    location.state.redirectTo.startsWith("/")
+      ? location.state.redirectTo
+      : "/account";
+
+  const buyNow =
+    location.state?.buyNow === true;
+
   const [formData, setFormData] = useState({
     email: "",
     password: "",
   });
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
 
-  const redirectTo = location.state?.redirectTo || "/account";
+  const [showPassword, setShowPassword] =
+    useState(false);
+
+  const [loading, setLoading] =
+    useState(false);
+
+  const [error, setError] =
+    useState("");
 
   const handleChange = (event) => {
-    const { name, value } = event.target;
+    const {
+      name,
+      value,
+    } = event.target;
 
     setFormData((current) => ({
       ...current,
@@ -36,34 +56,76 @@ function Login() {
       return;
     }
 
+    const email =
+      formData.email.trim().toLowerCase();
+
+    if (!email || !formData.password) {
+      setError(
+        "Please enter your email and password."
+      );
+      return;
+    }
+
     setError("");
     setLoading(true);
 
     try {
-      const response = await api.post("/auth/login", {
-        email: formData.email.trim().toLowerCase(),
-        password: formData.password,
-      });
+      const response = await api.post(
+        "/auth/login",
+        {
+          email,
+          password: formData.password,
+        }
+      );
 
       if (!response.data?.success) {
         throw new Error(
-          response.data?.message || "Login failed"
+          response.data?.message ||
+            "Login failed."
         );
       }
 
-      await api.get("/auth/me");
+      const authResponse =
+        await api.get("/auth/me", {
+          validateStatus: (status) =>
+            status >= 200 && status < 500,
+        });
+
+      const authenticated =
+        authResponse.status >= 200 &&
+        authResponse.status < 300 &&
+        authResponse.data?.success === true &&
+        !!authResponse.data?.user;
+
+      if (!authenticated) {
+        throw new Error(
+          "Login succeeded, but your session could not be verified. Please try again."
+        );
+      }
 
       navigate(redirectTo, {
         replace: true,
       });
     } catch (requestError) {
-      console.error("Login error:", requestError);
-
-      setError(
-        requestError.response?.data?.message ||
-          requestError.message ||
-          "Unable to connect to the server. Please try again."
+      console.error(
+        "Login error:",
+        requestError
       );
+
+      if (
+        requestError.response?.status === 401
+      ) {
+        setError(
+          requestError.response?.data?.message ||
+            "Invalid email or password."
+        );
+      } else {
+        setError(
+          requestError.response?.data?.message ||
+            requestError.message ||
+            "Unable to connect to the server. Please try again."
+        );
+      }
     } finally {
       setLoading(false);
     }
@@ -73,22 +135,39 @@ function Login() {
     <div className="auth-page">
       <div className="auth-container">
         <div className="auth-header">
-          <p className="eyebrow">WELCOME BACK</p>
+          <p className="eyebrow">
+            {buyNow
+              ? "ACCOUNT REQUIRED"
+              : "WELCOME BACK"}
+          </p>
+
           <h1>LOGIN</h1>
+
           <p>
-            Sign in to access your account, orders and wishlist.
+            {buyNow
+              ? "Please sign in to continue with your purchase."
+              : "Sign in to access your account, orders and wishlist."}
           </p>
         </div>
 
-        <form className="auth-form" onSubmit={handleSubmit}>
+        <form
+          className="auth-form"
+          onSubmit={handleSubmit}
+        >
           {error && (
-            <div className="auth-error" role="alert">
+            <div
+              className="auth-error"
+              role="alert"
+            >
               {error}
             </div>
           )}
 
           <div className="form-field">
-            <label htmlFor="email">EMAIL ADDRESS</label>
+            <label htmlFor="email">
+              EMAIL ADDRESS
+            </label>
+
             <input
               id="email"
               name="email"
@@ -104,20 +183,33 @@ function Login() {
 
           <div className="form-field">
             <div className="password-label">
-              <label htmlFor="password">PASSWORD</label>
+              <label htmlFor="password">
+                PASSWORD
+              </label>
+
               <button
                 type="button"
-                onClick={() => setShowPassword((current) => !current)}
+                onClick={() =>
+                  setShowPassword(
+                    (current) => !current
+                  )
+                }
                 disabled={loading}
               >
-                {showPassword ? "HIDE" : "SHOW"}
+                {showPassword
+                  ? "HIDE"
+                  : "SHOW"}
               </button>
             </div>
 
             <input
               id="password"
               name="password"
-              type={showPassword ? "text" : "password"}
+              type={
+                showPassword
+                  ? "text"
+                  : "password"
+              }
               value={formData.password}
               onChange={handleChange}
               placeholder="ENTER YOUR PASSWORD"
@@ -128,7 +220,9 @@ function Login() {
           </div>
 
           <div className="forgot-password">
-            <Link to="/forgot-password">FORGOT PASSWORD?</Link>
+            <Link to="/forgot-password">
+              FORGOT PASSWORD?
+            </Link>
           </div>
 
           <button
@@ -136,17 +230,22 @@ function Login() {
             className="auth-submit"
             disabled={loading}
           >
-            {loading ? "LOGGING IN..." : "LOGIN →"}
+            {loading
+              ? "LOGGING IN..."
+              : "LOGIN →"}
           </button>
         </form>
 
         <div className="auth-switch">
-          <p>DON'T HAVE AN ACCOUNT?</p>
+          <p>
+            DON'T HAVE AN ACCOUNT?
+          </p>
+
           <Link
             to="/register"
             state={{
               redirectTo,
-              buyNow: location.state?.buyNow === true,
+              buyNow,
             }}
           >
             CREATE ACCOUNT →
