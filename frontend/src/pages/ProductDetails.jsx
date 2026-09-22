@@ -47,6 +47,91 @@ function ProductDetails() {
   const [actionNotification, setActionNotification] = useState(null);
 
   useEffect(() => {
+    if (!bagNotification && !actionNotification) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setBagNotification(null);
+      setActionNotification(null);
+    }, 3500);
+
+    return () => clearTimeout(timer);
+  }, [bagNotification, actionNotification]);
+
+  /* =====================================================
+     IMAGE URL HELPER
+  ===================================================== */
+
+  const getImageUrl = (image) => {
+    if (!image) {
+      return "";
+    }
+
+    if (typeof image === "string") {
+      return image;
+    }
+
+    return (
+      image.image_url ||
+      image.imageUrl ||
+      image.secure_url ||
+      image.secureUrl ||
+      image.url ||
+      ""
+    );
+  };
+
+  /* =====================================================
+     VARIANT HELPERS
+  ===================================================== */
+
+  const getVariantSize = (variant) => {
+    return (
+      variant?.size_name ||
+      variant?.size ||
+      variant?.size_label ||
+      variant?.size?.name ||
+      ""
+    );
+  };
+
+  const getVariantColor = (variant) => {
+    return (
+      variant?.color_name ||
+      variant?.color ||
+      variant?.color_label ||
+      variant?.color?.name ||
+      ""
+    );
+  };
+
+  const getVariantStock = (variant) => {
+    return Number(
+      variant?.stock_quantity ??
+        variant?.stock ??
+        variant?.quantity ??
+        variant?.inventory ??
+        0
+    );
+  };
+
+  const isVariantActive = (variant) => {
+    if (
+      variant?.active === false ||
+      variant?.active === 0
+    ) {
+      return false;
+    }
+
+    return true;
+  };
+
+  /* =====================================================
+     LOAD PRODUCT
+  ===================================================== */
+
+  useEffect(() => {
     let cancelled = false;
 
     const loadProduct = async () => {
@@ -57,11 +142,19 @@ function ProductDetails() {
         const routeValue = String(id || "").trim();
 
         if (!routeValue) {
-          throw new Error("Product ID or slug is missing.");
+          throw new Error(
+            "Product ID or slug is missing."
+          );
         }
 
         let fullProduct = null;
-        let initialProducts = [];
+
+        /* =================================================
+           FIRST: TRY THE VALUE AS A SLUG
+
+           Backend:
+           GET /api/products/:slug
+        ================================================= */
 
         try {
           const productResponse = await api.get(
@@ -75,11 +168,23 @@ function ProductDetails() {
               null;
           }
         } catch (slugError) {
-          console.warn("Slug product request failed:", slugError);
+          console.warn(
+            "Slug product request failed:",
+            slugError
+          );
         }
 
-        if (!fullProduct && /^\d+$/.test(routeValue)) {
-          const productsResponse = await api.get("/products");
+        /* =================================================
+           SECOND: IF URL VALUE IS NUMERIC,
+           FIND PRODUCT BY ID
+        ================================================= */
+
+        if (
+          !fullProduct &&
+          /^\d+$/.test(routeValue)
+        ) {
+          const productsResponse =
+            await api.get("/products");
 
           if (!productsResponse.data?.success) {
             throw new Error(
@@ -88,194 +193,225 @@ function ProductDetails() {
             );
           }
 
-          initialProducts =
+          const apiProducts =
             productsResponse.data.products ||
             productsResponse.data.data ||
             [];
 
+          if (!cancelled) {
+            setAllProducts(apiProducts);
+          }
+
           fullProduct =
-            initialProducts.find(
+            apiProducts.find(
               (item) =>
-                Number(item.id) === Number(routeValue)
+                Number(item.id) ===
+                Number(routeValue)
             ) || null;
         }
 
+        /* =================================================
+           PRODUCT NOT FOUND
+        ================================================= */
+
         if (!fullProduct) {
-          throw new Error("Product not found.");
+          throw new Error(
+            "Product not found."
+          );
         }
 
         if (cancelled) {
           return;
         }
 
-        const numericProductId = Number(fullProduct.id);
+        const numericProductId =
+          Number(fullProduct.id);
 
         if (
           !Number.isInteger(numericProductId) ||
           numericProductId <= 0
         ) {
-          throw new Error("Invalid product ID.");
-        }
-
-        const directImage =
-          getImageUrl(
-            fullProduct.image ||
-              fullProduct.image_url ||
-              fullProduct.imageUrl
+          throw new Error(
+            "Invalid product ID."
           );
-
-        let initialImages = [];
-
-        if (Array.isArray(fullProduct.images)) {
-          initialImages = fullProduct.images;
         }
 
-        const initialValidImages = initialImages
+        /* =================================================
+           LOAD ALL PRODUCTS
+           Used for related products
+        ================================================= */
+
+        try {
+          const productsResponse =
+            await api.get("/products");
+
+          if (
+            productsResponse.data?.success
+          ) {
+            const apiProducts =
+              productsResponse.data.products ||
+              productsResponse.data.data ||
+              [];
+
+            if (!cancelled) {
+              setAllProducts(apiProducts);
+            }
+          }
+        } catch (productsError) {
+          console.warn(
+            "Related products could not be loaded:",
+            productsError
+          );
+        }
+
+        /* =================================================
+           LOAD IMAGES
+        ================================================= */
+
+        let images = [];
+
+        if (
+          Array.isArray(fullProduct.images)
+        ) {
+          images = fullProduct.images;
+        }
+
+        /*
+         * Fallback to:
+         * GET /api/products/:id/images
+         */
+
+        if (images.length === 0) {
+          try {
+            const imageResponse =
+              await api.get(
+                `/products/${numericProductId}/images`
+              );
+
+            if (
+              imageResponse.data?.success
+            ) {
+              images =
+                imageResponse.data.images ||
+                imageResponse.data.data ||
+                [];
+            }
+          } catch (imageError) {
+            console.warn(
+              "Product images could not be loaded:",
+              imageError
+            );
+          }
+        }
+
+        const validImages = images
           .map(getImageUrl)
           .filter(
             (url) =>
-              url && !url.includes("example.com")
+              url &&
+              !url.includes("example.com")
+          );
+
+        /*
+         * Check direct image field as well.
+         */
+
+        const directImage =
+          getImageUrl(
+            fullProduct.image
           );
 
         if (
           directImage &&
-          !directImage.includes("example.com") &&
-          !initialValidImages.includes(directImage)
+          !directImage.includes(
+            "example.com"
+          ) &&
+          !validImages.includes(
+            directImage
+          )
         ) {
-          initialValidImages.unshift(directImage);
+          validImages.unshift(
+            directImage
+          );
         }
 
-        if (!cancelled && initialValidImages.length > 0) {
-          setProductImages(initialValidImages);
-          setSelectedImage(initialValidImages[0]);
+        if (!cancelled) {
+          setProductImages(
+            validImages
+          );
+
+          setSelectedImage(
+            validImages[0] || ""
+          );
         }
 
-        const imagesPromise =
-          initialValidImages.length > 0
-            ? Promise.resolve(initialValidImages)
-            : api
-                .get(
-                  `/products/${numericProductId}/images`
-                )
-                .then((response) => {
-                  if (!response.data?.success) {
-                    return [];
-                  }
+        /* =================================================
+           LOAD VARIANTS
+        ================================================= */
 
-                  const images =
-                    response.data.images ||
-                    response.data.data ||
-                    [];
+        let productVariants = [];
 
-                  const validImages = images
-                    .map(getImageUrl)
-                    .filter(
-                      (url) =>
-                        url &&
-                        !url.includes("example.com")
-                    );
+        /*
+         * The backend product detail response
+         * already contains variants.
+         */
 
-                  if (
-                    directImage &&
-                    !directImage.includes("example.com") &&
-                    !validImages.includes(directImage)
-                  ) {
-                    validImages.unshift(directImage);
-                  }
+        if (
+          Array.isArray(
+            fullProduct.variants
+          )
+        ) {
+          productVariants =
+            fullProduct.variants;
+        }
 
-                  return validImages;
-                })
-                .catch((imageError) => {
-                  console.warn(
-                    "Product images could not be loaded:",
-                    imageError
-                  );
+        /*
+         * Fallback if variants are not embedded.
+         */
 
-                  return directImage &&
-                    !directImage.includes("example.com")
-                    ? [directImage]
-                    : [];
-                });
-
-        const variantsPromise = Array.isArray(
-          fullProduct.variants
-        )
-          ? Promise.resolve(fullProduct.variants)
-          : api
-              .get(
+        if (
+          productVariants.length === 0
+        ) {
+          try {
+            const variantResponse =
+              await api.get(
                 `/products/${numericProductId}/variants`
-              )
-              .then((response) => {
-                if (!response.data?.success) {
-                  return [];
-                }
+              );
 
-                return (
-                  response.data.variants ||
-                  response.data.data ||
-                  []
-                );
-              })
-              .catch((variantError) => {
-                console.warn(
-                  "Product variants could not be loaded:",
-                  variantError
-                );
-
-                return [];
-              });
-
-        const productsPromise =
-          initialProducts.length > 0
-            ? Promise.resolve(initialProducts)
-            : api
-                .get("/products")
-                .then((response) => {
-                  if (!response.data?.success) {
-                    return [];
-                  }
-
-                  return (
-                    response.data.products ||
-                    response.data.data ||
-                    []
-                  );
-                })
-                .catch((productsError) => {
-                  console.warn(
-                    "Related products could not be loaded:",
-                    productsError
-                  );
-
-                  return [];
-                });
-
-        const [
-          validImages,
-          rawVariants,
-          apiProducts,
-        ] = await Promise.all([
-          imagesPromise,
-          variantsPromise,
-          productsPromise,
-        ]);
-
-        if (cancelled) {
-          return;
+            if (
+              variantResponse.data?.success
+            ) {
+              productVariants =
+                variantResponse.data.variants ||
+                variantResponse.data.data ||
+                [];
+            }
+          } catch (variantError) {
+            console.warn(
+              "Product variants could not be loaded:",
+              variantError
+            );
+          }
         }
 
-        setProductImages(validImages);
+        /*
+         * Only use active variants.
+         */
 
-        if (validImages.length > 0) {
-          setSelectedImage(validImages[0]);
+        productVariants =
+          productVariants.filter(
+            isVariantActive
+          );
+
+        if (!cancelled) {
+          setVariants(
+            productVariants
+          );
         }
 
-        setAllProducts(apiProducts);
-
-        const productVariants = rawVariants
-          .filter(isVariantActive);
-
-        setVariants(productVariants);
+        /* =================================================
+           NORMALIZE PRODUCT
+        ================================================= */
 
         const basePrice = Number(
           fullProduct.base_price ??
@@ -285,9 +421,13 @@ function ProductDetails() {
         );
 
         const salePrice =
-          fullProduct.sale_price !== null &&
-          fullProduct.sale_price !== undefined
-            ? Number(fullProduct.sale_price)
+          fullProduct.sale_price !==
+            null &&
+          fullProduct.sale_price !==
+            undefined
+            ? Number(
+                fullProduct.sale_price
+              )
             : null;
 
         const finalPrice =
@@ -298,54 +438,84 @@ function ProductDetails() {
 
         const normalizedProduct = {
           ...fullProduct,
+
           id: numericProductId,
+
           name:
             fullProduct.name ||
             fullProduct.product_name ||
             "UNTKN Product",
-          slug: fullProduct.slug || "",
+
+          slug:
+            fullProduct.slug || "",
+
           category:
             fullProduct.category_name ||
             fullProduct.category ||
             "",
+
           collection:
             fullProduct.collection_name ||
             fullProduct.collection ||
             "",
+
           description:
             fullProduct.description ||
             "Designed for everyday movement and built with a relaxed streetwear fit. Detailed construction and premium materials make this piece part of the collection.",
+
           price: finalPrice,
+
           base_price: basePrice,
+
           sale_price: salePrice,
+
           images: validImages,
+
           variants: productVariants,
         };
 
-        setProduct(normalizedProduct);
+        if (!cancelled) {
+          setProduct(
+            normalizedProduct
+          );
+        }
 
-        if (productVariants.length > 0) {
+        /* =================================================
+           DEFAULT VARIANT
+        ================================================= */
+
+        if (
+          productVariants.length > 0
+        ) {
           const firstAvailableVariant =
             productVariants.find(
               (variant) =>
-                getVariantStock(variant) > 0
-            ) || productVariants[0];
+                getVariantStock(
+                  variant
+                ) > 0
+            ) ||
+            productVariants[0];
 
-          if (firstAvailableVariant) {
+          if (
+            firstAvailableVariant &&
+            !cancelled
+          ) {
+            const firstSize =
+              getVariantSize(
+                firstAvailableVariant
+              );
+
+            const firstColor =
+              getVariantColor(
+                firstAvailableVariant
+              );
+
             setSelectedSize(
-              String(
-                getVariantSize(
-                  firstAvailableVariant
-                ) || ""
-              )
+              String(firstSize || "")
             );
 
             setSelectedColor(
-              String(
-                getVariantColor(
-                  firstAvailableVariant
-                ) || ""
-              )
+              String(firstColor || "")
             );
 
             setQuantity(1);
@@ -362,7 +532,8 @@ function ProductDetails() {
         );
 
         setError(
-          requestError.response?.data?.message ||
+          requestError.response?.data
+            ?.message ||
             requestError.message ||
             "Unable to load product."
         );
@@ -886,37 +1057,41 @@ const handleBuyNow = async () => {
   }
 
   try {
-    await api.get("/auth/me");
+    const response = await api.get("/auth/me");
 
-    const added =
-      await handleAddToBag();
-
-    if (added) {
-      navigate("/checkout");
-    }
-  } catch (authError) {
-    if (
-      authError.response?.status === 401
-    ) {
+    if (!response.data?.success || !response.data?.user) {
       navigate("/login", {
         state: {
           redirectTo: "/checkout",
+          buyNow: true,
         },
       });
-
       return;
     }
 
-    console.error(
-      "Buy Now authentication check failed:",
-      authError
-    );
+    const added = await handleAddToBag();
+
+    if (added) {
+      navigate("/checkout", { replace: true });
+    }
+  } catch (authError) {
+    console.error("Buy Now authentication check failed:", authError);
+
+    if (authError.response?.status === 401) {
+      navigate("/login", {
+        state: {
+          redirectTo: "/checkout",
+          buyNow: true,
+        },
+      });
+      return;
+    }
 
     setActionNotification({
       type: "error",
       message:
         authError.response?.data?.message ||
-        "Please log in before buying this product.",
+        "Unable to verify your account. Please try again.",
     });
   }
 };
@@ -1035,8 +1210,6 @@ const handleBuyNow = async () => {
                   <img
                     src={bagNotification.image}
                     alt={bagNotification.name}
-                    loading="lazy"
-                    decoding="async"
                     onError={(event) => {
                       event.currentTarget.style.display = "none";
                     }}
@@ -1122,9 +1295,6 @@ const handleBuyNow = async () => {
               <img
                 src={selectedImage}
                 alt={product.name}
-                loading="eager"
-                fetchPriority="high"
-                decoding="async"
                 onError={
                   handleImageError
                 }
@@ -1172,9 +1342,6 @@ const handleBuyNow = async () => {
                       alt={`${product.name} view ${
                         index + 1
                       }`}
-                      loading={index === 0 ? "eager" : "lazy"}
-                      fetchPriority={index === 0 ? "high" : "auto"}
-                      decoding="async"
                       onError={
                         handleImageError
                       }
@@ -1557,15 +1724,15 @@ const handleBuyNow = async () => {
           ================================================= */}
 
           <button
-  type="button"
-  className="buy-now"
-  disabled={cannotAddToCart}
-  onClick={handleBuyNow}
->
-  {addingToCart
-    ? "ADDING..."
-    : "BUY NOW →"}
-</button>
+            type="button"
+            className="buy-now"
+            disabled={cannotAddToCart}
+            onClick={handleBuyNow}
+          >
+            {addingToCart
+              ? "ADDING..."
+              : "BUY NOW →"}
+          </button>
 
           {/* =================================================
               DELIVERY
@@ -1702,8 +1869,6 @@ const handleBuyNow = async () => {
                           alt={
                             item.name
                           }
-                          loading="lazy"
-                          decoding="async"
                           onError={
                             handleImageError
                           }
