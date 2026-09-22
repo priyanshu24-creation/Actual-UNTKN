@@ -35,6 +35,67 @@ const getImageUrl = (image) => {
   );
 };
 
+const getVariantSize = (variant) => {
+  if (!variant) {
+    return "";
+  }
+
+  if (variant.size_name) {
+    return String(variant.size_name);
+  }
+
+  if (typeof variant.size === "object" && variant.size !== null) {
+    return String(
+      variant.size.name ||
+        variant.size.size_name ||
+        variant.size.label ||
+        ""
+    );
+  }
+
+  return String(variant.size || variant.size_label || "");
+};
+
+const getVariantColor = (variant) => {
+  if (!variant) {
+    return "";
+  }
+
+  if (variant.color_name) {
+    return String(variant.color_name);
+  }
+
+  if (typeof variant.color === "object" && variant.color !== null) {
+    return String(
+      variant.color.name ||
+        variant.color.color_name ||
+        variant.color.label ||
+        ""
+    );
+  }
+
+  return String(variant.color || variant.color_label || "");
+};
+
+const getVariantStock = (variant) => {
+  return Number(
+    variant?.stock_quantity ??
+      variant?.stock ??
+      variant?.quantity ??
+      variant?.inventory ??
+      0
+  );
+};
+
+const isVariantActive = (variant) => {
+  return !(
+    variant?.active === false ||
+    variant?.active === 0 ||
+    variant?.is_active === false ||
+    variant?.is_active === 0
+  );
+};
+
 function ProductDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -1039,15 +1100,12 @@ const handleBuyNow = async () => {
         </div>
       )}
 
-      {}
 
       <section className="product-details">
 
-        {}
 
         <div className="product-gallery">
 
-          {}
 
           <div className="main-product-image">
 
@@ -1072,7 +1130,6 @@ const handleBuyNow = async () => {
 
           </div>
 
-          {}
 
           {productImages.length >
             0 && (
@@ -1117,7 +1174,6 @@ const handleBuyNow = async () => {
 
         </div>
 
-        {}
 
         <div className="product-details-info">
 
@@ -1130,7 +1186,6 @@ const handleBuyNow = async () => {
             {product.name}
           </h1>
 
-          {}
 
           <div className="details-price">
 
@@ -1164,7 +1219,6 @@ const handleBuyNow = async () => {
             Inclusive of all taxes
           </p>
 
-          {}
 
           {colors.length > 0 && (
             <div className="size-section">
@@ -1240,7 +1294,6 @@ const handleBuyNow = async () => {
             </div>
           )}
 
-          {}
 
           {sizes.length > 0 && (
             <div className="size-section">
@@ -1340,7 +1393,6 @@ const handleBuyNow = async () => {
             </div>
           )}
 
-          {}
 
           {hasVariants &&
             selectedVariant && (
@@ -1357,7 +1409,6 @@ const handleBuyNow = async () => {
               </p>
             )}
 
-          {}
 
           {hasVariants &&
             !missingSelection &&
@@ -1368,7 +1419,6 @@ const handleBuyNow = async () => {
               </p>
             )}
 
-          {}
 
           <div className="quantity-section">
 
@@ -1420,7 +1470,6 @@ const handleBuyNow = async () => {
 
           </div>
 
-          {}
 
           <div className="product-actions">
 
@@ -1467,7 +1516,6 @@ const handleBuyNow = async () => {
 
           </div>
 
-          {}
 
           <button
             type="button"
@@ -1480,7 +1528,6 @@ const handleBuyNow = async () => {
               : "BUY NOW →"}
           </button>
 
-          {}
 
           <div className="delivery-box">
 
@@ -1530,7 +1577,6 @@ const handleBuyNow = async () => {
 
           </div>
 
-          {}
 
           <div className="product-description">
 
@@ -1548,7 +1594,6 @@ const handleBuyNow = async () => {
 
       </section>
 
-      {}
 
       <ProductReviews
         productId={
@@ -1556,7 +1601,6 @@ const handleBuyNow = async () => {
         }
       />
 
-      {}
 
       {relatedProducts.length >
         0 && (
