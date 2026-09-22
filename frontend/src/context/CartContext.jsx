@@ -9,22 +9,12 @@ import api from "../services/api";
 
 const CartContext = createContext();
 
-/*
-|--------------------------------------------------------------------------
-| CART PROVIDER
-|--------------------------------------------------------------------------
-*/
-
 export function CartProvider({ children }) {
   const [cartItems, setCartItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  /*
-  |--------------------------------------------------------------------------
-  | LOAD CART
-  |--------------------------------------------------------------------------
-  */
+  
 
   const loadCart = async () => {
     try {
@@ -43,26 +33,15 @@ export function CartProvider({ children }) {
       const items =
         response.data?.cart?.items || [];
 
-      /*
-       * Normalize backend cart data
-       */
+      
       const normalizedItems = items.map(
         (item) => ({
-          /*
-           * Product ID
-           */
+          
           id: Number(
             item.product_id
           ),
 
-          /*
-           * IMPORTANT:
-           * This is the exact cart_items.id
-           * from the backend database.
-           *
-           * Backend returns:
-           * ci.id
-           */
+          
           cartItemId: Number(
             item.id ??
               item.cart_item_id ??
@@ -70,16 +49,12 @@ export function CartProvider({ children }) {
               item.item_id
           ),
 
-          /*
-           * Product ID
-           */
+          
           product_id: Number(
             item.product_id
           ),
 
-          /*
-           * Variant ID
-           */
+          
           variant_id:
             item.variant_id !== null &&
             item.variant_id !== undefined
@@ -88,9 +63,7 @@ export function CartProvider({ children }) {
                 )
               : null,
 
-          /*
-           * Product information
-           */
+          
           name:
             item.product_name ||
             "UNTKN Product",
@@ -103,9 +76,7 @@ export function CartProvider({ children }) {
             item.product_slug ||
             "",
 
-          /*
-           * Image
-           */
+          
           image:
             item.image_url ||
             "",
@@ -114,9 +85,7 @@ export function CartProvider({ children }) {
             item.image_url ||
             "",
 
-          /*
-           * Variant information
-           */
+          
           sku:
             item.sku ||
             "",
@@ -133,16 +102,12 @@ export function CartProvider({ children }) {
             item.hex_code ||
             "",
 
-          /*
-           * Quantity
-           */
+          
           quantity: Number(
             item.quantity || 1
           ),
 
-          /*
-           * Price
-           */
+          
           price: Number(
             item.unit_price || 0
           ),
@@ -155,9 +120,7 @@ export function CartProvider({ children }) {
             item.total_price || 0
           ),
 
-          /*
-           * Stock
-           */
+          
           stock_quantity:
             item.stock_quantity !== null &&
             item.stock_quantity !== undefined
@@ -166,9 +129,7 @@ export function CartProvider({ children }) {
                 )
               : null,
 
-          /*
-           * Currency
-           */
+          
           currency:
             item.currency ||
             "INR",
@@ -179,48 +140,33 @@ export function CartProvider({ children }) {
         normalizedItems
       );
     } catch (requestError) {
-      console.error(
-        "Failed to load cart:",
-        requestError
-      );
-
-      /*
-       * If user is not logged in,
-       * keep cart empty.
-       */
-      if (
-        requestError.response?.status ===
-        401
-      ) {
+      if (requestError.response?.status === 401) {
         setCartItems([]);
-      } else {
-        setError(
-          requestError.response?.data
-            ?.message ||
-            requestError.message ||
-            "Unable to load cart."
-        );
+        setError("");
+        return;
       }
+
+      console.error("Failed to load cart:", requestError);
+
+      setCartItems([]);
+
+      setError(
+        requestError.response?.data?.message ||
+          requestError.message ||
+          "Unable to load cart."
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  /*
-  |--------------------------------------------------------------------------
-  | INITIAL LOAD
-  |--------------------------------------------------------------------------
-  */
+  
 
   useEffect(() => {
     loadCart();
   }, []);
 
-  /*
-  |--------------------------------------------------------------------------
-  | ADD TO CART
-  |--------------------------------------------------------------------------
-  */
+  
 
   const addToCart = async (
     product,
@@ -231,9 +177,7 @@ export function CartProvider({ children }) {
     try {
       setError("");
 
-      /*
-       * Get product ID
-       */
+      
       const productId = Number(
         product?.id ??
           product?.product_id
@@ -250,9 +194,7 @@ export function CartProvider({ children }) {
         );
       }
 
-      /*
-       * Validate quantity
-       */
+      
       const requestedQuantity =
         Number(quantity);
 
@@ -267,17 +209,11 @@ export function CartProvider({ children }) {
         );
       }
 
-      /*
-       * Resolve variant ID
-       */
+      
       let resolvedVariantId =
         variantId;
 
-      /*
-       * If ProductDetails did not
-       * provide variant ID, find it
-       * using the selected size.
-       */
+      
       if (
         resolvedVariantId === null ||
         resolvedVariantId === undefined
@@ -292,18 +228,16 @@ export function CartProvider({ children }) {
             product.variants.find(
               (variant) => {
                 const variantSize =
-                  variant.size_name ||
-                  variant.size ||
-                  variant.size_label ||
-                  variant?.size?.name;
+                  variant?.size_name ||
+                  (typeof variant?.size === "object"
+                    ? variant?.size?.name
+                    : variant?.size) ||
+                  variant?.size_label ||
+                  "";
 
                 return (
-                  String(
-                    variantSize || ""
-                  ).toLowerCase() ===
-                  String(
-                    size || ""
-                  ).toLowerCase()
+                  String(variantSize).toLowerCase() ===
+                  String(size || "").toLowerCase()
                 );
               }
             );
@@ -319,9 +253,7 @@ export function CartProvider({ children }) {
         }
       }
 
-      /*
-       * Send product to backend
-       */
+      
       const response =
         await api.post(
           "/cart/items",
@@ -353,9 +285,7 @@ export function CartProvider({ children }) {
         );
       }
 
-      /*
-       * Reload latest cart
-       */
+      
       await loadCart();
 
       return {
@@ -382,20 +312,14 @@ export function CartProvider({ children }) {
     }
   };
 
-  /*
-  |--------------------------------------------------------------------------
-  | FIND CART ITEM
-  |--------------------------------------------------------------------------
-  */
+  
 
   const findCartItem = (
     productId,
     size = "",
     variantId = null
   ) => {
-    /*
-     * First try exact variant match.
-     */
+    
     if (
       variantId !== null &&
       variantId !== undefined
@@ -422,9 +346,7 @@ export function CartProvider({ children }) {
       }
     }
 
-    /*
-     * Fallback to product + size.
-     */
+    
     return cartItems.find(
       (item) =>
         Number(
@@ -442,11 +364,7 @@ export function CartProvider({ children }) {
     );
   };
 
-  /*
-  |--------------------------------------------------------------------------
-  | UPDATE QUANTITY
-  |--------------------------------------------------------------------------
-  */
+  
 
   const updateQuantity = async (
     id,
@@ -461,9 +379,7 @@ export function CartProvider({ children }) {
       const newQuantity =
         Number(quantity);
 
-      /*
-       * Validate quantity
-       */
+      
       if (
         !Number.isInteger(
           newQuantity
@@ -474,17 +390,11 @@ export function CartProvider({ children }) {
         );
       }
 
-      /*
-       * Use the exact backend
-       * cart item ID if provided.
-       */
+      
       let actualCartItemId =
         cartItemId;
 
-      /*
-       * If no cart item ID was provided,
-       * find it from current cart.
-       */
+      
       if (!actualCartItemId) {
         const matchingItem =
           findCartItem(
@@ -497,9 +407,7 @@ export function CartProvider({ children }) {
           matchingItem?.cartItemId;
       }
 
-      /*
-       * Validate cart item ID
-       */
+      
       actualCartItemId =
         Number(
           actualCartItemId
@@ -516,10 +424,7 @@ export function CartProvider({ children }) {
         );
       }
 
-      /*
-       * Quantity below 1
-       * means remove item.
-       */
+      
       if (
         newQuantity < 1
       ) {
@@ -533,9 +438,7 @@ export function CartProvider({ children }) {
         return;
       }
 
-      /*
-       * Update backend
-       */
+      
       const response =
         await api.put(
           `/cart/items/${actualCartItemId}`,
@@ -554,9 +457,7 @@ export function CartProvider({ children }) {
         );
       }
 
-      /*
-       * Reload latest cart
-       */
+      
       await loadCart();
     } catch (requestError) {
       console.error(
@@ -578,11 +479,7 @@ export function CartProvider({ children }) {
     }
   };
 
-  /*
-  |--------------------------------------------------------------------------
-  | REMOVE FROM CART
-  |--------------------------------------------------------------------------
-  */
+  
 
   const removeFromCart = async (
     id,
@@ -593,17 +490,11 @@ export function CartProvider({ children }) {
     try {
       setError("");
 
-      /*
-       * Use the exact backend
-       * cart item ID first.
-       */
+      
       let actualCartItemId =
         cartItemId;
 
-      /*
-       * Fallback:
-       * Find the cart item locally.
-       */
+      
       if (!actualCartItemId) {
         const matchingItem =
           findCartItem(
@@ -616,17 +507,13 @@ export function CartProvider({ children }) {
           matchingItem?.cartItemId;
       }
 
-      /*
-       * Convert to number
-       */
+      
       actualCartItemId =
         Number(
           actualCartItemId
         );
 
-      /*
-       * Validate ID
-       */
+      
       if (
         !actualCartItemId ||
         !Number.isInteger(
@@ -638,17 +525,9 @@ export function CartProvider({ children }) {
         );
       }
 
-      /*
-       * Debug information
-       */
-      console.log(
-        "Removing cart item:",
-        actualCartItemId
-      );
+      
 
-      /*
-       * Delete from backend
-       */
+      
       const response =
         await api.delete(
           `/cart/items/${actualCartItemId}`
@@ -663,9 +542,7 @@ export function CartProvider({ children }) {
         );
       }
 
-      /*
-       * Reload cart from database
-       */
+      
       await loadCart();
     } catch (requestError) {
       console.error(
@@ -687,11 +564,7 @@ export function CartProvider({ children }) {
     }
   };
 
-  /*
-  |--------------------------------------------------------------------------
-  | CLEAR CART
-  |--------------------------------------------------------------------------
-  */
+  
 
   const clearCart = async () => {
     try {
@@ -711,9 +584,7 @@ export function CartProvider({ children }) {
         );
       }
 
-      /*
-       * Immediately clear frontend state.
-       */
+      
       setCartItems([]);
     } catch (requestError) {
       console.error(
@@ -735,11 +606,7 @@ export function CartProvider({ children }) {
     }
   };
 
-  /*
-  |--------------------------------------------------------------------------
-  | TOTAL ITEMS
-  |--------------------------------------------------------------------------
-  */
+  
 
   const totalItems =
     cartItems.reduce(
@@ -751,11 +618,7 @@ export function CartProvider({ children }) {
       0
     );
 
-  /*
-  |--------------------------------------------------------------------------
-  | SUBTOTAL
-  |--------------------------------------------------------------------------
-  */
+  
 
   const subtotal =
     cartItems.reduce(
@@ -780,11 +643,7 @@ export function CartProvider({ children }) {
       0
     );
 
-  /*
-  |--------------------------------------------------------------------------
-  | PROVIDER
-  |--------------------------------------------------------------------------
-  */
+  
 
   return (
     <CartContext.Provider
@@ -815,12 +674,6 @@ export function CartProvider({ children }) {
     </CartContext.Provider>
   );
 }
-
-/*
-|--------------------------------------------------------------------------
-| USE CART
-|--------------------------------------------------------------------------
-*/
 
 export function useCart() {
   const context =
