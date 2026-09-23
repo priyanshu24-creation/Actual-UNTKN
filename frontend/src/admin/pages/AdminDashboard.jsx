@@ -82,7 +82,7 @@ function AdminDashboard() {
    * if a particular value is missing.
    */
 
-  const statsData = dashboard?.stats || {};
+  const statsData = dashboard?.statistics || {};
 
   const stats = [
     {
@@ -342,103 +342,54 @@ function AdminDashboard() {
           <div className="admin-chart">
 
             <div className="admin-chart-y-axis">
-
               <span>₹50K</span>
               <span>₹40K</span>
               <span>₹30K</span>
               <span>₹20K</span>
               <span>₹10K</span>
               <span>₹0</span>
-
             </div>
-
 
             <div className="admin-chart-area">
 
               <div className="admin-chart-lines">
-
-                <span />
-                <span />
-                <span />
-                <span />
-                <span />
-                <span />
-
+                {/* Horizontal guideline lines */}
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <span key={i} />
+                ))}
               </div>
-
 
               <div className="admin-chart-bars">
-
-                <div
-                  className="admin-chart-bar"
-                  style={{ height: "38%" }}
-                />
-
-                <div
-                  className="admin-chart-bar"
-                  style={{ height: "52%" }}
-                />
-
-                <div
-                  className="admin-chart-bar"
-                  style={{ height: "44%" }}
-                />
-
-                <div
-                  className="admin-chart-bar"
-                  style={{ height: "68%" }}
-                />
-
-                <div
-                  className="admin-chart-bar"
-                  style={{ height: "57%" }}
-                />
-
-                <div
-                  className="admin-chart-bar"
-                  style={{ height: "78%" }}
-                />
-
-                <div
-                  className="admin-chart-bar"
-                  style={{ height: "64%" }}
-                />
-
-                <div
-                  className="admin-chart-bar"
-                  style={{ height: "88%" }}
-                />
-
-                <div
-                  className="admin-chart-bar"
-                  style={{ height: "73%" }}
-                />
-
-                <div
-                  className="admin-chart-bar"
-                  style={{ height: "95%" }}
-                />
-
-                <div
-                  className="admin-chart-bar"
-                  style={{ height: "82%" }}
-                />
-
-                <div
-                  className="admin-chart-bar"
-                  style={{ height: "100%" }}
-                />
-
+                {(() => {
+                  const sales = dashboard?.sales_overview || [];
+                  if (sales.length === 0) return null;
+                  const maxTotal = Math.max(...sales.map((s) => s.total), 0);
+                  return sales.map((s) => {
+                    const height = maxTotal ? (s.total / maxTotal) * 100 : 0;
+                    return (
+                      <div
+                        key={s.date}
+                        className="admin-chart-bar"
+                        title={`${formatDate(s.date)}: ${formatCurrency(s.total)}`}
+                        style={{ height: `${height}%` }}
+                      />
+                    );
+                  });
+                })()}
               </div>
 
-
               <div className="admin-chart-x-axis">
-
-                <span>W1</span>
-                <span>W2</span>
-                <span>W3</span>
-                <span>W4</span>
-
+                {(() => {
+                  const sales = dashboard?.sales_overview || [];
+                  return sales.map((s) => (
+                    <span key={s.date}>
+                      {new Date(s.date).toLocaleDateString('en-IN', {
+                        day: 'numeric',
+                        month: 'short',
+                      })}
+                    </span>
+                  ));
+                })()}
               </div>
 
             </div>

@@ -9,7 +9,8 @@ export const getAdminDashboard = async (req, res) => {
             [paidOrderRows],
             [revenueRows],
             [pendingOrderRows],
-            [lowStockRows]
+            [lowStockRows],
+            [salesOverviewRows]
         ] = await Promise.all([
             pool.execute(`
                 SELECT COUNT(*) AS total
@@ -48,8 +49,18 @@ export const getAdminDashboard = async (req, res) => {
             pool.execute(`
                 SELECT COUNT(*) AS total
                 FROM product_variants
-                WHERE stock_quantity <= 5
+                WHERE stock_quantity < 2
                 AND active = 1
+            `),
+
+            // Sales overview for the last 30 days, grouped by day
+            pool.execute(`
+                SELECT DATE(created_at) AS date, COALESCE(SUM(total_amount), 0) AS total
+                FROM orders
+                WHERE payment_status = 'paid'
+                  AND created_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+                GROUP BY DATE(created_at)
+                ORDER BY DATE(created_at) ASC
             `)
         ]);
 
@@ -121,7 +132,7 @@ export const getAdminDashboard = async (req, res) => {
                 ON pv.size_id = s.id
             LEFT JOIN colors c
                 ON pv.color_id = c.id
-            WHERE pv.stock_quantity <= 5
+            WHERE pv.stock_quantity < 2
             AND pv.active = 1
             ORDER BY pv.stock_quantity ASC, pv.id ASC
             LIMIT 10
@@ -171,6 +182,10 @@ export const getAdminDashboard = async (req, res) => {
                         : "Blocked"
             })),
 
+            sales_overview: salesOverviewRows.map(row => ({
+                date: row.date,
+                total: Number(row.total || 0)
+            })),
             low_stock_products: lowStockProducts.map(
                 (product) => ({
                     ...product,
