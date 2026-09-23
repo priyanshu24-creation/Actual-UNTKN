@@ -1,273 +1,288 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { ArrowUpRight, ArrowRight } from "lucide-react";
 
 import heroImage from "../assets/images/hero.jpg";
+import api from "../services/api";
+import "./Lookbook.css";
 
 function Lookbook() {
-  const [looks, setLooks] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+    const [looks, setLooks] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
 
-  useEffect(() => {
-    const fetchLookbook = async () => {
-      try {
-        setLoading(true);
-        setError("");
+    useEffect(() => {
+        let cancelled = false;
 
-        const response = await fetch(
-          "/api/lookbook/active"
-        );
+        const fetchLookbook = async () => {
+            try {
+                setLoading(true);
+                setError("");
 
-        const data = await response.json();
+                const response = await api.get("/lookbook/active");
+                const data = response?.data;
 
-        if (!response.ok || !data.success) {
-          throw new Error(
-            data.message ||
-              "Failed to load Lookbook"
-          );
-        }
+                if (!data?.success) {
+                    throw new Error(data?.message || "Failed to load Lookbook");
+                }
 
-        const apiLooks = Array.isArray(
-          data.looks
-        )
-          ? data.looks
-          : [];
+                const apiLooks = Array.isArray(data.looks) ? data.looks : [];
 
-        const formattedLooks =
-          apiLooks.map((look, index) => ({
-            id: look.id,
-            number: String(
-              index + 1
-            ).padStart(2, "0"),
-            title:
-              look.title ||
-              "LOOKBOOK",
-            subtitle:
-              look.subtitle || "",
-            description:
-              look.description || "",
-            image:
-              look.image_url ||
-              look.image ||
-              heroImage,
-            link:
-              look.link_url ||
-              "/shop",
-            size:
-              index === 0 ||
-              index === 3
-                ? "look-large"
-                : "look-small",
-          }));
+                const formattedLooks = apiLooks.map((look, index) => ({
+                    id: look.id,
+                    number: String(index + 1).padStart(2, "0"),
+                    title: look.title || "UNTKN LOOK",
+                    subtitle: look.subtitle || "",
+                    description: look.description || "",
+                    image: look.image_url || look.image || heroImage,
+                    link: look.link_url || "/shop",
+                }));
 
-        setLooks(formattedLooks);
-      } catch (err) {
-        console.error(
-          "Lookbook fetch error:",
-          err
-        );
+                if (!cancelled) {
+                    setLooks(formattedLooks);
+                }
+            } catch (err) {
+                console.error("Lookbook fetch error:", err);
+                if (!cancelled) {
+                    setLooks([]);
+                    setError(
+                        err?.response?.data?.message ||
+                        err?.message ||
+                        "Unable to load the visual archive. Please check back shortly."
+                    );
+                }
+            } finally {
+                if (!cancelled) {
+                    setLoading(false);
+                }
+            }
+        };
 
-        setError(
-          "Unable to load the latest Lookbook."
-        );
+        fetchLookbook();
 
-        setLooks([]);
-      } finally {
-        setLoading(false);
-      }
-    };
+        return () => {
+            cancelled = true;
+        };
+    }, []);
 
-    fetchLookbook();
-  }, []);
+    // -------------------------------------------------------------
+    // LOADING SKELETON STATE
+    // -------------------------------------------------------------
+    if (loading) {
+        return (
+            <div className="untkn-lookbook-page">
+                <div className="untkn-lookbook-container">
+                    <header className="lb-masthead">
+                        <div className="lb-masthead-meta">
+                            <span>UNTKN // ARCHIVE</span>
+                            <span>VOL. 01 / 2026</span>
+                        </div>
+                        <div className="lb-masthead-title-row">
+                            <h1 className="lb-main-title">LOOKBOOK</h1>
+                            <p className="lb-main-desc">
+                                Loading latest visual editorial...
+                            </p>
+                        </div>
+                    </header>
 
-  if (loading) {
-    return (
-      <div className="lookbook-page">
-        <section className="lookbook-header">
-          <div>
-            <p className="eyebrow">
-              VISUAL JOURNAL
-            </p>
-
-            <h1>LOOKBOOK</h1>
-          </div>
-
-          <p>
-            A visual exploration of the latest
-            collection, textures, graphics and
-            silhouettes.
-          </p>
-        </section>
-
-        <section
-          className="lookbook-grid"
-          style={{
-            minHeight: "300px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <p>Loading Lookbook...</p>
-        </section>
-      </div>
-    );
-  }
-
-  return (
-    <div className="lookbook-page">
-      <section className="lookbook-header">
-        <div>
-          <p className="eyebrow">
-            VISUAL JOURNAL
-          </p>
-
-          <h1>LOOKBOOK</h1>
-        </div>
-
-        <p>
-          A visual exploration of the latest
-          collection, textures, graphics and
-          silhouettes.
-        </p>
-      </section>
-
-      {error && (
-        <div
-          style={{
-            padding: "12px 20px",
-            marginBottom: "20px",
-            textAlign: "center",
-            fontSize: "13px",
-          }}
-        >
-          {error}
-        </div>
-      )}
-
-      {looks.length > 0 && (
-        <>
-          <section className="lookbook-intro">
-            <span>
-              {looks[0].subtitle ||
-                "CAMPAIGN 01"}
-            </span>
-
-            <h2>
-              {looks[0].title}
-            </h2>
-
-            <p>
-              {looks[0].description ||
-                "Movement. Texture. Repetition."}
-            </p>
-          </section>
-
-          <section className="lookbook-grid">
-            {looks.map(
-              (look, index) => (
-                <article
-                  className={`look-card ${
-                    look.size
-                  }`}
-                  key={look.id}
-                >
-                  <div className="look-image">
-                    <img
-                      src={look.image}
-                      alt={look.title}
-                      loading={
-                        index === 0
-                          ? "eager"
-                          : "lazy"
-                      }
-                      onError={(event) => {
-                        event.currentTarget.src =
-                          heroImage;
-                      }}
-                    />
-
-                    <span>
-                      {look.number}
-                    </span>
-                  </div>
-
-                  <div className="look-info">
-                    <div>
-                      <p className="look-number">
-                        {look.number}
-                      </p>
-
-                      <h3>
-                        {look.title}
-                      </h3>
-
-                      {look.subtitle && (
-                        <p>
-                          {look.subtitle}
-                        </p>
-                      )}
-
-                      {look.description && (
-                        <p>
-                          {
-                            look.description
-                          }
-                        </p>
-                      )}
+                    <div className="lb-hero-section">
+                        <div className="lb-hero-card">
+                            <div className="lb-skeleton-hero" />
+                        </div>
                     </div>
+                </div>
+            </div>
+        );
+    }
 
-                    <Link
-                      to={
-                        look.link ||
-                        "/shop"
-                      }
-                    >
-                      SHOP LOOK →
+    // -------------------------------------------------------------
+    // ERROR STATE
+    // -------------------------------------------------------------
+    if (error) {
+        return (
+            <div className="untkn-lookbook-page">
+                <div className="untkn-lookbook-container">
+                    <header className="lb-masthead">
+                        <div className="lb-masthead-meta">
+                            <span>UNTKN // ARCHIVE</span>
+                            <span>VOL. 01 / 2026</span>
+                        </div>
+                        <div className="lb-masthead-title-row">
+                            <h1 className="lb-main-title">LOOKBOOK</h1>
+                        </div>
+                    </header>
+
+                    <div className="lb-state-wrap">
+                        <p className="lb-state-tag">SYSTEM NOTICE</p>
+                        <h2 className="lb-state-title">THE ARCHIVE IS TEMPORARILY OFFLINE</h2>
+                        <p className="lb-state-desc">{error}</p>
+                        <Link to="/shop" className="lb-button-primary">
+                            BROWSE COLLECTION <ArrowRight size={14} />
+                        </Link>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // -------------------------------------------------------------
+    // EMPTY STATE
+    // -------------------------------------------------------------
+    if (looks.length === 0) {
+        return (
+            <div className="untkn-lookbook-page">
+                <div className="untkn-lookbook-container">
+                    <header className="lb-masthead">
+                        <div className="lb-masthead-meta">
+                            <span>UNTKN // ARCHIVE</span>
+                            <span>VOL. 01 / 2026</span>
+                        </div>
+                        <div className="lb-masthead-title-row">
+                            <h1 className="lb-main-title">LOOKBOOK</h1>
+                        </div>
+                    </header>
+
+                    <div className="lb-state-wrap">
+                        <p className="lb-state-tag">EDITORIAL ARCHIVE</p>
+                        <h2 className="lb-state-title">NO CURRENT EDITORIAL</h2>
+                        <p className="lb-state-desc">
+                            The creative direction for the upcoming issue is currently underway. Stay tuned for the next drop.
+                        </p>
+                        <Link to="/shop" className="lb-button-primary">
+                            EXPLORE SHOP <ArrowRight size={14} />
+                        </Link>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    const featuredLook = looks[0];
+    const secondaryLooks = looks.slice(1);
+
+    return (
+        <div className="untkn-lookbook-page">
+            <div className="untkn-lookbook-container">
+                {/* Editorial Masthead */}
+                <header className="lb-masthead">
+                    <div className="lb-masthead-meta">
+                        <span>UNTKN // VISUAL ARCHIVE</span>
+                        <span>VOL. 01 &bull; EDITION 2026</span>
+                    </div>
+                    <div className="lb-masthead-title-row">
+                        <h1 className="lb-main-title">LOOKBOOK</h1>
+                        <p className="lb-main-desc">
+                            Curated silhouettes, textures and graphic studies from the UNTKN universe.
+                        </p>
+                    </div>
+                </header>
+
+                {/* Primary / Hero Feature Look */}
+                <section className="lb-hero-section">
+                    <article className="lb-hero-card">
+                        <div className="lb-hero-image-wrap">
+                            <span className="lb-badge">LOOK {featuredLook.number} // ARCHIVE</span>
+                            <img
+                                src={featuredLook.image}
+                                alt={featuredLook.title || "UNTKN Lookbook"}
+                                loading="eager"
+                                onError={(e) => {
+                                    if (e.currentTarget.src !== heroImage) {
+                                        e.currentTarget.src = heroImage;
+                                    }
+                                }}
+                            />
+                        </div>
+
+                        <div className="lb-hero-content">
+                            <div className="lb-hero-text">
+                                <span className="lb-tag">FEATURED EDITORIAL</span>
+                                <h2 className="lb-hero-title">{featuredLook.title}</h2>
+                                {featuredLook.subtitle && (
+                                    <p className="lb-hero-subtitle">{featuredLook.subtitle}</p>
+                                )}
+                                {featuredLook.description && (
+                                    <p
+                                        className="lb-hero-desc"
+                                        style={{ whiteSpace: "pre-line" }}
+                                    >
+                                        {featuredLook.description}
+                                    </p>
+                                )}
+                            </div>
+
+                            <div className="lb-hero-action">
+                                <Link
+                                    to={featuredLook.link}
+                                    className="lb-button-primary"
+                                >
+                                    SHOP THIS LOOK <ArrowUpRight size={14} />
+                                </Link>
+                            </div>
+                        </div>
+                    </article>
+                </section>
+
+                {/* Secondary Looks Grid (if more than 1 look) */}
+                {secondaryLooks.length > 0 && (
+                    <section className="lb-secondary-section">
+                        <div className="lb-section-header">
+                            <h3 className="lb-section-title">EDITORIAL SELECTIONS</h3>
+                            <span className="lb-section-count">
+                                {secondaryLooks.length} LOOK{secondaryLooks.length > 1 ? "S" : ""}
+                            </span>
+                        </div>
+
+                        <div className="lb-cards-grid">
+                            {secondaryLooks.map((look) => (
+                                <article className="lb-card" key={look.id}>
+                                    <div className="lb-card-image-wrap">
+                                        <span className="lb-badge">LOOK {look.number}</span>
+                                        <img
+                                            src={look.image}
+                                            alt={look.title || "UNTKN Look"}
+                                            loading="lazy"
+                                            onError={(e) => {
+                                                if (e.currentTarget.src !== heroImage) {
+                                                    e.currentTarget.src = heroImage;
+                                                }
+                                            }}
+                                        />
+                                    </div>
+
+                                    <div className="lb-card-content">
+                                        <div>
+                                            <h4 className="lb-card-title">{look.title}</h4>
+                                            {look.subtitle && (
+                                                <p className="lb-card-subtitle">{look.subtitle}</p>
+                                            )}
+                                        </div>
+
+                                        <Link to={look.link} className="lb-card-link">
+                                            SHOP LOOK <ArrowUpRight size={12} />
+                                        </Link>
+                                    </div>
+                                </article>
+                            ))}
+                        </div>
+                    </section>
+                )}
+
+                {/* Editorial Footer */}
+                <section className="lb-footer-section">
+                    <p className="lb-footer-eyebrow">THE NEXT CHAPTER</p>
+                    <h2 className="lb-footer-title">
+                        WEAR IT
+                        <br />
+                        YOUR WAY.
+                    </h2>
+                    <Link to="/shop" className="lb-footer-btn">
+                        EXPLORE THE COLLECTION <ArrowRight size={14} />
                     </Link>
-                  </div>
-                </article>
-              )
-            )}
-          </section>
-        </>
-      )}
-
-      {looks.length === 0 && (
-        <section
-          style={{
-            padding: "80px 20px",
-            textAlign: "center",
-          }}
-        >
-          <h2>
-            No Lookbook items available
-          </h2>
-
-          <p>
-            Check back soon for the latest
-            collection.
-          </p>
-        </section>
-      )}
-
-      <section className="lookbook-footer">
-        <p className="eyebrow">
-          THE COLLECTION
-        </p>
-
-        <h2>
-          WEAR IT
-          <br />
-          YOUR WAY.
-        </h2>
-
-        <Link to="/shop">
-          SHOP COLLECTION →
-        </Link>
-      </section>
-    </div>
-  );
+                </section>
+            </div>
+        </div>
+    );
 }
 
 export default Lookbook;
