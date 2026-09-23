@@ -302,7 +302,7 @@ export const createOrder = async (req, res) => {
                     ?, ?, ?, ?, ?, ?, ?,
                     'pending',
                     'pending',
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?
                 )
                 `,
                 [
@@ -1075,9 +1075,16 @@ export const updateAdminOrderStatus =
                     req.params.id
                 );
 
-            const {
-                order_status
-            } = req.body;
+            const requestedStatus =
+                req.body?.status ??
+                req.body?.order_status;
+
+            const orderStatus =
+                typeof requestedStatus === "string"
+                    ? requestedStatus
+                        .trim()
+                        .toLowerCase()
+                    : "";
 
             if (
                 !Number.isInteger(orderId) ||
@@ -1100,10 +1107,8 @@ export const updateAdminOrderStatus =
             ];
 
             if (
-                typeof order_status !==
-                    "string" ||
                 !allowedStatuses.includes(
-                    order_status
+                    orderStatus
                 )
             ) {
                 return res.status(400).json({
@@ -1146,19 +1151,28 @@ export const updateAdminOrderStatus =
 
             if (
                 order.order_status ===
-                order_status
+                orderStatus
             ) {
-                return res.status(400).json({
-                    success: false,
+                return res.status(200).json({
+                    success: true,
                     message:
-                        `Order is already ${order_status}`
+                        "Order status is already " +
+                        orderStatus,
+
+                    order: {
+                        id: order.id,
+                        payment_status:
+                            order.payment_status,
+                        order_status:
+                            order.order_status
+                    }
                 });
             }
 
             if (
                 order.payment_status ===
                     "paid" &&
-                order_status ===
+                orderStatus ===
                     "pending"
             ) {
                 return res.status(400).json({
@@ -1172,9 +1186,9 @@ export const updateAdminOrderStatus =
                 order.payment_status !==
                     "paid" &&
                 (
-                    order_status ===
+                    orderStatus ===
                         "shipped" ||
-                    order_status ===
+                    orderStatus ===
                         "delivered"
                 )
             ) {
@@ -1194,7 +1208,7 @@ export const updateAdminOrderStatus =
                 WHERE id = ?
                 `,
                 [
-                    order_status,
+                    orderStatus,
                     orderId
                 ]
             );
