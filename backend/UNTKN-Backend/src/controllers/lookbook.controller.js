@@ -2,6 +2,8 @@ import pool from "../config/database.js";
 import cloudinary from "../config/cloudinary.js";
 import { Readable } from "stream";
 
+let lookbookColumnsCache = null;
+
 const parseBoolean = (value, fallback = true) => {
     if (value === undefined || value === null || value === "") {
         return fallback;
@@ -28,6 +30,26 @@ const parseBoolean = (value, fallback = true) => {
     return fallback;
 };
 
+const getLookbookColumns = async () => {
+    if (lookbookColumnsCache) {
+        return lookbookColumnsCache;
+    }
+
+    const [rows] = await pool.execute("SHOW COLUMNS FROM lookbook");
+
+    lookbookColumnsCache = rows.map((row) => row.Field);
+
+    return lookbookColumnsCache;
+};
+
+const hasColumn = (columns, column) => {
+    return columns.includes(column);
+};
+
+const resetLookbookColumnsCache = () => {
+    lookbookColumnsCache = null;
+};
+
 const uploadToCloudinary = (buffer) => {
     return new Promise((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
@@ -38,53 +60,61 @@ const uploadToCloudinary = (buffer) => {
             (error, result) => {
                 if (error) {
                     reject(error);
-                } else {
-                    resolve(result);
+                    return;
                 }
+
+                resolve(result);
             }
         );
 
-        Readable
-            .from(buffer)
-            .pipe(stream);
+        Readable.from(buffer).pipe(stream);
     });
 };
 
 const formatLookbookItem = (look) => ({
     id: look.id,
-    title: look.title,
-    subtitle: look.subtitle,
-    description: look.description,
-    image: look.image_url,
-    image_url: look.image_url,
-    link_url: look.link_url,
-    displayOrder: Number(look.display_order),
-    display_order: Number(look.display_order),
-    isActive: Boolean(look.is_active),
-    is_active: Boolean(look.is_active),
-    created_at: look.created_at,
-    updated_at: look.updated_at
+    title: look.title || "",
+    subtitle: look.subtitle || "",
+    description: look.description || "",
+    image: look.image_url || "",
+    image_url: look.image_url || "",
+    link_url: look.link_url || "",
+    displayOrder: Number(look.display_order ?? 1),
+    display_order: Number(look.display_order ?? 1),
+    isActive: Boolean(Number(look.is_active ?? 1)),
+    is_active: Boolean(Number(look.is_active ?? 1)),
+    created_at: look.created_at || null,
+    updated_at: look.updated_at || null
 });
+
+const getAllLookbookRows = async (onlyActive = false) => {
+    const columns = await getLookbookColumns();
+
+    if (!hasColumn(columns, "id")) {
+        throw new Error("The lookbook table is missing the id column");
+    }
+
+    const orderColumn = hasColumn(columns, "display_order")
+        ? "display_order"
+        : "id";
+
+    let sql = "SELECT * FROM lookbook";
+    const params = [];
+
+    if (onlyActive && hasColumn(columns, "is_active")) {
+        sql += " WHERE is_active = 1";
+    }
+
+    sql += ` ORDER BY ${orderColumn} ASC, id ASC`;
+
+    const [rows] = await pool.execute(sql, params);
+
+    return rows;
+};
 
 export const getLookbookItems = async (req, res) => {
     try {
-        const [looks] = await pool.execute(
-            `
-            SELECT
-                id,
-                title,
-                subtitle,
-                description,
-                image_url,
-                link_url,
-                display_order,
-                is_active,
-                created_at,
-                updated_at
-            FROM lookbook
-            ORDER BY display_order ASC, id ASC
-            `
-        );
+        const looks = await getAllLookbookRows(false);
 
         return res.status(200).json({
             success: true,
@@ -97,31 +127,15 @@ export const getLookbookItems = async (req, res) => {
 
         return res.status(500).json({
             success: false,
-            message: "Failed to fetch lookbook items"
+            message: "Failed to fetch lookbook items",
+            error: error.message
         });
     }
 };
 
 export const getActiveLookbookItems = async (req, res) => {
     try {
-        const [looks] = await pool.execute(
-            `
-            SELECT
-                id,
-                title,
-                subtitle,
-                description,
-                image_url,
-                link_url,
-                display_order,
-                is_active,
-                created_at,
-                updated_at
-            FROM lookbook
-            WHERE is_active = 1
-            ORDER BY display_order ASC, id ASC
-            `
-        );
+        const looks = await getAllLookbookRows(true);
 
         return res.status(200).json({
             success: true,
@@ -134,7 +148,8 @@ export const getActiveLookbookItems = async (req, res) => {
 
         return res.status(500).json({
             success: false,
-            message: "Failed to fetch active lookbook items"
+            message: "Failed to fetch active lookbook items",
+            error: error.message
         });
     }
 };
@@ -150,22 +165,14 @@ export const getLookbookItem = async (req, res) => {
             });
         }
 
+        const columns = await getLookbookColumns();
+
+        if (!hasColumn(columns, "id")) {
+            throw new Error("The lookbook table is missing the id column");
+        }
+
         const [looks] = await pool.execute(
-            `
-            SELECT
-                id,
-                title,
-                subtitle,
-                description,
-                image_url,
-                link_url,
-                display_order,
-                is_active,
-                created_at,
-                updated_at
-            FROM lookbook
-            WHERE id = ?
-            `,
+            "SELECT * FROM lookbook WHERE id = ?",
             [numericId]
         );
 
@@ -186,21 +193,36 @@ export const getLookbookItem = async (req, res) => {
 
         return res.status(500).json({
             success: false,
-            message: "Failed to fetch lookbook item"
+            message: "Failed to fetch lookbook item",
+            error: error.message
         });
     }
 };
 
 export const createLookbookItem = async (req, res) => {
     try {
-        const {
-            title,
-            subtitle,
-            description,
-            link_url,
-            display_order,
-            is_active
-        } = req.body;
+        const columns = await getLookbookColumns();
+
+        if (!hasColumn(columns, "title")) {
+            return res.status(500).json({
+                success: false,
+                message: "The lookbook table is missing the title column"
+            });
+        }
+
+        if (!hasColumn(columns, "image_url")) {
+            return res.status(500).json({
+                success: false,
+                message: "The lookbook table is missing the image_url column"
+            });
+        }
+
+        const title = req.body?.title;
+        const subtitle = req.body?.subtitle;
+        const description = req.body?.description;
+        const linkUrl = req.body?.link_url;
+        const displayOrder = req.body?.display_order;
+        const isActive = req.body?.is_active;
 
         if (!title || !String(title).trim()) {
             return res.status(400).json({
@@ -216,61 +238,104 @@ export const createLookbookItem = async (req, res) => {
             });
         }
 
-        const cloudinaryResult =
-            await uploadToCloudinary(req.file.buffer);
+        if (!req.file.buffer) {
+            return res.status(400).json({
+                success: false,
+                message: "Uploaded image data is missing"
+            });
+        }
 
-        const order =
-            Number.isInteger(Number(display_order)) &&
-            Number(display_order) > 0
-                ? Number(display_order)
-                : 1;
+        const cloudinaryResult = await uploadToCloudinary(req.file.buffer);
 
-        const active =
-            parseBoolean(is_active, true) ? 1 : 0;
+        if (!cloudinaryResult?.secure_url) {
+            throw new Error("Cloudinary did not return a secure image URL");
+        }
 
-        const [result] = await pool.execute(
-            `
+        const insertColumns = [];
+        const placeholders = [];
+        const values = [];
+
+        if (hasColumn(columns, "title")) {
+            insertColumns.push("title");
+            placeholders.push("?");
+            values.push(String(title).trim());
+        }
+
+        if (hasColumn(columns, "subtitle")) {
+            insertColumns.push("subtitle");
+            placeholders.push("?");
+            values.push(
+                subtitle !== undefined && String(subtitle).trim()
+                    ? String(subtitle).trim()
+                    : null
+            );
+        }
+
+        if (hasColumn(columns, "description")) {
+            insertColumns.push("description");
+            placeholders.push("?");
+            values.push(
+                description !== undefined && String(description).trim()
+                    ? String(description).trim()
+                    : null
+            );
+        }
+
+        if (hasColumn(columns, "image_url")) {
+            insertColumns.push("image_url");
+            placeholders.push("?");
+            values.push(cloudinaryResult.secure_url);
+        }
+
+        if (hasColumn(columns, "link_url")) {
+            insertColumns.push("link_url");
+            placeholders.push("?");
+            values.push(
+                linkUrl !== undefined && String(linkUrl).trim()
+                    ? String(linkUrl).trim()
+                    : null
+            );
+        }
+
+        if (hasColumn(columns, "display_order")) {
+            const parsedOrder = Number(displayOrder);
+
+            const order =
+                Number.isInteger(parsedOrder) && parsedOrder > 0
+                    ? parsedOrder
+                    : 1;
+
+            insertColumns.push("display_order");
+            placeholders.push("?");
+            values.push(order);
+        }
+
+        if (hasColumn(columns, "is_active")) {
+            insertColumns.push("is_active");
+            placeholders.push("?");
+            values.push(parseBoolean(isActive, true) ? 1 : 0);
+        }
+
+        if (insertColumns.length === 0) {
+            throw new Error("No valid columns available for Lookbook insert");
+        }
+
+        const sql = `
             INSERT INTO lookbook
-            (
-                title,
-                subtitle,
-                description,
-                image_url,
-                link_url,
-                display_order,
-                is_active
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            `,
-            [
-                String(title).trim(),
-                subtitle?.trim() || null,
-                description?.trim() || null,
-                cloudinaryResult.secure_url,
-                link_url?.trim() || null,
-                order,
-                active
-            ]
-        );
+            (${insertColumns.join(", ")})
+            VALUES (${placeholders.join(", ")})
+        `;
+
+        const [result] = await pool.execute(sql, values);
 
         const [looks] = await pool.execute(
-            `
-            SELECT
-                id,
-                title,
-                subtitle,
-                description,
-                image_url,
-                link_url,
-                display_order,
-                is_active,
-                created_at,
-                updated_at
-            FROM lookbook
-            WHERE id = ?
-            `,
+            "SELECT * FROM lookbook WHERE id = ?",
             [result.insertId]
         );
+
+        if (looks.length === 0) {
+            throw new Error("Lookbook item was created but could not be retrieved");
+        }
 
         return res.status(201).json({
             success: true,
@@ -280,8 +345,6 @@ export const createLookbookItem = async (req, res) => {
     } catch (error) {
         console.error("CREATE LOOKBOOK ERROR");
         console.error(error);
-        console.error(error.message);
-        console.error(error.stack);
 
         return res.status(500).json({
             success: false,
@@ -302,14 +365,10 @@ export const updateLookbookItem = async (req, res) => {
             });
         }
 
+        const columns = await getLookbookColumns();
+
         const [existing] = await pool.execute(
-            `
-            SELECT
-                id,
-                image_url
-            FROM lookbook
-            WHERE id = ?
-            `,
+            "SELECT * FROM lookbook WHERE id = ?",
             [numericId]
         );
 
@@ -327,12 +386,12 @@ export const updateLookbookItem = async (req, res) => {
             link_url,
             display_order,
             is_active
-        } = req.body;
+        } = req.body || {};
 
         const fields = [];
         const values = [];
 
-        if (title !== undefined) {
+        if (title !== undefined && hasColumn(columns, "title")) {
             if (!String(title).trim()) {
                 return res.status(400).json({
                     success: false,
@@ -344,28 +403,31 @@ export const updateLookbookItem = async (req, res) => {
             values.push(String(title).trim());
         }
 
-        if (subtitle !== undefined) {
+        if (subtitle !== undefined && hasColumn(columns, "subtitle")) {
             fields.push("subtitle = ?");
             values.push(
                 String(subtitle).trim() || null
             );
         }
 
-        if (description !== undefined) {
+        if (description !== undefined && hasColumn(columns, "description")) {
             fields.push("description = ?");
             values.push(
                 String(description).trim() || null
             );
         }
 
-        if (link_url !== undefined) {
+        if (link_url !== undefined && hasColumn(columns, "link_url")) {
             fields.push("link_url = ?");
             values.push(
                 String(link_url).trim() || null
             );
         }
 
-        if (display_order !== undefined) {
+        if (
+            display_order !== undefined &&
+            hasColumn(columns, "display_order")
+        ) {
             const order = Number(display_order);
 
             if (!Number.isInteger(order) || order <= 0) {
@@ -379,7 +441,7 @@ export const updateLookbookItem = async (req, res) => {
             values.push(order);
         }
 
-        if (is_active !== undefined) {
+        if (is_active !== undefined && hasColumn(columns, "is_active")) {
             fields.push("is_active = ?");
             values.push(
                 parseBoolean(is_active, true) ? 1 : 0
@@ -387,8 +449,29 @@ export const updateLookbookItem = async (req, res) => {
         }
 
         if (req.file) {
-            const cloudinaryResult =
-                await uploadToCloudinary(req.file.buffer);
+            if (!hasColumn(columns, "image_url")) {
+                return res.status(500).json({
+                    success: false,
+                    message: "The lookbook table is missing the image_url column"
+                });
+            }
+
+            if (!req.file.buffer) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Uploaded image data is missing"
+                });
+            }
+
+            const cloudinaryResult = await uploadToCloudinary(
+                req.file.buffer
+            );
+
+            if (!cloudinaryResult?.secure_url) {
+                throw new Error(
+                    "Cloudinary did not return a secure image URL"
+                );
+            }
 
             fields.push("image_url = ?");
             values.push(cloudinaryResult.secure_url);
@@ -405,29 +488,15 @@ export const updateLookbookItem = async (req, res) => {
 
         await pool.execute(
             `
-            UPDATE lookbook
-            SET ${fields.join(", ")}
-            WHERE id = ?
+                UPDATE lookbook
+                SET ${fields.join(", ")}
+                WHERE id = ?
             `,
             values
         );
 
         const [looks] = await pool.execute(
-            `
-            SELECT
-                id,
-                title,
-                subtitle,
-                description,
-                image_url,
-                link_url,
-                display_order,
-                is_active,
-                created_at,
-                updated_at
-            FROM lookbook
-            WHERE id = ?
-            `,
+            "SELECT * FROM lookbook WHERE id = ?",
             [numericId]
         );
 
@@ -439,8 +508,6 @@ export const updateLookbookItem = async (req, res) => {
     } catch (error) {
         console.error("UPDATE LOOKBOOK ERROR");
         console.error(error);
-        console.error(error.message);
-        console.error(error.stack);
 
         return res.status(500).json({
             success: false,
@@ -461,14 +528,17 @@ export const toggleLookbookStatus = async (req, res) => {
             });
         }
 
+        const columns = await getLookbookColumns();
+
+        if (!hasColumn(columns, "is_active")) {
+            return res.status(500).json({
+                success: false,
+                message: "The lookbook table is missing the is_active column"
+            });
+        }
+
         const [looks] = await pool.execute(
-            `
-            SELECT
-                id,
-                is_active
-            FROM lookbook
-            WHERE id = ?
-            `,
+            "SELECT id, is_active FROM lookbook WHERE id = ?",
             [numericId]
         );
 
@@ -479,14 +549,13 @@ export const toggleLookbookStatus = async (req, res) => {
             });
         }
 
-        const newStatus =
-            looks[0].is_active ? 0 : 1;
+        const newStatus = Number(looks[0].is_active) === 1 ? 0 : 1;
 
         await pool.execute(
             `
-            UPDATE lookbook
-            SET is_active = ?
-            WHERE id = ?
+                UPDATE lookbook
+                SET is_active = ?
+                WHERE id = ?
             `,
             [newStatus, numericId]
         );
@@ -505,7 +574,8 @@ export const toggleLookbookStatus = async (req, res) => {
 
         return res.status(500).json({
             success: false,
-            message: "Failed to update lookbook status"
+            message: "Failed to update lookbook status",
+            error: error.message
         });
     }
 };
@@ -522,11 +592,7 @@ export const deleteLookbookItem = async (req, res) => {
         }
 
         const [looks] = await pool.execute(
-            `
-            SELECT id
-            FROM lookbook
-            WHERE id = ?
-            `,
+            "SELECT id FROM lookbook WHERE id = ?",
             [numericId]
         );
 
@@ -538,10 +604,7 @@ export const deleteLookbookItem = async (req, res) => {
         }
 
         await pool.execute(
-            `
-            DELETE FROM lookbook
-            WHERE id = ?
-            `,
+            "DELETE FROM lookbook WHERE id = ?",
             [numericId]
         );
 
@@ -555,7 +618,13 @@ export const deleteLookbookItem = async (req, res) => {
 
         return res.status(500).json({
             success: false,
-            message: "Failed to delete lookbook item"
+            message: "Failed to delete lookbook item",
+            error: error.message
         });
     }
+};
+
+export const refreshLookbookSchemaCache = async () => {
+    resetLookbookColumnsCache();
+    return getLookbookColumns();
 };
