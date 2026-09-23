@@ -14,7 +14,7 @@ function Payment() {
 
   const { cartItems, subtotal } = useCart();
 
-  const [paymentMethod, setPaymentMethod] = useState("upi");
+  const [paymentMethod] = useState("upi");
   const [loading, setLoading] = useState(false);
   const [scriptLoading, setScriptLoading] = useState(true);
   const [error, setError] = useState("");

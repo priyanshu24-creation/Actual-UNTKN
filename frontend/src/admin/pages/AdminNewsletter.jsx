@@ -16,10 +16,6 @@ function AdminNewsletter() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
 
-    useEffect(() => {
-        fetchSubscribers();
-    }, []);
-
     const fetchSubscribers = async () => {
         try {
             setLoading(true);
@@ -39,6 +35,10 @@ function AdminNewsletter() {
             setLoading(false);
         }
     };
+
+    useEffect(() => {
+        fetchSubscribers();
+    }, []);
 
     const handleDelete = async (id) => {
         const confirmed = window.confirm(

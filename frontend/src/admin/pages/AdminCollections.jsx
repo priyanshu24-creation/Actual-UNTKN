@@ -586,10 +586,7 @@ function AdminCollections() {
             await api.put(
                 `/collections/${collection.id}`,
                 {
-                    is_active:
-                        !Boolean(
-                            collection.is_active
-                        )
+                    is_active: !collection.is_active
                 }
             );
 

@@ -26,16 +26,21 @@ function Lookbook() {
                     throw new Error(data?.message || "Failed to load Lookbook");
                 }
 
-                const apiLooks = Array.isArray(data.looks) ? data.looks : [];
+                const apiLooks = Array.isArray(data?.looks)
+                    ? data.looks.filter(Boolean)
+                    : [];
 
                 const formattedLooks = apiLooks.map((look, index) => ({
-                    id: look.id,
+                    id: look?.id ?? index + 1,
                     number: String(index + 1).padStart(2, "0"),
-                    title: look.title || "UNTKN LOOK",
-                    subtitle: look.subtitle || "",
-                    description: look.description || "",
-                    image: look.image_url || look.image || heroImage,
-                    link: look.link_url || "/shop",
+                    title: look?.title || "UNTKN LOOK",
+                    subtitle: look?.subtitle || "",
+                    description:
+                        typeof look?.description === "string"
+                            ? look.description
+                            : "",
+                    image: look?.image_url || look?.image || heroImage,
+                    link: look?.link_url || "/shop",
                 }));
 
                 if (!cancelled) {
@@ -65,6 +70,33 @@ function Lookbook() {
         };
     }, []);
 
+    // Helper to safely render internal vs external links
+    const renderActionLink = (url, className, children) => {
+        const cleanUrl =
+            typeof url === "string" && url.trim() !== "" ? url.trim() : "/shop";
+        const isExternal =
+            cleanUrl.startsWith("http://") || cleanUrl.startsWith("https://");
+
+        if (isExternal) {
+            return (
+                <a
+                    href={cleanUrl}
+                    className={className}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                >
+                    {children}
+                </a>
+            );
+        }
+
+        return (
+            <Link to={cleanUrl} className={className}>
+                {children}
+            </Link>
+        );
+    };
+
     // -------------------------------------------------------------
     // LOADING SKELETON STATE
     // -------------------------------------------------------------
@@ -74,7 +106,7 @@ function Lookbook() {
                 <div className="untkn-lookbook-container">
                     <header className="lb-masthead">
                         <div className="lb-masthead-meta">
-                            <span>UNTKN // ARCHIVE</span>
+                            <span>UNTKN {"//"} ARCHIVE</span>
                             <span>VOL. 01 / 2026</span>
                         </div>
                         <div className="lb-masthead-title-row">
@@ -104,7 +136,7 @@ function Lookbook() {
                 <div className="untkn-lookbook-container">
                     <header className="lb-masthead">
                         <div className="lb-masthead-meta">
-                            <span>UNTKN // ARCHIVE</span>
+                            <span>UNTKN {"//"} ARCHIVE</span>
                             <span>VOL. 01 / 2026</span>
                         </div>
                         <div className="lb-masthead-title-row">
@@ -134,7 +166,7 @@ function Lookbook() {
                 <div className="untkn-lookbook-container">
                     <header className="lb-masthead">
                         <div className="lb-masthead-meta">
-                            <span>UNTKN // ARCHIVE</span>
+                            <span>UNTKN {"//"} ARCHIVE</span>
                             <span>VOL. 01 / 2026</span>
                         </div>
                         <div className="lb-masthead-title-row">
@@ -166,8 +198,8 @@ function Lookbook() {
                 {/* Editorial Masthead */}
                 <header className="lb-masthead">
                     <div className="lb-masthead-meta">
-                        <span>UNTKN // VISUAL ARCHIVE</span>
-                        <span>VOL. 01 &bull; EDITION 2026</span>
+                        <span>UNTKN {"//"} VISUAL ARCHIVE</span>
+                        <span>VOL. 01 • EDITION 2026</span>
                     </div>
                     <div className="lb-masthead-title-row">
                         <h1 className="lb-main-title">LOOKBOOK</h1>
@@ -178,50 +210,52 @@ function Lookbook() {
                 </header>
 
                 {/* Primary / Hero Feature Look */}
-                <section className="lb-hero-section">
-                    <article className="lb-hero-card">
-                        <div className="lb-hero-image-wrap">
-                            <span className="lb-badge">LOOK {featuredLook.number} // ARCHIVE</span>
-                            <img
-                                src={featuredLook.image}
-                                alt={featuredLook.title || "UNTKN Lookbook"}
-                                loading="eager"
-                                onError={(e) => {
-                                    if (e.currentTarget.src !== heroImage) {
+                {featuredLook && (
+                    <section className="lb-hero-section">
+                        <article className="lb-hero-card">
+                            <div className="lb-hero-image-wrap">
+                                <span className="lb-badge">LOOK {featuredLook.number} {"//"} ARCHIVE</span>
+                                <img
+                                    src={featuredLook.image}
+                                    alt={featuredLook.title || "UNTKN Lookbook"}
+                                    loading="eager"
+                                    onError={(e) => {
+                                        e.currentTarget.onerror = null;
                                         e.currentTarget.src = heroImage;
-                                    }
-                                }}
-                            />
-                        </div>
-
-                        <div className="lb-hero-content">
-                            <div className="lb-hero-text">
-                                <span className="lb-tag">FEATURED EDITORIAL</span>
-                                <h2 className="lb-hero-title">{featuredLook.title}</h2>
-                                {featuredLook.subtitle && (
-                                    <p className="lb-hero-subtitle">{featuredLook.subtitle}</p>
-                                )}
-                                {featuredLook.description && (
-                                    <p
-                                        className="lb-hero-desc"
-                                        style={{ whiteSpace: "pre-line" }}
-                                    >
-                                        {featuredLook.description}
-                                    </p>
-                                )}
+                                    }}
+                                />
                             </div>
 
-                            <div className="lb-hero-action">
-                                <Link
-                                    to={featuredLook.link}
-                                    className="lb-button-primary"
-                                >
-                                    SHOP THIS LOOK <ArrowUpRight size={14} />
-                                </Link>
+                            <div className="lb-hero-content">
+                                <div className="lb-hero-text">
+                                    <span className="lb-tag">FEATURED EDITORIAL</span>
+                                    <h2 className="lb-hero-title">{featuredLook.title}</h2>
+                                    {featuredLook.subtitle && (
+                                        <p className="lb-hero-subtitle">{featuredLook.subtitle}</p>
+                                    )}
+                                    {featuredLook.description && (
+                                        <p
+                                            className="lb-hero-desc"
+                                            style={{ whiteSpace: "pre-line" }}
+                                        >
+                                            {featuredLook.description}
+                                        </p>
+                                    )}
+                                </div>
+
+                                <div className="lb-hero-action">
+                                    {renderActionLink(
+                                        featuredLook.link,
+                                        "lb-button-primary",
+                                        <>
+                                            SHOP THIS LOOK <ArrowUpRight size={14} />
+                                        </>
+                                    )}
+                                </div>
                             </div>
-                        </div>
-                    </article>
-                </section>
+                        </article>
+                    </section>
+                )}
 
                 {/* Secondary Looks Grid (if more than 1 look) */}
                 {secondaryLooks.length > 0 && (
@@ -243,9 +277,8 @@ function Lookbook() {
                                             alt={look.title || "UNTKN Look"}
                                             loading="lazy"
                                             onError={(e) => {
-                                                if (e.currentTarget.src !== heroImage) {
-                                                    e.currentTarget.src = heroImage;
-                                                }
+                                                e.currentTarget.onerror = null;
+                                                e.currentTarget.src = heroImage;
                                             }}
                                         />
                                     </div>
@@ -258,9 +291,13 @@ function Lookbook() {
                                             )}
                                         </div>
 
-                                        <Link to={look.link} className="lb-card-link">
-                                            SHOP LOOK <ArrowUpRight size={12} />
-                                        </Link>
+                                        {renderActionLink(
+                                            look.link,
+                                            "lb-card-link",
+                                            <>
+                                                SHOP LOOK <ArrowUpRight size={12} />
+                                            </>
+                                        )}
                                     </div>
                                 </article>
                             ))}

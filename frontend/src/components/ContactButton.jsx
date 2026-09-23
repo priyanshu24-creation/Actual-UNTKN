@@ -1,7 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Bot,
-  MessageCircle,
   Send,
   X,
   Sparkles,
@@ -97,7 +96,7 @@ function ContactButton() {
     }
   }, [messages, isOpen]);
 
-  const sendMessage = (text) => {
+  const sendMessage = useCallback((text) => {
     const cleanMessage = text.trim();
 
     if (!cleanMessage) {
@@ -105,7 +104,7 @@ function ContactButton() {
     }
 
     const userMessage = {
-      id: Date.now(),
+      id: `${Date.now()}-user`,
       type: "user",
       text: cleanMessage,
     };
@@ -119,7 +118,7 @@ function ContactButton() {
 
     setTimeout(() => {
       const botMessage = {
-        id: Date.now() + 1,
+        id: `${Date.now()}-bot`,
         type: "bot",
         text: getBotResponse(cleanMessage),
       };
@@ -129,7 +128,7 @@ function ContactButton() {
         botMessage,
       ]);
     }, 600);
-  };
+  }, []);
 
   const handleSubmit = (event) => {
     event.preventDefault();

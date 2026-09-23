@@ -28,7 +28,7 @@ function AdminAuthProvider({ children }) {
       } else {
         setIsAuthenticated(false);
       }
-    } catch (error) {
+    } catch {
       setIsAuthenticated(false);
     } finally {
       setLoading(false);

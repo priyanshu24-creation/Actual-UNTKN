@@ -3,7 +3,6 @@ import { Link, useParams } from "react-router-dom";
 import {
   ArrowLeft,
   Mail,
-  Phone,
   User,
   CalendarDays,
   MessageSquare,

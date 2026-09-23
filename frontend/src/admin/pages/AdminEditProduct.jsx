@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import {
   ArrowLeft,
   Upload,
@@ -15,7 +15,6 @@ import api from "../../services/api.js";
 
 function AdminEditProduct() {
   const { id } = useParams();
-  const navigate = useNavigate();
 
   // ==========================================
   // PRODUCT STATE
@@ -964,9 +963,7 @@ function AdminEditProduct() {
           variant.stock_quantity
         ),
 
-        active: !Boolean(
-          variant.active
-        ),
+        active: !variant.active,
       };
 
       const response = await api.put(

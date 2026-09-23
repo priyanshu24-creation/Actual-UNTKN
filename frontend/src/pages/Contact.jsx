@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import {
   Mail,
   ArrowRight,
-  Phone,
   MapPin,
   MessageCircle,
 } from "lucide-react";

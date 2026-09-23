@@ -168,7 +168,8 @@ function AdminWishlist() {
         !query ||
         customer.includes(query) ||
         email.includes(query) ||
-        product.includes(query);
+        product.includes(query) ||
+        category.includes(query);
 
       const matchesCategory =
         categoryFilter === "All" ||
