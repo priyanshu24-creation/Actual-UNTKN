@@ -26,20 +26,40 @@ import settingsRoutes from "./routes/settings.routes.js";
 import lookbookRoutes from "./routes/lookbook.routes.js";
 import deliveryMethodRoutes from "./routes/deliveryMethod.routes.js";
 import runningBannerRoutes from "./routes/runningBanner.routes.js";
+import reviewRoutes from "./routes/review.routes.js";
 
 import { errorHandler } from "./middleware/error.middleware.js";
-
-import reviewRoutes from "./routes/review.routes.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-app.set('trust proxy', 1);
 
-const frontendPath = path.resolve(__dirname, "../../../frontend/dist");
-const uploadsPath = path.resolve(__dirname, "../uploads");
-const testPath = path.resolve(__dirname, "../test");
+app.set("trust proxy", 1);
+
+const frontendPath = path.resolve(
+    __dirname,
+    "../../../frontend/dist"
+);
+
+const uploadsPath = path.resolve(
+    __dirname,
+    "../uploads"
+);
+
+const testPath = path.resolve(
+    __dirname,
+    "../test"
+);
+
+const allowedOrigins = [
+    "http://localhost:5173",
+    "http://localhost:4173",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:4173",
+    "https://untkn.in",
+    "https://www.untkn.in"
+];
 
 app.use(
     helmet({
@@ -64,6 +84,8 @@ app.use(
                 ],
                 connectSrc: [
                     "'self'",
+                    "https://untkn.in",
+                    "https://www.untkn.in",
                     "https://checkout.razorpay.com",
                     "https://api.razorpay.com",
                     "https://cdn.razorpay.com"
@@ -89,24 +111,41 @@ app.use(
     })
 );
 
-const allowedOrigins = [
-    "http://localhost:5173",
-    "http://localhost:4173",
-    "https://untkn.in",
-    "https://www.untkn.in"
-];
-
 app.use(
     cors({
         origin: (origin, callback) => {
-            if (!origin || allowedOrigins.includes(origin)) {
-                callback(null, true);
-                return;
+            if (!origin) {
+                return callback(null, true);
             }
 
-            callback(new Error("Not allowed by CORS"));
+            if (
+                allowedOrigins.includes(origin) ||
+                origin.startsWith("file://")
+            ) {
+                return callback(null, true);
+            }
+
+            console.warn(`CORS blocked origin: ${origin}`);
+
+            return callback(
+                new Error("Not allowed by CORS")
+            );
         },
-        credentials: true
+        credentials: true,
+        methods: [
+            "GET",
+            "POST",
+            "PUT",
+            "PATCH",
+            "DELETE",
+            "OPTIONS"
+        ],
+        allowedHeaders: [
+            "Content-Type",
+            "Authorization",
+            "X-Requested-With"
+        ],
+        optionsSuccessStatus: 204
     })
 );
 
@@ -138,7 +177,10 @@ const apiLimiter = rateLimit({
 
 app.use("/api", apiLimiter);
 
-app.use("/uploads", express.static(uploadsPath));
+app.use(
+    "/uploads",
+    express.static(uploadsPath)
+);
 
 app.get("/api/health", (req, res) => {
     res.status(200).json({
@@ -148,61 +190,190 @@ app.get("/api/health", (req, res) => {
 });
 
 app.use("/api/auth", authRoutes);
-app.use("/api/categories", categoryRoutes);
-app.use("/api/collections", collectionRoutes);
-app.use("/api/products", productRoutes);
-app.use("/api/products", productImageRoutes);
-app.use("/api/sizes", sizeRoutes);
-app.use("/api/colors", colorRoutes);
-app.use("/api", variantRoutes);
-app.use("/api/cart", cartRoutes);
-app.use("/api/wishlist", wishlistRoutes);
-app.use("/api/orders", orderRoutes);
-app.use("/api/payments", paymentRoutes);
-app.use("/test", express.static(testPath));
-app.use("/api/admin", adminRoutes);
-app.use("/api/addresses", addressRoutes);
-app.use("/api/newsletter", newsletterRoutes);
-app.use("/api/inquiries", inquiryRoutes);
-app.use("/api/settings", settingsRoutes);
-app.use("/api/lookbook", lookbookRoutes);
 
-app.get("/api/delivery-methods", (req, res) => {
-    res.status(200).json({
-        success: true,
-        deliveryMethods: [
-            {
-                id: "standard",
-                name: "STANDARD DELIVERY",
-                description: "5–7 BUSINESS DAYS",
-                price: 99,
-                isActive: true
-            },
-            {
-                id: "express",
-                name: "EXPRESS DELIVERY",
-                description: "2–3 BUSINESS DAYS",
-                price: 199,
-                isActive: true
+app.use(
+    "/api/categories",
+    categoryRoutes
+);
+
+app.use(
+    "/api/collections",
+    collectionRoutes
+);
+
+app.use(
+    "/api/products",
+    productRoutes
+);
+
+app.use(
+    "/api/products",
+    productImageRoutes
+);
+
+app.use(
+    "/api/products",
+    reviewRoutes
+);
+
+app.use(
+    "/api/sizes",
+    sizeRoutes
+);
+
+app.use(
+    "/api/colors",
+    colorRoutes
+);
+
+app.use(
+    "/api",
+    variantRoutes
+);
+
+app.use(
+    "/api/cart",
+    cartRoutes
+);
+
+app.use(
+    "/api/wishlist",
+    wishlistRoutes
+);
+
+app.use(
+    "/api/orders",
+    orderRoutes
+);
+
+app.use(
+    "/api/payments",
+    paymentRoutes
+);
+
+app.use(
+    "/test",
+    express.static(testPath)
+);
+
+app.use(
+    "/api/admin",
+    adminRoutes
+);
+
+app.use(
+    "/api/addresses",
+    addressRoutes
+);
+
+app.use(
+    "/api/newsletter",
+    newsletterRoutes
+);
+
+app.use(
+    "/api/inquiries",
+    inquiryRoutes
+);
+
+app.use(
+    "/api/settings",
+    settingsRoutes
+);
+
+app.use(
+    "/api/lookbook",
+    lookbookRoutes
+);
+
+app.get(
+    "/api/delivery-methods",
+    (req, res) => {
+        res.status(200).json({
+            success: true,
+            deliveryMethods: [
+                {
+                    id: "standard",
+                    name: "STANDARD DELIVERY",
+                    description: "5–7 BUSINESS DAYS",
+                    price: 99,
+                    isActive: true
+                },
+                {
+                    id: "express",
+                    name: "EXPRESS DELIVERY",
+                    description: "2–3 BUSINESS DAYS",
+                    price: 199,
+                    isActive: true
+                }
+            ]
+        });
+    }
+);
+
+app.use(
+    "/api/delivery-methods",
+    deliveryMethodRoutes
+);
+
+app.get(
+    "/api/settings/running-banner",
+    async (req, res) => {
+        try {
+            const pool =
+                (
+                    await import(
+                        "./config/database.js"
+                    )
+                ).default;
+
+            const [rows] = await pool.query(
+                `
+                    SELECT
+                        id,
+                        enabled,
+                        message_1,
+                        message_2,
+                        message_3
+                    FROM running_banner_settings
+                    WHERE id = 1
+                    LIMIT 1
+                `
+            );
+
+            if (!rows.length) {
+                return res.status(200).json({
+                    success: true,
+                    settings: {
+                        enabled: true,
+                        messages: [
+                            "FREE SHIPPING ON ORDERS ABOVE ₹999",
+                            "NEW COLLECTION NOW LIVE",
+                            "MORE THAN CLOTHES. WEAR YOUR STORY."
+                        ]
+                    }
+                });
             }
-        ]
-    });
-});
 
-app.use("/api/delivery-methods", deliveryMethodRoutes);
+            const row = rows[0];
 
-app.get("/api/settings/running-banner", async (req, res) => {
-    try {
-        const pool = (await import("./config/database.js")).default;
+            return res.status(200).json({
+                success: true,
+                settings: {
+                    enabled: Boolean(row.enabled),
+                    messages: [
+                        row.message_1,
+                        row.message_2,
+                        row.message_3
+                    ].filter(Boolean)
+                }
+            });
+        } catch (error) {
+            console.error(
+                "Running banner GET error:",
+                error
+            );
 
-        const [rows] = await pool.query(
-            `SELECT id, enabled, message_1, message_2, message_3
-             FROM running_banner_settings
-             WHERE id = 1
-             LIMIT 1`
-        );
-
-        if (!rows.length) {
             return res.status(200).json({
                 success: true,
                 settings: {
@@ -215,42 +386,17 @@ app.get("/api/settings/running-banner", async (req, res) => {
                 }
             });
         }
-
-        const row = rows[0];
-
-        return res.status(200).json({
-            success: true,
-            settings: {
-                enabled: Boolean(row.enabled),
-                messages: [
-                    row.message_1,
-                    row.message_2,
-                    row.message_3
-                ].filter(Boolean)
-            }
-        });
-    } catch (error) {
-        console.error("Running banner GET error:", error);
-
-        return res.status(200).json({
-            success: true,
-            settings: {
-                enabled: true,
-                messages: [
-                    "FREE SHIPPING ON ORDERS ABOVE ₹999",
-                    "NEW COLLECTION NOW LIVE",
-                    "MORE THAN CLOTHES. WEAR YOUR STORY."
-                ]
-            }
-        });
     }
-});
+);
 
-app.use("/api/settings/running-banner", runningBannerRoutes);
+app.use(
+    "/api/settings/running-banner",
+    runningBannerRoutes
+);
 
-app.use(express.static(frontendPath));
-
-app.use("/api/products", reviewRoutes);
+app.use(
+    express.static(frontendPath)
+);
 
 app.use((req, res, next) => {
     if (req.method !== "GET") {
@@ -265,7 +411,12 @@ app.use((req, res, next) => {
         return next();
     }
 
-    res.sendFile(path.join(frontendPath, "index.html"));
+    res.sendFile(
+        path.join(
+            frontendPath,
+            "index.html"
+        )
+    );
 });
 
 app.use((req, res) => {
