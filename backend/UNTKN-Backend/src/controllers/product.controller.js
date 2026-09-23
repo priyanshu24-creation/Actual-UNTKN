@@ -284,7 +284,7 @@ export const getProducts = async (req, res) => {
 
         const productsQuery = `
             SELECT
-                p.*,
+                p.*, pi.image_url,
 
                 c.name AS category_name,
                 c.slug AS category_slug,
@@ -300,6 +300,12 @@ export const getProducts = async (req, res) => {
             LEFT JOIN collections col
                 ON p.collection_id = col.id
 
+            LEFT JOIN (
+                SELECT product_id, image_url
+                FROM product_images
+                WHERE is_primary = 1
+            ) pi ON p.id = pi.product_id
+            
             ${whereClause}
 
             ORDER BY p.created_at DESC
