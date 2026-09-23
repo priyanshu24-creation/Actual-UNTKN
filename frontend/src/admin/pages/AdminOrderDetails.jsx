@@ -221,6 +221,7 @@ function normalizeOrder(raw) {
 
   return {
     ...raw,
+
     id: getValue(
       raw.id,
       raw.order_id,
@@ -228,6 +229,7 @@ function normalizeOrder(raw) {
       raw.order_number,
       raw.orderNumber
     ),
+
     orderNumber: getValue(
       raw.order_number,
       raw.orderNumber,
@@ -235,6 +237,7 @@ function normalizeOrder(raw) {
       raw.order_id,
       raw.orderId
     ),
+
     customer: getValue(
       raw.customer_name,
       raw.customerName,
@@ -246,6 +249,7 @@ function normalizeOrder(raw) {
       customerObject.fullName,
       "Customer"
     ),
+
     email: getValue(
       raw.customer_email,
       raw.customerEmail,
@@ -253,6 +257,7 @@ function normalizeOrder(raw) {
       customerObject.email,
       "—"
     ),
+
     phone: getValue(
       raw.customer_phone,
       raw.customerPhone,
@@ -262,6 +267,7 @@ function normalizeOrder(raw) {
       customerObject.mobile,
       "—"
     ),
+
     date: formatDate(
       getValue(
         raw.created_at,
@@ -271,6 +277,7 @@ function normalizeOrder(raw) {
         raw.date
       )
     ),
+
     status: normalizeStatus(
       getValue(
         raw.order_status,
@@ -280,6 +287,7 @@ function normalizeOrder(raw) {
         raw.fulfillmentStatus
       )
     ),
+
     payment:
       getValue(
         raw.payment_status,
@@ -287,17 +295,20 @@ function normalizeOrder(raw) {
         raw.payment,
         raw.payment_status_name
       ) || "—",
+
     paymentMethod:
       getValue(
         raw.payment_method,
         raw.paymentMethod,
         raw.method
       ) || "—",
+
     items,
     subtotal,
     shippingCost,
     discount,
     totalAmount,
+
     address: {
       name: getValue(
         shipping.name,
@@ -313,6 +324,7 @@ function normalizeOrder(raw) {
         customerObject.name,
         "Customer"
       ),
+
       line1: getValue(
         shipping.line1,
         shipping.address_line1,
@@ -322,21 +334,25 @@ function normalizeOrder(raw) {
         shipping.street_address,
         shipping.streetAddress
       ),
+
       line2: getValue(
         shipping.line2,
         shipping.address_line2,
         shipping.addressLine2,
         shipping.landmark
       ),
+
       city: getValue(
         shipping.city,
         shipping.town
       ),
+
       state: getValue(
         shipping.state,
         shipping.state_name,
         shipping.stateName
       ),
+
       pincode: getValue(
         shipping.pincode,
         shipping.pin_code,
@@ -345,11 +361,13 @@ function normalizeOrder(raw) {
         shipping.postalCode,
         shipping.zip
       ),
+
       country: getValue(
         shipping.country,
         "India"
       ),
     },
+
     billing,
   };
 }
@@ -373,7 +391,9 @@ function AdminOrderDetails() {
         setError("");
         setSuccess("");
 
-        const response = await api.get(`/orders/${encodeURIComponent(id)}`);
+        const response = await api.get(
+          `/orders/${encodeURIComponent(id)}`
+        );
 
         if (!mounted) return;
 
@@ -431,8 +451,8 @@ function AdminOrderDetails() {
       setError("");
       setSuccess("");
 
-      const response = await api.put(
-        `/orders/${encodeURIComponent(order.id)}/status`,
+      const response = await api.patch(
+        `/orders/admin/${encodeURIComponent(order.id)}/status`,
         {
           status: orderStatus,
         }
@@ -442,6 +462,7 @@ function AdminOrderDetails() {
 
       if (updatedOrder) {
         const normalized = normalizeOrder(updatedOrder);
+
         setOrder(normalized);
         setOrderStatus(normalized.status || orderStatus);
       } else {
@@ -483,8 +504,12 @@ function AdminOrderDetails() {
     return (
       <section className="admin-order-not-found">
         <p className="admin-page-eyebrow">SALES</p>
+
         <h1>Order Not Found</h1>
-        <p>{error || "The order you're looking for does not exist."}</p>
+
+        <p>
+          {error || "The order you're looking for does not exist."}
+        </p>
 
         <Link
           to="/admin/orders"
@@ -578,15 +603,14 @@ function AdminOrderDetails() {
               </div>
             ) : (
               items.map((item, index) => {
-                const productName =
-                  getValue(
-                    item.product_name,
-                    item.productName,
-                    item.name,
-                    item.product?.name,
-                    item.product?.title,
-                    "Product"
-                  );
+                const productName = getValue(
+                  item.product_name,
+                  item.productName,
+                  item.name,
+                  item.product?.name,
+                  item.product?.title,
+                  "Product"
+                );
 
                 const size = getValue(
                   item.size_name,
@@ -634,7 +658,11 @@ function AdminOrderDetails() {
                 return (
                   <div
                     className="admin-order-item"
-                    key={item.id || item.order_item_id || index}
+                    key={
+                      item.id ||
+                      item.order_item_id ||
+                      index
+                    }
                   >
                     <div className="admin-order-item-image">
                       {image ? (
