@@ -1599,7 +1599,7 @@ export const deleteProduct = async (req, res) => {
 
         const [existing] = await connection.execute(
             `
-                SELECT id, name
+                SELECT id, name, slug
                 FROM products
                 WHERE id = ?
                 LIMIT 1
@@ -1638,7 +1638,8 @@ export const deleteProduct = async (req, res) => {
 
         return res.status(500).json({
             success: false,
-            message: "Failed to delete product"
+            message: "Failed to delete product",
+            error: error.message
         });
     } finally {
         connection.release();
