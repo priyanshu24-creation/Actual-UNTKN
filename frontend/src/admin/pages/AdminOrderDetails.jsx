@@ -452,12 +452,11 @@ function AdminOrderDetails() {
       setSuccess("");
 
       const response = await api.patch(
-        `/orders/admin/${encodeURIComponent(order.id)}/status`,
-        {
-          status: orderStatus,
-        }
-      );
-
+    `/orders/admin/${encodeURIComponent(order.id)}/status`,
+    {
+        status: orderStatus
+    }
+);
       const updatedOrder = getOrderPayload(response);
 
       if (updatedOrder) {
