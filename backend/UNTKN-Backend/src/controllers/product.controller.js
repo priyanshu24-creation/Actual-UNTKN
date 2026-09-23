@@ -1583,89 +1583,64 @@ export const updateProduct = async (req, res) => {
 // ======================================================
 
 export const deleteProduct = async (req, res) => {
+    const connection = await pool.getConnection();
 
     try {
+        const productId = Number(req.params.id);
 
-        const { id } = req.params;
-
-        const productId =
-            Number(id);
-
-
-        // ------------------------------
-        // Validate ID
-        // ------------------------------
-
-        if (
-            !Number.isInteger(productId) ||
-            productId <= 0
-        ) {
-
+        if (!Number.isInteger(productId) || productId <= 0) {
             return res.status(400).json({
                 success: false,
-                message:
-                    "Product ID must be a valid positive integer"
+                message: "Product ID must be a valid positive integer"
             });
         }
 
+        await connection.beginTransaction();
 
-        // ------------------------------
-        // Check product
-        // ------------------------------
-
-        const [existing] =
-            await pool.execute(
-                `
-                    SELECT id
-                    FROM products
-                    WHERE id = ?
-                    LIMIT 1
-                `,
-                [productId]
-            );
-
+        const [existing] = await connection.execute(
+            `
+                SELECT id, name
+                FROM products
+                WHERE id = ?
+                LIMIT 1
+            `,
+            [productId]
+        );
 
         if (existing.length === 0) {
+            await connection.rollback();
 
             return res.status(404).json({
                 success: false,
-                message:
-                    "Product not found"
+                message: "Product not found"
             });
         }
 
-
-        // ------------------------------
-        // Soft delete
-        // ------------------------------
-
-        await pool.execute(
+        await connection.execute(
             `
-                UPDATE products
-                SET published = FALSE
+                DELETE FROM products
                 WHERE id = ?
             `,
             [productId]
         );
 
+        await connection.commit();
 
         return res.status(200).json({
             success: true,
-            message:
-                "Product unpublished successfully"
+            message: "Product deleted permanently",
+            productId
         });
-
     } catch (error) {
+        await connection.rollback();
 
-        console.error(
-            "Delete product error:",
-            error
-        );
+        console.error("Delete product error:", error);
 
         return res.status(500).json({
             success: false,
-            message:
-                "Failed to delete product"
+            message: "Failed to delete product"
         });
+    } finally {
+        connection.release();
     }
 };
