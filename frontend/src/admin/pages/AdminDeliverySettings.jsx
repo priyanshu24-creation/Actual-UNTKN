@@ -5,26 +5,57 @@ import {
   Save,
   RefreshCw,
   CheckCircle2,
+  ToggleLeft,
+  ToggleRight,
 } from "lucide-react";
 
 function AdminDeliverySettings() {
-  const [deliveryMethods, setDeliveryMethods] = useState([
+  const defaultDeliveryMethods = [
     {
       id: "standard",
       name: "STANDARD DELIVERY",
       description: "5–7 BUSINESS DAYS",
       price: 99,
+      enabled: true,
     },
     {
       id: "express",
       name: "EXPRESS DELIVERY",
       description: "2–3 BUSINESS DAYS",
       price: 199,
+      enabled: true,
     },
-  ]);
+  ];
+
+  const [deliveryMethods, setDeliveryMethods] = useState(
+    defaultDeliveryMethods
+  );
 
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  /* ========================================
+     TOGGLE DELIVERY METHOD
+  ======================================== */
+
+  const handleToggle = (id) => {
+    setDeliveryMethods((currentMethods) =>
+      currentMethods.map((method) =>
+        method.id === id
+          ? {
+              ...method,
+              enabled: !method.enabled,
+            }
+          : method
+      )
+    );
+
+    setSaved(false);
+  };
+
+  /* ========================================
+     CHANGE DELIVERY PRICE
+  ======================================== */
 
   const handlePriceChange = (id, value) => {
     setDeliveryMethods((currentMethods) =>
@@ -41,19 +72,31 @@ function AdminDeliverySettings() {
     setSaved(false);
   };
 
+  /* ========================================
+     SAVE SETTINGS
+  ======================================== */
+
   const handleSave = async () => {
     setSaving(true);
     setSaved(false);
 
     /*
-      BACKEND INTEGRATION
+      FRONTEND TEMPORARY STORAGE
 
-      Your friend can replace this section later with:
+      This allows the frontend to work before
+      your friend's backend API is connected.
+
+      Later your friend can replace this with:
 
       await api.put("/delivery-methods", {
         deliveryMethods,
       });
     */
+
+    localStorage.setItem(
+      "untkn-delivery-methods",
+      JSON.stringify(deliveryMethods)
+    );
 
     await new Promise((resolve) => setTimeout(resolve, 800));
 
@@ -65,29 +108,27 @@ function AdminDeliverySettings() {
     }, 3000);
   };
 
+  /* ========================================
+     RESET SETTINGS
+  ======================================== */
+
   const handleReset = () => {
-    setDeliveryMethods([
-      {
-        id: "standard",
-        name: "STANDARD DELIVERY",
-        description: "5–7 BUSINESS DAYS",
-        price: 99,
-      },
-      {
-        id: "express",
-        name: "EXPRESS DELIVERY",
-        description: "2–3 BUSINESS DAYS",
-        price: 199,
-      },
-    ]);
+    setDeliveryMethods(defaultDeliveryMethods);
+
+    localStorage.removeItem("untkn-delivery-methods");
 
     setSaved(false);
   };
 
   return (
     <div className="admin-delivery-settings">
-      {/* HEADER */}
+
+      {/* ========================================
+          HEADER
+      ======================================== */}
+
       <div className="admin-delivery-header">
+
         <div>
           <span className="admin-delivery-eyebrow">
             SHIPPING CONFIGURATION
@@ -96,12 +137,14 @@ function AdminDeliverySettings() {
           <h1>Delivery Settings</h1>
 
           <p>
-            Manage the delivery methods and fees shown to customers
-            during checkout.
+            Manage the delivery methods, availability and fees shown
+            to customers during checkout.
           </p>
         </div>
 
         <div className="admin-delivery-header-actions">
+
+          {/* RESET */}
           <button
             type="button"
             className="admin-delivery-reset"
@@ -111,6 +154,7 @@ function AdminDeliverySettings() {
             RESET
           </button>
 
+          {/* SAVE */}
           <button
             type="button"
             className="admin-delivery-save"
@@ -119,72 +163,160 @@ function AdminDeliverySettings() {
           >
             {saving ? (
               <>
-                <RefreshCw size={15} className="admin-spin" />
+                <RefreshCw
+                  size={15}
+                  className="admin-spin"
+                />
+
                 SAVING...
               </>
             ) : saved ? (
               <>
                 <CheckCircle2 size={15} />
+
                 SAVED
               </>
             ) : (
               <>
                 <Save size={15} />
+
                 SAVE CHANGES
               </>
             )}
           </button>
+
         </div>
       </div>
 
-      {/* INFO */}
+      {/* ========================================
+          INFO
+      ======================================== */}
+
       <div className="admin-delivery-info">
+
         <div className="admin-delivery-info-icon">
           <Truck size={18} />
         </div>
 
         <div>
-          <strong>Checkout delivery fees</strong>
+          <strong>Delivery availability</strong>
 
           <p>
-            Changes made here will control the delivery charges
-            displayed on the customer checkout page once the backend
-            API is connected.
+            Turn a delivery method OFF when you cannot currently
+            provide that service. Disabled methods will not be shown
+            to customers during checkout.
           </p>
         </div>
+
       </div>
 
-      {/* DELIVERY METHODS */}
+      {/* ========================================
+          DELIVERY METHODS
+      ======================================== */}
+
       <div className="admin-delivery-grid">
+
         {deliveryMethods.map((method) => (
+
           <div
-            className="admin-delivery-card"
+            className={`admin-delivery-card ${
+              !method.enabled
+                ? "admin-delivery-card-disabled"
+                : ""
+            }`}
             key={method.id}
           >
+
             {/* CARD HEADER */}
+
             <div className="admin-delivery-card-header">
+
               <div className="admin-delivery-method-icon">
+
                 {method.id === "express" ? (
                   <Zap size={19} />
                 ) : (
                   <Truck size={19} />
                 )}
+
               </div>
 
-              <div>
+              <div className="admin-delivery-method-title">
+
                 <h2>{method.name}</h2>
 
                 <span>{method.description}</span>
+
               </div>
+
             </div>
 
-            {/* PRICE */}
+            {/* ========================================
+                ENABLE / DISABLE
+            ======================================== */}
+
+            <div className="admin-delivery-enable-section">
+
+              <div>
+
+                <span className="admin-delivery-enable-label">
+                  DELIVERY STATUS
+                </span>
+
+                <strong
+                  className={
+                    method.enabled
+                      ? "delivery-status-enabled"
+                      : "delivery-status-disabled"
+                  }
+                >
+                  {method.enabled
+                    ? "AVAILABLE"
+                    : "UNAVAILABLE"}
+                </strong>
+
+              </div>
+
+              <button
+                type="button"
+                className={`admin-delivery-toggle ${
+                  method.enabled
+                    ? "is-enabled"
+                    : "is-disabled"
+                }`}
+                onClick={() =>
+                  handleToggle(method.id)
+                }
+                aria-label={`${
+                  method.enabled
+                    ? "Disable"
+                    : "Enable"
+                } ${method.name}`}
+                aria-pressed={method.enabled}
+              >
+                {method.enabled ? (
+                  <ToggleRight size={38} />
+                ) : (
+                  <ToggleLeft size={38} />
+                )}
+              </button>
+
+            </div>
+
+            {/* ========================================
+                PRICE
+            ======================================== */}
+
             <div className="admin-delivery-price-section">
-              <label htmlFor={`delivery-${method.id}`}>
+
+              <label
+                htmlFor={`delivery-${method.id}`}
+              >
                 DELIVERY FEE
               </label>
 
               <div className="admin-delivery-price-input">
+
                 <span>₹</span>
 
                 <input
@@ -200,58 +332,140 @@ function AdminDeliverySettings() {
                     )
                   }
                 />
-              </div>
-            </div>
 
-            {/* PREVIEW */}
-            <div className="admin-delivery-preview">
-              <span>CUSTOMER WILL SEE</span>
-
-              <div>
-                <strong>{method.name}</strong>
-
-                <strong>
-                  ₹{Number(method.price || 0).toLocaleString("en-IN")}
-                </strong>
               </div>
 
-              <p>{method.description}</p>
             </div>
+
+            {/* ========================================
+                PREVIEW
+            ======================================== */}
+
+            <div
+              className={`admin-delivery-preview ${
+                !method.enabled
+                  ? "preview-disabled"
+                  : ""
+              }`}
+            >
+
+              <span>
+                CUSTOMER WILL SEE
+              </span>
+
+              {method.enabled ? (
+                <>
+                  <div>
+
+                    <strong>
+                      {method.name}
+                    </strong>
+
+                    <strong>
+                      ₹
+                      {Number(
+                        method.price || 0
+                      ).toLocaleString("en-IN")}
+                    </strong>
+
+                  </div>
+
+                  <p>
+                    {method.description}
+                  </p>
+                </>
+              ) : (
+                <div className="admin-delivery-preview-disabled">
+                  <strong>
+                    NOT SHOWN TO CUSTOMERS
+                  </strong>
+
+                  <p>
+                    This delivery method is currently disabled.
+                  </p>
+                </div>
+              )}
+
+            </div>
+
           </div>
+
         ))}
+
       </div>
 
-      {/* CURRENT SETTINGS */}
+      {/* ========================================
+          CURRENT CONFIGURATION
+      ======================================== */}
+
       <section className="admin-delivery-summary">
+
         <div className="admin-delivery-summary-header">
+
           <div>
+
             <span className="admin-delivery-eyebrow">
               CURRENT CONFIGURATION
             </span>
 
-            <h2>Delivery Fees</h2>
+            <h2>Delivery Methods</h2>
+
           </div>
+
         </div>
 
         <div className="admin-delivery-summary-list">
+
           {deliveryMethods.map((method) => (
+
             <div
               className="admin-delivery-summary-row"
               key={method.id}
             >
-              <div>
-                <strong>{method.name}</strong>
 
-                <span>{method.description}</span>
+              <div>
+
+                <strong>
+                  {method.name}
+                </strong>
+
+                <span>
+                  {method.description}
+                </span>
+
               </div>
 
-              <strong>
-                ₹{Number(method.price || 0).toLocaleString("en-IN")}
-              </strong>
+              <div className="admin-delivery-summary-right">
+
+                <span
+                  className={
+                    method.enabled
+                      ? "summary-status-enabled"
+                      : "summary-status-disabled"
+                  }
+                >
+                  {method.enabled
+                    ? "ENABLED"
+                    : "DISABLED"}
+                </span>
+
+                <strong>
+                  ₹
+                  {Number(
+                    method.price || 0
+                  ).toLocaleString("en-IN")}
+                </strong>
+
+              </div>
+
             </div>
+
           ))}
+
         </div>
+
       </section>
+
     </div>
   );
 }

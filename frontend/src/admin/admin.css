@@ -8449,3 +8449,639 @@
   }
 
 }
+/* =========================================================
+   DELIVERY SETTINGS
+========================================================= */
+
+.admin-delivery-settings {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 48px 42px 80px;
+  box-sizing: border-box;
+}
+
+/* =========================================================
+   HEADER
+========================================================= */
+
+.admin-delivery-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 30px;
+  margin-bottom: 32px;
+}
+
+.admin-delivery-eyebrow {
+  display: block;
+  margin-bottom: 8px;
+
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+
+  color: #777;
+}
+
+.admin-delivery-header h1 {
+  margin: 0;
+
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 42px;
+  font-weight: 400;
+  line-height: 1.1;
+
+  color: #111;
+}
+
+.admin-delivery-header p {
+  max-width: 650px;
+  margin: 10px 0 0;
+
+  font-size: 14px;
+  line-height: 1.6;
+
+  color: #777;
+}
+
+/* =========================================================
+   HEADER BUTTONS
+========================================================= */
+
+.admin-delivery-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.admin-delivery-reset,
+.admin-delivery-save {
+  height: 44px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+
+  padding: 0 18px;
+
+  border: 1px solid #ddd;
+  background: #fff;
+
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.admin-delivery-reset {
+  color: #222;
+}
+
+.admin-delivery-reset:hover {
+  background: #f5f5f5;
+}
+
+.admin-delivery-save {
+  border-color: #111;
+  background: #111;
+  color: #fff;
+}
+
+.admin-delivery-save:hover {
+  background: #292929;
+}
+
+.admin-delivery-save:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* =========================================================
+   INFO BOX
+========================================================= */
+
+.admin-delivery-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+
+  padding: 18px;
+
+  margin-bottom: 22px;
+
+  border: 1px solid #dedede;
+  background: #fff;
+}
+
+.admin-delivery-info-icon {
+  width: 34px;
+  height: 34px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex-shrink: 0;
+
+  border: 1px solid #ddd;
+  background: #fafafa;
+}
+
+.admin-delivery-info strong {
+  display: block;
+
+  margin-bottom: 4px;
+
+  font-size: 13px;
+  font-weight: 600;
+  color: #111;
+}
+
+.admin-delivery-info p {
+  margin: 0;
+
+  font-size: 12px;
+  line-height: 1.5;
+
+  color: #777;
+}
+
+/* =========================================================
+   DELIVERY GRID
+========================================================= */
+
+.admin-delivery-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+
+  margin-bottom: 26px;
+}
+
+/* =========================================================
+   DELIVERY CARD
+========================================================= */
+
+.admin-delivery-card {
+  padding: 22px;
+
+  border: 1px solid #ddd;
+  background: #fff;
+
+  transition:
+    border-color 0.2s ease,
+    opacity 0.2s ease,
+    background 0.2s ease;
+}
+
+.admin-delivery-card:hover {
+  border-color: #bbb;
+}
+
+.admin-delivery-card-disabled {
+  background: #fafafa;
+  opacity: 0.78;
+}
+
+/* =========================================================
+   CARD HEADER
+========================================================= */
+
+.admin-delivery-card-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+
+  padding-bottom: 22px;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.admin-delivery-method-icon {
+  width: 38px;
+  height: 38px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex-shrink: 0;
+
+  border: 1px solid #ddd;
+  background: #fafafa;
+}
+
+.admin-delivery-method-title {
+  min-width: 0;
+}
+
+.admin-delivery-card-header h2 {
+  margin: 0 0 5px;
+
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+
+  color: #111;
+}
+
+.admin-delivery-card-header span {
+  display: block;
+
+  font-size: 10px;
+  letter-spacing: 0.08em;
+
+  color: #888;
+}
+
+/* =========================================================
+   ENABLE / DISABLE SECTION
+========================================================= */
+
+.admin-delivery-enable-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 20px 0;
+
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.admin-delivery-enable-label {
+  display: block;
+
+  margin-bottom: 5px;
+
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+
+  color: #888;
+}
+
+.admin-delivery-enable-section strong {
+  display: block;
+
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+.delivery-status-enabled {
+  color: #111;
+}
+
+.delivery-status-disabled {
+  color: #999;
+}
+
+/* =========================================================
+   TOGGLE BUTTON
+========================================================= */
+
+.admin-delivery-toggle {
+  width: 52px;
+  height: 38px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 0;
+
+  border: 0;
+  background: transparent;
+
+  cursor: pointer;
+
+  transition:
+    transform 0.2s ease,
+    opacity 0.2s ease;
+}
+
+.admin-delivery-toggle:hover {
+  transform: scale(1.05);
+}
+
+.admin-delivery-toggle:active {
+  transform: scale(0.96);
+}
+
+.admin-delivery-toggle.is-enabled {
+  color: #111;
+}
+
+.admin-delivery-toggle.is-disabled {
+  color: #999;
+}
+
+/* =========================================================
+   PRICE
+========================================================= */
+
+.admin-delivery-price-section {
+  padding: 20px 0;
+
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.admin-delivery-price-section label {
+  display: block;
+
+  margin-bottom: 9px;
+
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+
+  color: #777;
+}
+
+.admin-delivery-price-input {
+  height: 44px;
+
+  display: flex;
+  align-items: center;
+
+  border: 1px solid #ddd;
+  background: #fff;
+}
+
+.admin-delivery-price-input > span {
+  padding-left: 13px;
+
+  font-size: 14px;
+  color: #333;
+}
+
+.admin-delivery-price-input input {
+  width: 100%;
+  height: 100%;
+
+  padding: 0 12px;
+
+  border: 0;
+  outline: 0;
+
+  background: transparent;
+
+  font-size: 14px;
+  font-weight: 500;
+
+  color: #111;
+}
+
+.admin-delivery-price-input input:focus {
+  box-shadow: inset 0 0 0 1px #111;
+}
+
+/* Remove number input arrows */
+
+.admin-delivery-price-input input::-webkit-outer-spin-button,
+.admin-delivery-price-input input::-webkit-inner-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
+}
+
+.admin-delivery-price-input input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+/* =========================================================
+   CUSTOMER PREVIEW
+========================================================= */
+
+.admin-delivery-preview {
+  padding-top: 20px;
+}
+
+.admin-delivery-preview > span {
+  display: block;
+
+  margin-bottom: 10px;
+
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+
+  color: #888;
+}
+
+.admin-delivery-preview > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.admin-delivery-preview strong {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+
+  color: #111;
+}
+
+.admin-delivery-preview p {
+  margin: 6px 0 0;
+
+  font-size: 10px;
+  color: #888;
+}
+
+/* Disabled preview */
+
+.preview-disabled {
+  opacity: 0.65;
+}
+
+.admin-delivery-preview-disabled {
+  display: block !important;
+}
+
+.admin-delivery-preview-disabled strong {
+  color: #999;
+}
+
+.admin-delivery-preview-disabled p {
+  margin-top: 5px;
+}
+
+/* =========================================================
+   CURRENT CONFIGURATION
+========================================================= */
+
+.admin-delivery-summary {
+  border: 1px solid #ddd;
+  background: #fff;
+}
+
+.admin-delivery-summary-header {
+  padding: 22px;
+
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.admin-delivery-summary-header h2 {
+  margin: 0;
+
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 25px;
+  font-weight: 400;
+
+  color: #111;
+}
+
+.admin-delivery-summary-list {
+  width: 100%;
+}
+
+.admin-delivery-summary-row {
+  min-height: 74px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 20px;
+
+  padding: 16px 22px;
+
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.admin-delivery-summary-row:last-child {
+  border-bottom: 0;
+}
+
+.admin-delivery-summary-row > div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.admin-delivery-summary-row strong {
+  font-size: 11px;
+  font-weight: 700;
+
+  color: #111;
+}
+
+.admin-delivery-summary-row span {
+  font-size: 10px;
+  color: #888;
+}
+
+.admin-delivery-summary-right {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.summary-status-enabled,
+.summary-status-disabled {
+  font-size: 9px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.1em;
+}
+
+.summary-status-enabled {
+  color: #111 !important;
+}
+
+.summary-status-disabled {
+  color: #999 !important;
+}
+
+/* =========================================================
+   SAVING SPINNER
+========================================================= */
+
+.admin-spin {
+  animation: adminDeliverySpin 0.8s linear infinite;
+}
+
+@keyframes adminDeliverySpin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* =========================================================
+   TABLET
+========================================================= */
+
+@media (max-width: 900px) {
+
+  .admin-delivery-settings {
+    padding: 35px 24px 60px;
+  }
+
+  .admin-delivery-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .admin-delivery-grid {
+    grid-template-columns: 1fr;
+  }
+
+}
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media (max-width: 600px) {
+
+  .admin-delivery-settings {
+    padding: 28px 16px 50px;
+  }
+
+  .admin-delivery-header h1 {
+    font-size: 34px;
+  }
+
+  .admin-delivery-header p {
+    font-size: 13px;
+  }
+
+  .admin-delivery-header-actions {
+    width: 100%;
+  }
+
+  .admin-delivery-reset,
+  .admin-delivery-save {
+    flex: 1;
+    padding: 0 10px;
+  }
+
+  .admin-delivery-info {
+    padding: 15px;
+  }
+
+  .admin-delivery-card {
+    padding: 18px;
+  }
+
+  .admin-delivery-summary-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .admin-delivery-summary-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+}

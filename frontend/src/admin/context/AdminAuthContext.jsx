@@ -20,6 +20,7 @@ function AdminAuthProvider({ children }) {
   const checkAuth = async () => {
     try {
       const response = await api.get("/auth/me");
+      console.log("ADMIN AUTH CHECK RESPONSE:",api);
 
       const user = response.data?.user;
 
