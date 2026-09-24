@@ -40,7 +40,7 @@ app.set("trust proxy", 1);
 
 const frontendPath = path.resolve(
     __dirname,
-    "../../../frontend/dist"
+    "../dist"
 );
 
 const uploadsPath = path.resolve(
