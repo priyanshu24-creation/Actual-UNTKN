@@ -158,10 +158,6 @@ function Home() {
         <div className="hero-overlay"></div>
 
         <div className="hero-content">
-          <p className="eyebrow">
-          
-          </p>
-
           <h1>
             MISERY
             <br />
@@ -304,10 +300,6 @@ function Home() {
         <div className="capsule-overlay"></div>
 
         <div className="capsule-content">
-          <p className="eyebrow">
-            
-          </p>
-
           <h2>
             THE WAFFLE
             <br />
@@ -354,10 +346,6 @@ function Home() {
           </div>
 
           <div className="editorial-text">
-            <p className="eyebrow">
-            
-            </p>
-
             <h3>
               MISERY
               <br />
@@ -373,11 +361,7 @@ function Home() {
       </section>
 
       <section className="about-section">
-        <div className="about-label">
-          <p>
-            
-          </p>
-        </div>
+        <div className="about-label"></div>
 
         <div className="about-content">
           <div className="about-text">
@@ -405,10 +389,6 @@ function Home() {
       </section>
 
       <section className="newsletter">
-        <p>
-          05 / THE LIST
-        </p>
-
         <h2>
           STAY IN
           <br />
