@@ -5,6 +5,7 @@ import { fileURLToPath } from "url";
 import app from "./app.js";
 import pool from "./config/database.js";
 import { verifyEmailConnection } from "./config/services/email.service.js";
+import { ensureCouponSchema } from "./services/coupon.service.js";
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -23,6 +24,14 @@ async function startServer() {
         console.log("MySQL connected successfully");
 
         connection.release();
+
+        try {
+            await ensureCouponSchema();
+            console.log("Coupon system database schema ready");
+        } catch (error) {
+            console.error("Coupon schema initialization failed:");
+            console.error(error.message);
+        }
 
         try {
     await verifyEmailConnection();

@@ -1,5 +1,6 @@
 import pool from "../config/database.js";
 import { sendOrderEmails } from "../services/order-confirmation.js";
+import { validateCoupon } from "../services/coupon.service.js";
 
 const generateOrderNumber = () => {
     const timestamp = Date.now().toString();
@@ -27,7 +28,8 @@ export const createOrder = async (req, res) => {
             shipping_postal_code,
             shipping_country,
             delivery_method,
-            notes
+            notes,
+            coupon_code
         } = req.body;
 
         if (
@@ -68,7 +70,8 @@ export const createOrder = async (req, res) => {
                 ? 150
                 : 100;
 
-        const discount = 0;
+        let discount = 0;
+        let appliedCoupon = null;
 
         await connection.beginTransaction();
 
@@ -107,6 +110,8 @@ export const createOrder = async (req, res) => {
                     p.published,
                     p.base_price,
                     p.sale_price,
+                    p.category_id,
+                    p.collection_id,
 
                     pv.sku,
                     pv.price AS variant_price,
@@ -248,12 +253,40 @@ export const createOrder = async (req, res) => {
                     unitPrice,
 
                 total_price:
-                    totalPrice
+                    totalPrice,
+
+                category_id:
+                    item.category_id,
+
+                collection_id:
+                    item.collection_id
             });
         }
 
         subtotal =
             Number(subtotal.toFixed(2));
+
+        if (coupon_code) {
+            const couponItems = orderItems.map((item) => ({
+                product_id: item.product_id,
+                category_id: item.category_id,
+                collection_id: item.collection_id,
+                quantity: item.quantity,
+                unit_price: item.unit_price
+            }));
+
+            const couponResult = await validateCoupon({
+                connection,
+                code: coupon_code,
+                userId,
+                subtotal,
+                items: couponItems,
+                forOrder: true
+            });
+
+            discount = Number(couponResult.discount || 0);
+            appliedCoupon = couponResult;
+        }
 
         const totalAmount =
             Number(
@@ -278,6 +311,7 @@ export const createOrder = async (req, res) => {
                     shipping_fee,
                     discount,
                     total_amount,
+                    coupon_code,
 
                     currency,
                     payment_status,
@@ -299,10 +333,10 @@ export const createOrder = async (req, res) => {
                 )
 
                 VALUES (
-                    ?, ?, ?, ?, ?, ?, ?,
+                    ?, ?, ?, ?, ?, ?, ?, ?,
                     'pending',
                     'pending',
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
                 )
                 `,
                 [
@@ -314,6 +348,7 @@ export const createOrder = async (req, res) => {
                     shippingFee,
                     discount,
                     totalAmount,
+                    appliedCoupon?.code || null,
 
                     "INR",
 
@@ -345,6 +380,46 @@ export const createOrder = async (req, res) => {
 
         const orderId =
             orderResult.insertId;
+
+        if (appliedCoupon) {
+            const [usageUpdate] =
+                await connection.execute(
+                    `
+                    UPDATE coupons
+                    SET usage_count = usage_count + 1
+                    WHERE id = ?
+                    AND (
+                        usage_limit IS NULL
+                        OR usage_count < usage_limit
+                    )
+                    `,
+                    [appliedCoupon.coupon.id]
+                );
+
+            if (usageUpdate.affectedRows !== 1) {
+                throw new Error(
+                    "This coupon is no longer available. Please try another coupon."
+                );
+            }
+
+            await connection.execute(
+                `
+                INSERT INTO coupon_usages (
+                    coupon_id,
+                    user_id,
+                    order_id,
+                    discount_amount
+                )
+                VALUES (?, ?, ?, ?)
+                `,
+                [
+                    appliedCoupon.coupon.id,
+                    userId,
+                    orderId,
+                    discount
+                ]
+            );
+        }
 
         for (const item of orderItems) {
             await connection.execute(
@@ -436,6 +511,9 @@ export const createOrder = async (req, res) => {
                 discount:
                     discount,
 
+                coupon_code:
+                    appliedCoupon?.code || null,
+
                 total_amount:
                     totalAmount,
 
@@ -497,6 +575,7 @@ export const getOrders = async (
                     shipping_fee,
                     discount,
                     total_amount,
+                    coupon_code,
 
                     currency,
 

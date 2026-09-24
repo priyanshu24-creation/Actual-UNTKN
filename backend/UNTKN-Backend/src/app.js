@@ -27,6 +27,7 @@ import lookbookRoutes from "./routes/lookbook.routes.js";
 import deliveryMethodRoutes from "./routes/deliveryMethod.routes.js";
 import runningBannerRoutes from "./routes/runningBanner.routes.js";
 import reviewRoutes from "./routes/review.routes.js";
+import couponRoutes from "./routes/coupon.routes.js";
 
 import { errorHandler } from "./middleware/error.middleware.js";
 
@@ -53,10 +54,18 @@ const testPath = path.resolve(
 );
 
 const allowedOrigins = [
+    "http://localhost:5000",
+    "http://127.0.0.1:5000",
+
     "http://localhost:5173",
-    "http://localhost:4173",
     "http://127.0.0.1:5173",
+
+    "http://localhost:4173",
     "http://127.0.0.1:4173",
+
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+
     "https://untkn.in",
     "https://www.untkn.in"
 ];
@@ -66,48 +75,77 @@ app.use(
         contentSecurityPolicy: {
             directives: {
                 defaultSrc: ["'self'"],
+
                 scriptSrc: [
                     "'self'",
                     "https://checkout.razorpay.com",
                     "https://cdn.razorpay.com"
                 ],
+
                 styleSrc: [
                     "'self'",
                     "'unsafe-inline'",
                     "https:"
                 ],
+
                 imgSrc: [
                     "'self'",
                     "data:",
                     "blob:",
                     "https:"
                 ],
+
                 connectSrc: [
                     "'self'",
+
+                    "http://localhost:5000",
+                    "http://127.0.0.1:5000",
+
+                    "http://localhost:5173",
+                    "http://127.0.0.1:5173",
+
+                    "http://localhost:4173",
+                    "http://127.0.0.1:4173",
+
+                    "http://localhost:3000",
+                    "http://127.0.0.1:3000",
+
                     "https://untkn.in",
                     "https://www.untkn.in",
+
                     "https://checkout.razorpay.com",
                     "https://api.razorpay.com",
                     "https://cdn.razorpay.com"
                 ],
+
                 frameSrc: [
                     "'self'",
                     "https://checkout.razorpay.com",
                     "https://api.razorpay.com"
                 ],
+
                 fontSrc: [
                     "'self'",
                     "https:",
                     "data:"
                 ],
-                objectSrc: ["'none'"],
-                baseUri: ["'self'"],
+
+                objectSrc: [
+                    "'none'"
+                ],
+
+                baseUri: [
+                    "'self'"
+                ],
+
                 formAction: [
                     "'self'",
                     "https://checkout.razorpay.com"
                 ]
             }
-        }
+        },
+
+        crossOriginResourcePolicy: false
     })
 );
 
@@ -120,18 +158,23 @@ app.use(
 
             if (
                 allowedOrigins.includes(origin) ||
-                origin.startsWith("file://")
+                origin.startsWith("file://") ||
+                origin === "null"
             ) {
                 return callback(null, true);
             }
 
-            console.warn(`CORS blocked origin: ${origin}`);
+            console.warn(
+                `CORS blocked origin: ${origin}`
+            );
 
             return callback(
                 new Error("Not allowed by CORS")
             );
         },
+
         credentials: true,
+
         methods: [
             "GET",
             "POST",
@@ -140,11 +183,15 @@ app.use(
             "DELETE",
             "OPTIONS"
         ],
+
         allowedHeaders: [
             "Content-Type",
             "Authorization",
-            "X-Requested-With"
+            "X-Requested-With",
+            "Cache-Control",
+            "Pragma"
         ],
+
         optionsSuccessStatus: 204
     })
 );
@@ -166,30 +213,45 @@ app.use(cookieParser());
 
 const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
+
     limit: 200,
+
     standardHeaders: "draft-8",
+
     legacyHeaders: false,
+
     message: {
         success: false,
-        message: "Too many requests. Please try again later."
+        message:
+            "Too many requests. Please try again later."
     }
 });
 
-app.use("/api", apiLimiter);
+app.use(
+    "/api",
+    apiLimiter
+);
 
 app.use(
     "/uploads",
     express.static(uploadsPath)
 );
 
-app.get("/api/health", (req, res) => {
-    res.status(200).json({
-        success: true,
-        message: "UNTKN Backend is running"
-    });
-});
+app.get(
+    "/api/health",
+    (req, res) => {
+        res.status(200).json({
+            success: true,
+            message:
+                "UNTKN Backend is running"
+        });
+    }
+);
 
-app.use("/api/auth", authRoutes);
+app.use(
+    "/api/auth",
+    authRoutes
+);
 
 app.use(
     "/api/categories",
@@ -286,23 +348,32 @@ app.use(
     lookbookRoutes
 );
 
+app.use(
+    "/api/coupons",
+    couponRoutes
+);
+
 app.get(
     "/api/delivery-methods",
     (req, res) => {
         res.status(200).json({
             success: true,
+
             deliveryMethods: [
                 {
                     id: "standard",
                     name: "STANDARD DELIVERY",
-                    description: "5–7 BUSINESS DAYS",
+                    description:
+                        "5–7 BUSINESS DAYS",
                     price: 99,
                     isActive: true
                 },
+
                 {
                     id: "express",
                     name: "EXPRESS DELIVERY",
-                    description: "2–3 BUSINESS DAYS",
+                    description:
+                        "2–3 BUSINESS DAYS",
                     price: 199,
                     isActive: true
                 }
@@ -316,79 +387,13 @@ app.use(
     deliveryMethodRoutes
 );
 
-app.get(
-    "/api/settings/running-banner",
-    async (req, res) => {
-        try {
-            const pool =
-                (
-                    await import(
-                        "./config/database.js"
-                    )
-                ).default;
-
-            const [rows] = await pool.query(
-                `
-                    SELECT
-                        id,
-                        enabled,
-                        message_1,
-                        message_2,
-                        message_3
-                    FROM running_banner_settings
-                    WHERE id = 1
-                    LIMIT 1
-                `
-            );
-
-            if (!rows.length) {
-                return res.status(200).json({
-                    success: true,
-                    settings: {
-                        enabled: true,
-                        messages: [
-                            "FREE SHIPPING ON ORDERS ABOVE ₹999",
-                            "NEW COLLECTION NOW LIVE",
-                            "MORE THAN CLOTHES. WEAR YOUR STORY."
-                        ]
-                    }
-                });
-            }
-
-            const row = rows[0];
-
-            return res.status(200).json({
-                success: true,
-                settings: {
-                    enabled: Boolean(row.enabled),
-                    messages: [
-                        row.message_1,
-                        row.message_2,
-                        row.message_3
-                    ].filter(Boolean)
-                }
-            });
-        } catch (error) {
-            console.error(
-                "Running banner GET error:",
-                error
-            );
-
-            return res.status(200).json({
-                success: true,
-                settings: {
-                    enabled: true,
-                    messages: [
-                        "FREE SHIPPING ON ORDERS ABOVE ₹999",
-                        "NEW COLLECTION NOW LIVE",
-                        "MORE THAN CLOTHES. WEAR YOUR STORY."
-                    ]
-                }
-            });
-        }
-    }
-);
-
+/*
+ * Running Banner
+ *
+ * Keep this route mounted only once.
+ * The actual GET/PUT logic is handled by
+ * runningBanner.routes.js/controller.js.
+ */
 app.use(
     "/api/settings/running-banner",
     runningBannerRoutes
@@ -398,34 +403,43 @@ app.use(
     express.static(frontendPath)
 );
 
-app.use((req, res, next) => {
-    if (req.method !== "GET") {
-        return next();
+app.use(
+    (req, res, next) => {
+        if (req.method !== "GET") {
+            return next();
+        }
+
+        if (
+            req.path.startsWith("/api/")
+        ) {
+            return next();
+        }
+
+        if (
+            req.path.includes(".")
+        ) {
+            return next();
+        }
+
+        return res.sendFile(
+            path.join(
+                frontendPath,
+                "index.html"
+            )
+        );
     }
+);
 
-    if (req.path.startsWith("/api/")) {
-        return next();
+app.use(
+    (req, res) => {
+        res.status(404).json({
+            success: false,
+            message:
+                "API route not found",
+            path: req.originalUrl
+        });
     }
-
-    if (req.path.includes(".")) {
-        return next();
-    }
-
-    res.sendFile(
-        path.join(
-            frontendPath,
-            "index.html"
-        )
-    );
-});
-
-app.use((req, res) => {
-    res.status(404).json({
-        success: false,
-        message: "API route not found",
-        path: req.originalUrl
-    });
-});
+);
 
 app.use(errorHandler);
 

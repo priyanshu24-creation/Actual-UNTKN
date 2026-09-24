@@ -61,6 +61,13 @@ function Checkout() {
   const [error, setError] = useState("");
   const [authChecking, setAuthChecking] = useState(true);
 
+  const [couponCode, setCouponCode] = useState("");
+  const [couponData, setCouponData] = useState(null);
+  const [couponError, setCouponError] = useState("");
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [availableCoupons, setAvailableCoupons] = useState([]);
+  const [showOffers, setShowOffers] = useState(false);
+
 
   useEffect(() => {
     let mounted = true;
@@ -170,6 +177,137 @@ function Checkout() {
     };
   }, []);
 
+  useEffect(() => {
+    const savedCode =
+      sessionStorage.getItem("untkn_coupon_code");
+
+    if (savedCode) {
+      setCouponCode(savedCode);
+    }
+
+    let mounted = true;
+
+    const loadAvailableCoupons = async () => {
+      try {
+        const response = await api.get("/coupons/active");
+
+        if (!mounted) {
+          return;
+        }
+
+        setAvailableCoupons(
+          Array.isArray(response.data?.coupons)
+            ? response.data.coupons
+            : []
+        );
+      } catch (requestError) {
+        console.error(
+          "Available coupons error:",
+          requestError
+        );
+      }
+    };
+
+    loadAvailableCoupons();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const buildCouponItems = () =>
+    cartItems.map((item) => ({
+      product_id: item.product_id,
+      category_id: item.category_id ?? null,
+      collection_id: item.collection_id ?? null,
+      quantity: Number(item.quantity || 0),
+      unit_price: Number(
+        item.unit_price ?? item.price ?? 0
+      )
+    }));
+
+  const applyCoupon = async (code = couponCode) => {
+    const cleanCode = String(code || "").trim().toUpperCase();
+
+    if (!cleanCode) {
+      setCouponError("Enter a coupon code.");
+      return false;
+    }
+
+    try {
+      setCouponLoading(true);
+      setCouponError("");
+
+      const response = await api.post(
+        "/coupons/validate",
+        {
+          code: cleanCode,
+          subtotal: Number(subtotal || 0),
+          items: buildCouponItems()
+        }
+      );
+
+      if (!response.data?.success) {
+        throw new Error(
+          response.data?.message ||
+            "Unable to apply coupon."
+        );
+      }
+
+      const coupon = response.data.coupon;
+
+      setCouponCode(cleanCode);
+      setCouponData(coupon);
+
+      sessionStorage.setItem(
+        "untkn_coupon_code",
+        cleanCode
+      );
+
+      sessionStorage.setItem(
+        "untkn_coupon_data",
+        JSON.stringify(coupon)
+      );
+
+      return true;
+    } catch (requestError) {
+      console.error(
+        "Coupon validation error:",
+        requestError
+      );
+
+      setCouponData(null);
+      sessionStorage.removeItem(
+        "untkn_coupon_code"
+      );
+      sessionStorage.removeItem(
+        "untkn_coupon_data"
+      );
+
+      setCouponError(
+        requestError?.response?.data?.message ||
+          requestError?.message ||
+          "Invalid coupon code."
+      );
+
+      return false;
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  const removeCoupon = () => {
+    setCouponCode("");
+    setCouponData(null);
+    setCouponError("");
+    sessionStorage.removeItem(
+      "untkn_coupon_code"
+    );
+    sessionStorage.removeItem(
+      "untkn_coupon_data"
+    );
+  };
+
   const selectedDeliveryMethod =
     deliveryMethods.find(
       (method) =>
@@ -182,9 +320,18 @@ function Checkout() {
     selectedDeliveryMethod?.price || 0
   );
 
+  const couponDiscount = Math.min(
+    Number(couponData?.discount || 0),
+    Number(subtotal || 0)
+  );
+
   const total =
-    Number(subtotal || 0) +
-    Number(shipping || 0);
+    Math.max(
+      0,
+      Number(subtotal || 0) +
+        Number(shipping || 0) -
+        couponDiscount
+    );
 
   const handleChange = (event) => {
     const {
@@ -318,6 +465,21 @@ function Checkout() {
       const shippingName =
         `${firstName} ${lastName}`.trim();
 
+      let finalCouponCode = "";
+
+      if (couponCode.trim()) {
+        const couponApplied = await applyCoupon(
+          couponCode
+        );
+
+        if (!couponApplied) {
+          return;
+        }
+
+        finalCouponCode =
+          couponCode.trim().toUpperCase();
+      }
+
       const orderPayload = {
         shipping_name: shippingName,
         shipping_phone: phone,
@@ -332,6 +494,8 @@ function Checkout() {
         delivery_method:
           selectedDeliveryMethod.id,
         notes: `Delivery method: ${selectedDeliveryMethod.id}`,
+        coupon_code:
+          finalCouponCode || null,
       };
 
       const response = await api.post(
@@ -386,6 +550,12 @@ function Checkout() {
 
         frontendTotal:
           Number(total),
+
+        couponCode:
+          finalCouponCode || null,
+
+        couponDiscount:
+          Number(couponDiscount || 0),
 
         order: createdOrder,
       };
@@ -992,6 +1162,241 @@ function Checkout() {
             })}
           </div>
 
+          <div
+            style={{
+              marginTop: "22px",
+              marginBottom: "18px",
+              border: "1px solid #e5e5e5",
+              background: "#fafafa",
+              padding: "18px",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "12px",
+                marginBottom: "12px",
+              }}
+            >
+              <div>
+                <p
+                  className="eyebrow"
+                  style={{ marginBottom: "5px" }}
+                >
+                  UNTKN OFFERS
+                </p>
+                <strong
+                  style={{
+                    fontSize: "14px",
+                    letterSpacing: "0.04em",
+                  }}
+                >
+                  HAVE A COUPON?
+                </strong>
+              </div>
+
+              {availableCoupons.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setShowOffers((current) => !current)
+                  }
+                  style={{
+                    border: "0",
+                    background: "transparent",
+                    textDecoration: "underline",
+                    cursor: "pointer",
+                    fontSize: "11px",
+                    letterSpacing: "0.08em",
+                  }}
+                >
+                  {showOffers
+                    ? "HIDE OFFERS"
+                    : "VIEW OFFERS"}
+                </button>
+              )}
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                gap: "8px",
+              }}
+            >
+              <input
+                type="text"
+                value={couponCode}
+                onChange={(event) => {
+                  setCouponCode(
+                    event.target.value.toUpperCase()
+                  );
+                  setCouponError("");
+                }}
+                placeholder="ENTER CODE"
+                disabled={
+                  couponLoading ||
+                  submitting
+                }
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  border: "1px solid #d8d8d8",
+                  background: "#fff",
+                  padding: "12px",
+                  fontSize: "12px",
+                  letterSpacing: "0.08em",
+                  outline: "none",
+                }}
+              />
+
+              {couponData ? (
+                <button
+                  type="button"
+                  onClick={removeCoupon}
+                  disabled={
+                    couponLoading ||
+                    submitting
+                  }
+                  style={{
+                    border: "1px solid #111",
+                    background: "#111",
+                    color: "#fff",
+                    padding: "0 15px",
+                    cursor: "pointer",
+                    fontSize: "11px",
+                    letterSpacing: "0.08em",
+                  }}
+                >
+                  REMOVE
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => applyCoupon()}
+                  disabled={
+                    couponLoading ||
+                    submitting ||
+                    !couponCode.trim()
+                  }
+                  style={{
+                    border: "1px solid #111",
+                    background: "#111",
+                    color: "#fff",
+                    padding: "0 17px",
+                    cursor: "pointer",
+                    fontSize: "11px",
+                    letterSpacing: "0.08em",
+                  }}
+                >
+                  {couponLoading
+                    ? "CHECKING..."
+                    : "APPLY"}
+                </button>
+              )}
+            </div>
+
+            {couponError && (
+              <p
+                style={{
+                  margin: "10px 0 0",
+                  color: "#a33",
+                  fontSize: "12px",
+                }}
+              >
+                {couponError}
+              </p>
+            )}
+
+            {couponData && (
+              <div
+                style={{
+                  marginTop: "12px",
+                  paddingTop: "12px",
+                  borderTop: "1px solid #e2e2e2",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: "12px",
+                  fontSize: "12px",
+                }}
+              >
+                <span>
+                  {couponData.code} APPLIED
+                </span>
+                <strong>
+                  -₹
+                  {Number(
+                    couponData.discount || 0
+                  ).toLocaleString("en-IN")}
+                </strong>
+              </div>
+            )}
+
+            {showOffers &&
+              availableCoupons.length > 0 && (
+                <div
+                  style={{
+                    display: "grid",
+                    gap: "8px",
+                    marginTop: "14px",
+                  }}
+                >
+                  {availableCoupons
+                    .slice(0, 5)
+                    .map((coupon) => (
+                      <button
+                        key={coupon.id}
+                        type="button"
+                        onClick={() => {
+                          setCouponCode(
+                            coupon.code
+                          );
+                          setShowOffers(false);
+                          applyCoupon(
+                            coupon.code
+                          );
+                        }}
+                        style={{
+                          display: "flex",
+                          justifyContent:
+                            "space-between",
+                          alignItems: "center",
+                          border: "1px dashed #cfcfcf",
+                          background: "#fff",
+                          padding: "10px 12px",
+                          cursor: "pointer",
+                          textAlign: "left",
+                        }}
+                      >
+                        <span>
+                          <strong>
+                            {coupon.code}
+                          </strong>
+                          <small
+                            style={{
+                              display: "block",
+                              marginTop: "3px",
+                              color: "#777",
+                            }}
+                          >
+                            {coupon.discount_type ===
+                            "percentage"
+                              ? `${coupon.discount_value}% OFF`
+                              : `₹${Number(
+                                  coupon.discount_value
+                                ).toLocaleString(
+                                  "en-IN"
+                                )} OFF`}
+                          </small>
+                        </span>
+                        <span>→</span>
+                      </button>
+                    ))}
+                </div>
+              )}
+          </div>
+
           <div className="checkout-totals">
             <div>
               <span>
@@ -1021,6 +1426,25 @@ function Checkout() {
                     )}`}
               </strong>
             </div>
+
+            {couponDiscount > 0 && (
+              <div>
+                <span>
+                  DISCOUNT
+                </span>
+
+                <strong
+                  style={{
+                    color: "#2f6b3f",
+                  }}
+                >
+                  -₹
+                  {couponDiscount.toLocaleString(
+                    "en-IN"
+                  )}
+                </strong>
+              </div>
+            )}
 
             <div className="checkout-total-divider" />
 

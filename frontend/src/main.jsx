@@ -10,7 +10,9 @@ import { CartProvider } from "./context/CartContext";
 import { WishlistProvider } from "./context/WishlistContext";
 import AdminAuthProvider from "./admin/context/AdminAuthContext";
 
-ReactDOM.createRoot(document.getElementById("root")).render(
+ReactDOM.createRoot(
+  document.getElementById("root")
+).render(
   <React.StrictMode>
     <AdminAuthProvider>
       <CartProvider>

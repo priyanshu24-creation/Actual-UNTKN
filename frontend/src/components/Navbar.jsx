@@ -1,493 +1,706 @@
-import { useEffect, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
-
+import React, { useEffect, useState } from "react";
 import {
-  Search,
-  Heart,
-  ShoppingBag,
+  Link,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
+import {
   Menu,
-  X,
+  Search,
+  ShoppingBag,
   User,
+  X,
+  Heart,
 } from "lucide-react";
-
-import { useCart } from "../context/CartContext";
 import api from "../services/api.js";
 
-import logo from "../assets/images/logo.png";
-
-function Navbar() {
-  const [menuOpen, setMenuOpen] =
-    useState(false);
-
-  const [bannerEnabled, setBannerEnabled] =
-    useState(true);
-
-  const [bannerMessages, setBannerMessages] =
-    useState([
-      "FREE SHIPPING ON ORDERS ABOVE ₹999",
-      "NEW DROP LIVE NOW",
-      "EASY RETURNS",
-    ]);
-
-  const { totalItems } = useCart();
-
+const Navbar = () => {
+  const navigate = useNavigate();
   const location = useLocation();
+
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchValue, setSearchValue] = useState("");
+
+  const [bannerSettings, setBannerSettings] = useState({
+    enabled: false,
+    messages: [],
+  });
+
+  const [currentMessage, setCurrentMessage] = useState(0);
+  const [cartCount, setCartCount] = useState(0);
+
+  const loadRunningBanner = async () => {
+    try {
+      const response = await api.get(
+        "/settings/running-banner",
+        {
+          params: {
+            _: Date.now(),
+          },
+
+          headers: {
+            "Cache-Control":
+              "no-cache, no-store, must-revalidate",
+            Pragma: "no-cache",
+            Expires: "0",
+          },
+        }
+      );
+
+      const settings =
+        response?.data?.settings;
+
+      if (!settings) {
+        setBannerSettings({
+          enabled: false,
+          messages: [],
+        });
+
+        return;
+      }
+
+      const messages = Array.isArray(
+        settings.messages
+      )
+        ? settings.messages
+            .filter(
+              (message) =>
+                typeof message === "string" &&
+                message.trim().length > 0
+            )
+            .map((message) =>
+              message.trim()
+            )
+        : [];
+
+      setBannerSettings({
+        enabled:
+          Boolean(settings.enabled) &&
+          messages.length > 0,
+
+        messages,
+      });
+    } catch (error) {
+      console.error(
+        "Failed to load running banner:",
+        error
+      );
+
+      setBannerSettings({
+        enabled: false,
+        messages: [],
+      });
+    }
+  };
+
+  const loadCartCount = async () => {
+    try {
+      const token =
+        localStorage.getItem("token") ||
+        localStorage.getItem(
+          "accessToken"
+        );
+
+      if (!token) {
+        setCartCount(0);
+        return;
+      }
+
+      const response =
+        await api.get("/cart");
+
+      const data =
+        response?.data;
+
+      const items =
+        Array.isArray(data?.cart)
+          ? data.cart
+          : Array.isArray(data?.items)
+          ? data.items
+          : [];
+
+      const count =
+        items.reduce(
+          (total, item) =>
+            total +
+            Number(
+              item?.quantity || 0
+            ),
+          0
+        );
+
+      setCartCount(count);
+    } catch (error) {
+      setCartCount(0);
+    }
+  };
+
+  useEffect(() => {
+    loadRunningBanner();
+    loadCartCount();
+
+    const handleCartUpdated =
+      () => {
+        loadCartCount();
+      };
+
+    const handleStorage =
+      (event) => {
+        if (
+          event.key === "token" ||
+          event.key === "accessToken" ||
+          event.key === "cart"
+        ) {
+          loadCartCount();
+        }
+      };
+
+    window.addEventListener(
+      "cartUpdated",
+      handleCartUpdated
+    );
+
+    window.addEventListener(
+      "storage",
+      handleStorage
+    );
+
+    const bannerInterval =
+      setInterval(
+        loadRunningBanner,
+        30000
+      );
+
+    const cartInterval =
+      setInterval(
+        loadCartCount,
+        30000
+      );
+
+    return () => {
+      window.removeEventListener(
+        "cartUpdated",
+        handleCartUpdated
+      );
+
+      window.removeEventListener(
+        "storage",
+        handleStorage
+      );
+
+      clearInterval(
+        bannerInterval
+      );
+
+      clearInterval(
+        cartInterval
+      );
+    };
+  }, []);
+
+  useEffect(() => {
+    if (
+      !bannerSettings.enabled ||
+      bannerSettings.messages.length <= 1
+    ) {
+      setCurrentMessage(0);
+      return undefined;
+    }
+
+    const interval =
+      setInterval(() => {
+        setCurrentMessage(
+          (previous) =>
+            (previous + 1) %
+            bannerSettings.messages.length
+        );
+      }, 4000);
+
+    return () =>
+      clearInterval(interval);
+  }, [
+    bannerSettings.enabled,
+    bannerSettings.messages,
+  ]);
 
   useEffect(() => {
     setMenuOpen(false);
+    setSearchOpen(false);
   }, [location.pathname]);
 
-  useEffect(() => {
-    if (menuOpen) {
-      document.body.style.overflow =
-        "hidden";
-    } else {
-      document.body.style.overflow = "";
+  const isActive = (path) => {
+    if (path === "/") {
+      return location.pathname === "/";
     }
 
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [menuOpen]);
+    return location.pathname.startsWith(
+      path
+    );
+  };
 
-  useEffect(() => {
-    let mounted = true;
+  const handleSearchSubmit = (
+    event
+  ) => {
+    event.preventDefault();
 
-    const loadRunningBanner = async () => {
-      try {
-        const response = await api.get(
-          "/settings/running-banner"
-        );
+    const query =
+      searchValue.trim();
 
-        if (!mounted) {
-          return;
-        }
+    if (!query) {
+      return;
+    }
 
-        if (!response.data?.success) {
-          return;
-        }
+    setSearchOpen(false);
+    setSearchValue("");
 
-        const settings =
-          response.data?.settings;
-
-        if (
-          settings?.enabled !==
-          undefined
-        ) {
-          setBannerEnabled(
-            Boolean(settings.enabled)
-          );
-        }
-
-        if (
-          Array.isArray(
-            settings?.messages
-          )
-        ) {
-          const messages =
-            settings.messages
-              .map((message) =>
-                String(
-                  message || ""
-                ).trim()
-              )
-              .filter(Boolean);
-
-          if (messages.length > 0) {
-            setBannerMessages(messages);
-          }
-        }
-      } catch (error) {
-        console.error(
-          "Failed to load running banner:",
-          error
-        );
-      }
-    };
-
-    loadRunningBanner();
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
+    navigate(
+      `/shop?search=${encodeURIComponent(
+        query
+      )}`
+    );
+  };
 
   const closeMenu = () => {
     setMenuOpen(false);
   };
 
-  const toggleMenu = () => {
-    setMenuOpen((prev) => !prev);
-  };
-
-  const isActive = (path) => {
-    return location.pathname === path;
-  };
-
-  const renderBannerMessages = () => {
-    return bannerMessages.map(
-      (message, index) => (
-        <span
-          key={`banner-${index}`}
-        >
-          {message}
-          <span> • </span>
-        </span>
-      )
-    );
+  const navigateFromMenu = (
+    path
+  ) => {
+    setMenuOpen(false);
+    navigate(path);
   };
 
   return (
     <>
-      <header className="site-header">
-        {bannerEnabled && (
-          <div className="announcement-bar">
-            <div className="announcement-track">
-              {renderBannerMessages()}
-              {renderBannerMessages()}
+      {bannerSettings.enabled &&
+        bannerSettings.messages.length >
+          0 && (
+          <div className="untkn-running-banner">
+            <div className="untkn-running-banner-track">
+              <span>
+                {
+                  bannerSettings
+                    .messages[
+                    currentMessage
+                  ]
+                }
+              </span>
             </div>
           </div>
         )}
 
-        <div className="navbar">
-          <div className="navbar-inner">
-            <button
-              type="button"
-              className="mobile-menu-button"
-              onClick={toggleMenu}
-              aria-label={
-                menuOpen
-                  ? "Close navigation menu"
-                  : "Open navigation menu"
-              }
-              aria-expanded={menuOpen}
-            >
-              {menuOpen ? (
-                <X
-                  size={20}
-                  strokeWidth={1.5}
-                />
-              ) : (
-                <Menu
-                  size={20}
-                  strokeWidth={1.5}
-                />
-              )}
-            </button>
+      <header className="navbar">
+        <div className="navbar-inner">
+
+          <button
+            type="button"
+            className="mobile-menu-button"
+            aria-label="Open menu"
+            aria-expanded={menuOpen}
+            onClick={() =>
+              setMenuOpen(true)
+            }
+          >
+            <Menu
+              size={20}
+              strokeWidth={1.5}
+            />
+          </button>
+
+          <Link
+            to="/"
+            className="logo"
+            aria-label="UNTKN Home"
+          >
+            UNTKN
+          </Link>
+
+          <nav className="nav-links">
 
             <Link
               to="/"
-              className="logo"
-              onClick={closeMenu}
-              aria-label="UNTKN Home"
+              className={
+                isActive("/")
+                  ? "active"
+                  : ""
+              }
             >
-              <img
-                src={logo}
-                alt="UNTKN logo"
-                className="logo-image"
-              />
-
-              <span className="logo-name">
-                UNTKN
-              </span>
+              HOME
             </Link>
 
-            <nav className="nav-links">
-              <Link
-                to="/shop"
-                className={
-                  isActive("/shop")
-                    ? "active"
-                    : ""
-                }
-              >
-                SHOP
-              </Link>
-
-              <Link
-                to="/collections"
-                className={
-                  isActive("/collections")
-                    ? "active"
-                    : ""
-                }
-              >
-                COLLECTIONS
-              </Link>
-
-              <Link
-                to="/lookbook"
-                className={
-                  isActive("/lookbook")
-                    ? "active"
-                    : ""
-                }
-              >
-                LOOKBOOK
-              </Link>
-
-              <Link
-                to="/about"
-                className={
-                  isActive("/about")
-                    ? "active"
-                    : ""
-                }
-              >
-                ABOUT
-              </Link>
-
-              <Link
-                to="/contact"
-                className={
-                  isActive("/contact")
-                    ? "active"
-                    : ""
-                }
-              >
-                CONTACT
-              </Link>
-            </nav>
-
-            <div className="nav-actions">
-              <Link
-                to="/search"
-                className={
-                  isActive("/search")
-                    ? "nav-action-button active"
-                    : "nav-action-button"
-                }
-                aria-label="Search"
-                title="Search"
-              >
-                <Search
-                  size={18}
-                  strokeWidth={1.5}
-                />
-              </Link>
-
-              <Link
-                to="/wishlist"
-                className={
-                  isActive("/wishlist")
-                    ? "nav-action-button active"
-                    : "nav-action-button"
-                }
-                aria-label="Wishlist"
-                title="Wishlist"
-              >
-                <Heart
-                  size={18}
-                  strokeWidth={1.5}
-                />
-              </Link>
-
-              <Link
-                to="/login"
-                className={
-                  isActive("/login")
-                    ? "nav-action-button active"
-                    : "nav-action-button"
-                }
-                aria-label="Account"
-                title="Account"
-              >
-                <User
-                  size={18}
-                  strokeWidth={1.5}
-                />
-              </Link>
-
-              <Link
-                to="/cart"
-                className={
-                  isActive("/cart")
-                    ? "nav-action-button bag-button active"
-                    : "nav-action-button bag-button"
-                }
-                aria-label={`Shopping bag with ${totalItems} items`}
-                title="Shopping bag"
-              >
-                <ShoppingBag
-                  size={18}
-                  strokeWidth={1.5}
-                />
-
-                {totalItems > 0 && (
-                  <span className="cart-count">
-                    {totalItems > 99
-                      ? "99+"
-                      : totalItems}
-                  </span>
-                )}
-              </Link>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <div
-        className={
-          menuOpen
-            ? "mobile-menu open"
-            : "mobile-menu"
-        }
-      >
-        <div className="mobile-menu-inner">
-          <div className="mobile-menu-label">
-            MENU
-          </div>
-
-          <nav className="mobile-nav-links">
             <Link
               to="/shop"
-              onClick={closeMenu}
               className={
                 isActive("/shop")
                   ? "active"
                   : ""
               }
             >
-              <span>01</span>
               SHOP
             </Link>
 
             <Link
-              to="/shop"
-              onClick={closeMenu}
+              to="/new-arrivals"
+              className={
+                isActive(
+                  "/new-arrivals"
+                )
+                  ? "active"
+                  : ""
+              }
             >
-              <span>02</span>
               NEW ARRIVALS
             </Link>
 
             <Link
               to="/collections"
-              onClick={closeMenu}
               className={
-                isActive("/collections")
+                isActive(
+                  "/collections"
+                )
                   ? "active"
                   : ""
               }
             >
-              <span>03</span>
               COLLECTIONS
             </Link>
 
             <Link
               to="/lookbook"
-              onClick={closeMenu}
               className={
                 isActive("/lookbook")
                   ? "active"
                   : ""
               }
             >
-              <span>04</span>
               LOOKBOOK
             </Link>
 
-            <Link
-              to="/about"
-              onClick={closeMenu}
-              className={
-                isActive("/about")
-                  ? "active"
-                  : ""
-              }
-            >
-              <span>05</span>
-              ABOUT
-            </Link>
-
-            <Link
-              to="/contact"
-              onClick={closeMenu}
-              className={
-                isActive("/contact")
-                  ? "active"
-                  : ""
-              }
-            >
-              <span>06</span>
-              CONTACT
-            </Link>
           </nav>
 
-          <div className="mobile-menu-actions">
-            <Link
-              to="/search"
-              onClick={closeMenu}
+          <div className="nav-actions">
+
+            <button
+              type="button"
+              className={`nav-action-button ${
+                searchOpen
+                  ? "active"
+                  : ""
+              }`}
+              aria-label="Search"
+              aria-expanded={
+                searchOpen
+              }
+              onClick={() =>
+                setSearchOpen(
+                  (open) => !open
+                )
+              }
             >
               <Search
                 size={17}
                 strokeWidth={1.5}
               />
-              SEARCH
-            </Link>
+            </button>
 
             <Link
               to="/wishlist"
-              onClick={closeMenu}
+              className={`nav-action-button ${
+                isActive(
+                  "/wishlist"
+                )
+                  ? "active"
+                  : ""
+              }`}
+              aria-label="Wishlist"
             >
               <Heart
                 size={17}
                 strokeWidth={1.5}
               />
-              WISHLIST
             </Link>
 
             <Link
-              to="/login"
-              onClick={closeMenu}
+              to="/account"
+              className={`nav-action-button ${
+                isActive(
+                  "/account"
+                )
+                  ? "active"
+                  : ""
+              }`}
+              aria-label="Account"
             >
               <User
                 size={17}
                 strokeWidth={1.5}
               />
-              ACCOUNT
             </Link>
 
             <Link
               to="/cart"
-              onClick={closeMenu}
+              className={`nav-action-button bag-button ${
+                isActive("/cart")
+                  ? "active"
+                  : ""
+              }`}
+              aria-label={`Shopping bag${
+                cartCount > 0
+                  ? `, ${cartCount} items`
+                  : ""
+              }`}
             >
               <ShoppingBag
                 size={17}
                 strokeWidth={1.5}
               />
 
-              BAG
-
-              {totalItems > 0 && (
-                <span>
-                  ({totalItems})
+              {cartCount > 0 && (
+                <span className="cart-count">
+                  {cartCount > 99
+                    ? "99+"
+                    : cartCount}
                 </span>
               )}
             </Link>
-          </div>
 
-          <div className="mobile-menu-footer">
-            <span>
-              EST. 2026
-            </span>
-
-            <span>
-              INDEPENDENT LABEL
-            </span>
           </div>
         </div>
-      </div>
+
+        {searchOpen && (
+          <div className="untkn-search-panel">
+
+            <form
+              className="untkn-search-form"
+              onSubmit={
+                handleSearchSubmit
+              }
+            >
+              <Search
+                size={17}
+                strokeWidth={1.5}
+              />
+
+              <input
+                type="search"
+                value={searchValue}
+                onChange={(event) =>
+                  setSearchValue(
+                    event.target.value
+                  )
+                }
+                placeholder="SEARCH PRODUCTS"
+                aria-label="Search products"
+                autoFocus
+              />
+
+              <button
+                type="button"
+                className="untkn-search-close"
+                onClick={() => {
+                  setSearchOpen(
+                    false
+                  );
+
+                  setSearchValue("");
+                }}
+                aria-label="Close search"
+              >
+                <X
+                  size={17}
+                  strokeWidth={1.5}
+                />
+              </button>
+
+            </form>
+
+          </div>
+        )}
+      </header>
 
       {menuOpen && (
-        <button
-          type="button"
-          className="mobile-menu-overlay"
-          aria-label="Close navigation menu"
+        <div
+          className="mobile-menu-overlay untkn-menu-overlay"
           onClick={closeMenu}
-        />
+          role="presentation"
+        >
+          <aside
+            className="mobile-menu untkn-mobile-menu"
+            onClick={(event) =>
+              event.stopPropagation()
+            }
+            aria-label="Mobile navigation"
+          >
+
+            <div className="untkn-mobile-menu-header">
+
+              <span className="logo">
+                UNTKN
+              </span>
+
+              <button
+                type="button"
+                className="nav-action-button"
+                onClick={closeMenu}
+                aria-label="Close menu"
+              >
+                <X
+                  size={18}
+                  strokeWidth={1.5}
+                />
+              </button>
+
+            </div>
+
+            <nav className="untkn-mobile-links">
+
+              <button
+                type="button"
+                className={
+                  isActive("/")
+                    ? "active"
+                    : ""
+                }
+                onClick={() =>
+                  navigateFromMenu("/")
+                }
+              >
+                HOME
+              </button>
+
+              <button
+                type="button"
+                className={
+                  isActive("/shop")
+                    ? "active"
+                    : ""
+                }
+                onClick={() =>
+                  navigateFromMenu(
+                    "/shop"
+                  )
+                }
+              >
+                SHOP
+              </button>
+
+              <button
+                type="button"
+                className={
+                  isActive(
+                    "/new-arrivals"
+                  )
+                    ? "active"
+                    : ""
+                }
+                onClick={() =>
+                  navigateFromMenu(
+                    "/new-arrivals"
+                  )
+                }
+              >
+                NEW ARRIVALS
+              </button>
+
+              <button
+                type="button"
+                className={
+                  isActive(
+                    "/collections"
+                  )
+                    ? "active"
+                    : ""
+                }
+                onClick={() =>
+                  navigateFromMenu(
+                    "/collections"
+                  )
+                }
+              >
+                COLLECTIONS
+              </button>
+
+              <button
+                type="button"
+                className={
+                  isActive(
+                    "/lookbook"
+                  )
+                    ? "active"
+                    : ""
+                }
+                onClick={() =>
+                  navigateFromMenu(
+                    "/lookbook"
+                  )
+                }
+              >
+                LOOKBOOK
+              </button>
+
+              <button
+                type="button"
+                className={
+                  isActive(
+                    "/wishlist"
+                  )
+                    ? "active"
+                    : ""
+                }
+                onClick={() =>
+                  navigateFromMenu(
+                    "/wishlist"
+                  )
+                }
+              >
+                WISHLIST
+              </button>
+
+              <button
+                type="button"
+                className={
+                  isActive(
+                    "/account"
+                  )
+                    ? "active"
+                    : ""
+                }
+                onClick={() =>
+                  navigateFromMenu(
+                    "/account"
+                  )
+                }
+              >
+                ACCOUNT
+              </button>
+
+              <button
+                type="button"
+                className={
+                  isActive("/cart")
+                    ? "active"
+                    : ""
+                }
+                onClick={() =>
+                  navigateFromMenu(
+                    "/cart"
+                  )
+                }
+              >
+                BAG
+                {cartCount > 0
+                  ? ` (${cartCount})`
+                  : ""}
+              </button>
+
+            </nav>
+          </aside>
+        </div>
       )}
     </>
   );
-}
+};
 
 export default Navbar;

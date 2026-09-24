@@ -1,1110 +1,700 @@
 import pool from "../config/database.js";
 
-/*
-|--------------------------------------------------------------------------
-| GET OR CREATE CART
-|--------------------------------------------------------------------------
-*/
-
-const getOrCreateCart = async (userId, db = pool) => {
-    const [existing] = await db.execute(
-        `
-        SELECT id
-        FROM carts
-        WHERE user_id = ?
-        LIMIT 1
-        `,
-        [userId]
-    );
-
-    if (existing.length > 0) {
-        return existing[0].id;
-    }
-
-    const [result] = await db.execute(
-        `
-        INSERT INTO carts (user_id)
-        VALUES (?)
-        `,
-        [userId]
-    );
-
-    return result.insertId;
-};
-
-
-/*
-|--------------------------------------------------------------------------
-| GET CART
-|--------------------------------------------------------------------------
-*/
-
-export const getCart = async (req, res) => {
+const getCart = async (req, res) => {
     try {
         const userId = req.user.id;
 
-        const cartId = await getOrCreateCart(userId);
-
-        /*
-         * Important:
-         *
-         * The old query selected only is_primary = TRUE.
-         *
-         * Your primary image is an example.com placeholder.
-         *
-         * We now ignore placeholder images and select
-         * the best real image from product_images.
-         */
-
-        const [items] = await pool.execute(
+        const [items] = await pool.query(
             `
             SELECT
                 ci.id,
+                ci.user_id,
                 ci.product_id,
                 ci.variant_id,
                 ci.quantity,
+                ci.created_at,
+                ci.updated_at,
 
-                p.name AS product_name,
-                p.slug AS product_slug,
+                p.name,
+                p.slug,
                 p.base_price,
                 p.sale_price,
-                p.currency,
+                p.image_url,
+                p.stock_quantity AS product_stock,
+                p.active AS product_active,
 
-                pi.image_url,
-
+                pv.id AS variant_db_id,
                 pv.sku,
-                pv.price AS variant_price,
                 pv.stock_quantity,
-
-                s.name AS size_name,
-                c.name AS color_name,
-                c.hex_code
+                pv.active AS variant_active,
+                pv.size,
+                pv.color,
+                pv.color_name,
+                pv.image_url AS variant_image_url
 
             FROM cart_items ci
 
             INNER JOIN products p
-                ON ci.product_id = p.id
+                ON p.id = ci.product_id
 
             LEFT JOIN product_variants pv
-                ON ci.variant_id = pv.id
+                ON pv.id = ci.variant_id
 
-            LEFT JOIN sizes s
-                ON pv.size_id = s.id
-
-            LEFT JOIN colors c
-                ON pv.color_id = c.id
-
-            /*
-             * Select the best REAL image.
-             *
-             * Ignore example.com placeholder images.
-             * Prefer primary image.
-             * Then prefer lower sort_order.
-             * Then lower id.
-             */
-            LEFT JOIN product_images pi
-                ON pi.id = (
-                    SELECT pi2.id
-                    FROM product_images pi2
-                    WHERE pi2.product_id = p.id
-                      AND pi2.image_url IS NOT NULL
-                      AND LOWER(pi2.image_url) NOT LIKE '%example.com%'
-                    ORDER BY
-                        pi2.is_primary DESC,
-                        pi2.sort_order ASC,
-                        pi2.id ASC
-                    LIMIT 1
-                )
-
-            WHERE ci.cart_id = ?
+            WHERE ci.user_id = ?
 
             ORDER BY ci.created_at DESC
             `,
-            [cartId]
+            [userId]
         );
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | CALCULATE SUBTOTAL
-        |--------------------------------------------------------------------------
-        */
-
-        let subtotal = 0;
-
-
         const formattedItems = items.map((item) => {
+            const unitPrice =
+                item.sale_price !== null &&
+                item.sale_price !== undefined
+                    ? Number(item.sale_price)
+                    : Number(item.base_price);
 
-            /*
-             * Variant price has highest priority.
-             *
-             * Otherwise:
-             * sale price
-             * otherwise:
-             * base price
-             */
+            const quantity = Number(item.quantity || 0);
 
-            let unitPrice;
-
-            if (item.variant_price !== null) {
-                unitPrice = Number(
-                    item.variant_price
-                );
-            } else if (item.sale_price !== null) {
-                unitPrice = Number(
-                    item.sale_price
-                );
-            } else {
-                unitPrice = Number(
-                    item.base_price
-                );
-            }
-
-
-            const quantity = Number(
-                item.quantity || 0
-            );
-
-
-            const totalPrice =
-                unitPrice * quantity;
-
-
-            subtotal += totalPrice;
-
+            const itemTotal = unitPrice * quantity;
 
             return {
                 id: item.id,
+                cart_item_id: item.id,
 
-                product_id:
-                    item.product_id,
+                user_id: item.user_id,
 
-                variant_id:
-                    item.variant_id,
+                product_id: item.product_id,
 
-                product_name:
-                    item.product_name,
-
-                product_slug:
-                    item.product_slug,
-
-                image_url:
-                    item.image_url || "",
-
-                sku:
-                    item.sku || "",
-
-                size:
-                    item.size_name || "",
-
-                color:
-                    item.color_name || "",
-
-                hex_code:
-                    item.hex_code || "",
+                variant_id: item.variant_id,
 
                 quantity,
 
-                stock_quantity:
-                    item.stock_quantity !== null
-                        ? Number(
-                            item.stock_quantity
-                        )
+                name: item.name,
+
+                slug: item.slug,
+
+                price: unitPrice,
+
+                unit_price: unitPrice,
+
+                base_price:
+                    item.base_price !== null &&
+                    item.base_price !== undefined
+                        ? Number(item.base_price)
                         : null,
 
-                unit_price:
-                    unitPrice,
+                sale_price:
+                    item.sale_price !== null &&
+                    item.sale_price !== undefined
+                        ? Number(item.sale_price)
+                        : null,
 
-                total_price:
-                    totalPrice,
+                image_url:
+                    item.variant_image_url ||
+                    item.image_url ||
+                    null,
 
-                currency:
-                    item.currency || "INR"
+                sku: item.sku || null,
+
+                size: item.size || null,
+
+                color: item.color || null,
+
+                color_name:
+                    item.color_name || null,
+
+                stock_quantity:
+                    item.stock_quantity !== null &&
+                    item.stock_quantity !== undefined
+                        ? Number(item.stock_quantity)
+                        : Number(item.product_stock || 0),
+
+                product_stock:
+                    Number(item.product_stock || 0),
+
+                product_active:
+                    Boolean(item.product_active),
+
+                variant_active:
+                    item.variant_id
+                        ? Boolean(item.variant_active)
+                        : true,
+
+                item_total: itemTotal,
+
+                subtotal: itemTotal,
+
+                created_at: item.created_at,
+
+                updated_at: item.updated_at,
             };
         });
 
+        const subtotal = formattedItems.reduce(
+            (sum, item) =>
+                sum + Number(item.item_total || 0),
+            0
+        );
 
-        /*
-        |--------------------------------------------------------------------------
-        | RESPONSE
-        |--------------------------------------------------------------------------
-        */
+        const totalQuantity = formattedItems.reduce(
+            (sum, item) =>
+                sum + Number(item.quantity || 0),
+            0
+        );
 
         return res.status(200).json({
             success: true,
 
-            cart: {
-                id: cartId,
+            cart: formattedItems,
 
-                items:
-                    formattedItems,
+            items: formattedItems,
 
-                item_count:
-                    formattedItems.reduce(
-                        (total, item) =>
-                            total +
-                            Number(
-                                item.quantity || 0
-                            ),
-                        0
-                    ),
+            subtotal,
 
-                subtotal
-            }
+            total: subtotal,
+
+            total_quantity: totalQuantity,
+
+            item_count: formattedItems.length,
         });
-
     } catch (error) {
-
         console.error(
-            "Get cart error:"
+            "Get cart error:",
+            error
         );
-
-        console.error(error);
-
 
         return res.status(500).json({
             success: false,
-            message: "Failed to fetch cart"
+
+            message: "Failed to load cart",
+
+            error:
+                process.env.NODE_ENV === "development"
+                    ? error.message
+                    : undefined,
         });
     }
 };
 
-
-/*
-|--------------------------------------------------------------------------
-| ADD TO CART
-|--------------------------------------------------------------------------
-*/
-
-export const addToCart = async (req, res) => {
-
-    const connection =
-        await pool.getConnection();
-
+const addToCart = async (req, res) => {
+    const connection = await pool.getConnection();
 
     try {
-
-        const userId =
-            req.user.id;
-
+        const userId = req.user.id;
 
         const {
             product_id,
+            productId,
             variant_id,
-            quantity
+            variantId,
+            quantity = 1,
         } = req.body;
 
+        const productIdValue =
+            product_id || productId;
 
-        /*
-        |--------------------------------------------------------------------------
-        | VALIDATE PRODUCT ID
-        |--------------------------------------------------------------------------
-        */
+        const variantIdValue =
+            variant_id ||
+            variantId ||
+            null;
 
-        const productId =
-            Number(product_id);
+        const quantityValue =
+            Number(quantity);
 
-
-        if (
-            !Number.isInteger(productId) ||
-            productId <= 0
-        ) {
-
+        if (!productIdValue) {
             return res.status(400).json({
                 success: false,
                 message:
-                    "Valid product ID is required"
+                    "Product ID is required",
             });
         }
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | VALIDATE QUANTITY
-        |--------------------------------------------------------------------------
-        */
-
-        const requestedQuantity =
-            quantity === undefined
-                ? 1
-                : Number(quantity);
-
-
         if (
-            !Number.isInteger(
-                requestedQuantity
-            ) ||
-            requestedQuantity < 1
+            !Number.isInteger(quantityValue) ||
+            quantityValue <= 0
         ) {
-
             return res.status(400).json({
                 success: false,
                 message:
-                    "Quantity must be a positive integer"
+                    "Quantity must be a positive integer",
             });
         }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | NORMALIZE VARIANT ID
-        |--------------------------------------------------------------------------
-        */
-
-        let variantId = null;
-
-
-        if (
-            variant_id !== undefined &&
-            variant_id !== null &&
-            variant_id !== ""
-        ) {
-
-            variantId =
-                Number(variant_id);
-
-
-            if (
-                !Number.isInteger(
-                    variantId
-                ) ||
-                variantId <= 0
-            ) {
-
-                return res.status(400).json({
-                    success: false,
-                    message:
-                        "Invalid product variant"
-                });
-            }
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | START TRANSACTION
-        |--------------------------------------------------------------------------
-        */
 
         await connection.beginTransaction();
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | CHECK PRODUCT
-        |--------------------------------------------------------------------------
-        */
-
         const [products] =
-            await connection.execute(
+            await connection.query(
                 `
                 SELECT
                     id,
                     name,
+                    base_price,
                     sale_price,
-                    base_price
+                    stock_quantity,
+                    active
                 FROM products
                 WHERE id = ?
                 LIMIT 1
                 `,
-                [productId]
+                [productIdValue]
             );
 
-
-        if (products.length === 0) {
-
+        if (!products.length) {
             await connection.rollback();
-
 
             return res.status(404).json({
                 success: false,
                 message:
-                    "Product not found"
+                    "Product not found",
             });
         }
 
+        const product = products[0];
 
-        /*
-        |--------------------------------------------------------------------------
-        | CHECK VARIANT
-        |--------------------------------------------------------------------------
-        */
+        if (!product.active) {
+            await connection.rollback();
 
-        let variant = null;
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Product is currently unavailable",
+            });
+        }
 
+        let availableStock =
+            Number(
+                product.stock_quantity || 0
+            );
 
-        if (variantId !== null) {
-
+        if (variantIdValue) {
             const [variants] =
-                await connection.execute(
+                await connection.query(
                     `
                     SELECT
                         id,
                         product_id,
-                        sku,
-                        price,
                         stock_quantity,
                         active
                     FROM product_variants
                     WHERE id = ?
-                    AND product_id = ?
+                        AND product_id = ?
                     LIMIT 1
                     `,
                     [
-                        variantId,
-                        productId
+                        variantIdValue,
+                        productIdValue,
                     ]
                 );
 
-
-            if (variants.length === 0) {
-
+            if (!variants.length) {
                 await connection.rollback();
 
+                return res.status(404).json({
+                    success: false,
+                    message:
+                        "Product variant not found",
+                });
+            }
+
+            const variant = variants[0];
+
+            if (!variant.active) {
+                await connection.rollback();
 
                 return res.status(400).json({
                     success: false,
                     message:
-                        "Invalid product variant"
+                        "Selected variant is unavailable",
                 });
             }
 
-
-            variant =
-                variants[0];
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | VARIANT ACTIVE CHECK
-            |--------------------------------------------------------------------------
-            */
-
-            if (
-                !variant.active
-            ) {
-
-                await connection.rollback();
-
-
-                return res.status(400).json({
-                    success: false,
-                    message:
-                        "This product variant is unavailable"
-                });
-            }
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | STOCK CHECK
-            |--------------------------------------------------------------------------
-            */
-
-            const stockQuantity =
+            availableStock =
                 Number(
                     variant.stock_quantity || 0
                 );
-
-
-            if (
-                stockQuantity <
-                requestedQuantity
-            ) {
-
-                await connection.rollback();
-
-
-                return res.status(400).json({
-                    success: false,
-                    message:
-                        "Insufficient stock"
-                });
-            }
         }
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | GET OR CREATE CART
-        |--------------------------------------------------------------------------
-        |
-        | Use the SAME database connection so cart creation
-        | participates in the current transaction.
-        |
-        */
-
-        const cartId =
-            await getOrCreateCart(
-                userId,
-                connection
-            );
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | CHECK EXISTING CART ITEM
-        |--------------------------------------------------------------------------
-        */
-
         const [existingItems] =
-            await connection.execute(
+            await connection.query(
                 `
                 SELECT
                     id,
                     quantity
                 FROM cart_items
-                WHERE cart_id = ?
-                AND product_id = ?
-                AND (
-                    variant_id = ?
-                    OR (
-                        variant_id IS NULL
-                        AND ? IS NULL
+                WHERE user_id = ?
+                    AND product_id = ?
+                    AND (
+                        variant_id = ?
+                        OR (
+                            variant_id IS NULL
+                            AND ? IS NULL
+                        )
                     )
-                )
                 LIMIT 1
                 `,
                 [
-                    cartId,
-                    productId,
-                    variantId,
-                    variantId
+                    userId,
+                    productIdValue,
+                    variantIdValue,
+                    variantIdValue,
                 ]
             );
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | EXISTING ITEM
-        |--------------------------------------------------------------------------
-        */
-
-        if (
-            existingItems.length > 0
-        ) {
-
-            const existingItem =
-                existingItems[0];
-
-
-            const existingQuantity =
-                Number(
-                    existingItem.quantity
-                );
-
-
-            const newQuantity =
-                existingQuantity +
-                requestedQuantity;
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | CHECK TOTAL STOCK
-            |--------------------------------------------------------------------------
-            */
-
-            if (variant) {
-
-                const stockQuantity =
-                    Number(
-                        variant.stock_quantity ||
-                        0
-                    );
-
-
-                if (
-                    stockQuantity <
-                    newQuantity
-                ) {
-
-                    await connection.rollback();
-
-
-                    return res.status(400).json({
-                        success: false,
-                        message:
-                            "Requested quantity exceeds available stock"
-                    });
-                }
-            }
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | UPDATE EXISTING ITEM
-            |--------------------------------------------------------------------------
-            */
-
-            await connection.execute(
-                `
-                UPDATE cart_items
-                SET quantity = ?
-                WHERE id = ?
-                `,
-                [
-                    newQuantity,
-                    existingItem.id
-                ]
-            );
-
-
-            await connection.commit();
-
-
-            return res.status(200).json({
-                success: true,
-                message:
-                    "Cart quantity updated successfully",
-
-                item_id:
-                    existingItem.id,
-
-                quantity:
-                    newQuantity
-            });
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | INSERT NEW CART ITEM
-        |--------------------------------------------------------------------------
-        */
-
-        const [result] =
-            await connection.execute(
-                `
-                INSERT INTO cart_items
-                (
-                    cart_id,
-                    product_id,
-                    variant_id,
-                    quantity
-                )
-                VALUES (?, ?, ?, ?)
-                `,
-                [
-                    cartId,
-                    productId,
-                    variantId,
-                    requestedQuantity
-                ]
-            );
-
-
-        await connection.commit();
-
-
-        return res.status(201).json({
-            success: true,
-
-            message:
-                "Product added to cart",
-
-            item_id:
-                result.insertId,
-
-            quantity:
-                requestedQuantity
-        });
-
-
-    } catch (error) {
-
-        try {
-            await connection.rollback();
-        } catch (rollbackError) {
-            console.error(
-                "Rollback error:",
-                rollbackError
-            );
-        }
-
-
-        console.error(
-            "Add to cart error:"
-        );
-
-        console.error(error);
-
-
-        return res.status(500).json({
-            success: false,
-            message:
-                "Failed to add product to cart"
-        });
-
-    } finally {
-
-        connection.release();
-    }
-};
-
-
-/*
-|--------------------------------------------------------------------------
-| UPDATE CART ITEM
-|--------------------------------------------------------------------------
-*/
-
-export const updateCartItem = async (
-    req,
-    res
-) => {
-
-    try {
-
-        const userId =
-            req.user.id;
-
-
-        const { itemId } =
-            req.params;
-
-
-        const {
-            quantity
-        } = req.body;
-
+        const existingQuantity =
+            existingItems.length
+                ? Number(
+                      existingItems[0]
+                          .quantity || 0
+                  )
+                : 0;
 
         const newQuantity =
-            Number(quantity);
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | VALIDATE QUANTITY
-        |--------------------------------------------------------------------------
-        */
+            existingQuantity +
+            quantityValue;
 
         if (
-            !Number.isInteger(
-                newQuantity
-            ) ||
-            newQuantity < 1
+            availableStock > 0 &&
+            newQuantity > availableStock
         ) {
+            await connection.rollback();
 
             return res.status(400).json({
                 success: false,
                 message:
-                    "Quantity must be a positive integer"
+                    `Only ${availableStock} item(s) available`,
             });
         }
 
+        if (existingItems.length) {
+            await connection.query(
+                `
+                UPDATE cart_items
+                SET
+                    quantity = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                `,
+                [
+                    newQuantity,
+                    existingItems[0].id,
+                ]
+            );
+        } else {
+            await connection.query(
+                `
+                INSERT INTO cart_items (
+                    user_id,
+                    product_id,
+                    variant_id,
+                    quantity,
+                    created_at,
+                    updated_at
+                )
+                VALUES (
+                    ?,
+                    ?,
+                    ?,
+                    ?,
+                    CURRENT_TIMESTAMP,
+                    CURRENT_TIMESTAMP
+                )
+                `,
+                [
+                    userId,
+                    productIdValue,
+                    variantIdValue,
+                    quantityValue,
+                ]
+            );
+        }
 
-        /*
-        |--------------------------------------------------------------------------
-        | FIND CART ITEM
-        |--------------------------------------------------------------------------
-        */
+        await connection.commit();
+
+        return res.status(200).json({
+            success: true,
+
+            message:
+                "Product added to cart",
+        });
+    } catch (error) {
+        await connection.rollback();
+
+        console.error(
+            "Add to cart error:",
+            error
+        );
+
+        return res.status(500).json({
+            success: false,
+
+            message:
+                "Failed to add product to cart",
+
+            error:
+                process.env.NODE_ENV === "development"
+                    ? error.message
+                    : undefined,
+        });
+    } finally {
+        connection.release();
+    }
+};
+
+const updateCartItem = async (req, res) => {
+    const connection = await pool.getConnection();
+
+    try {
+        const userId = req.user.id;
+
+        const itemId =
+            req.params.id ||
+            req.params.itemId;
+
+        const {
+            quantity,
+        } = req.body;
+
+        const quantityValue =
+            Number(quantity);
+
+        if (!itemId) {
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Cart item ID is required",
+            });
+        }
+
+        if (
+            !Number.isInteger(quantityValue) ||
+            quantityValue <= 0
+        ) {
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Quantity must be a positive integer",
+            });
+        }
+
+        await connection.beginTransaction();
 
         const [items] =
-            await pool.execute(
+            await connection.query(
                 `
                 SELECT
                     ci.id,
-                    ci.quantity,
+                    ci.product_id,
                     ci.variant_id,
-                    pv.stock_quantity
+                    p.stock_quantity AS product_stock,
+                    pv.stock_quantity AS variant_stock
 
                 FROM cart_items ci
 
-                INNER JOIN carts c
-                    ON ci.cart_id = c.id
+                INNER JOIN products p
+                    ON p.id = ci.product_id
 
                 LEFT JOIN product_variants pv
-                    ON ci.variant_id = pv.id
+                    ON pv.id = ci.variant_id
 
                 WHERE ci.id = ?
-                AND c.user_id = ?
+                    AND ci.user_id = ?
+
                 LIMIT 1
                 `,
                 [
                     itemId,
-                    userId
+                    userId,
                 ]
             );
 
-
-        if (items.length === 0) {
+        if (!items.length) {
+            await connection.rollback();
 
             return res.status(404).json({
                 success: false,
                 message:
-                    "Cart item not found"
+                    "Cart item not found",
             });
         }
 
+        const item = items[0];
 
-        const item =
-            items[0];
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | CHECK VARIANT STOCK
-        |--------------------------------------------------------------------------
-        */
+        const availableStock =
+            item.variant_id
+                ? Number(
+                      item.variant_stock || 0
+                  )
+                : Number(
+                      item.product_stock || 0
+                  );
 
         if (
-            item.variant_id !== null
+            availableStock > 0 &&
+            quantityValue > availableStock
         ) {
+            await connection.rollback();
 
-            const stockQuantity =
-                Number(
-                    item.stock_quantity || 0
-                );
-
-
-            if (
-                newQuantity >
-                stockQuantity
-            ) {
-
-                return res.status(400).json({
-                    success: false,
-                    message:
-                        "Requested quantity exceeds available stock"
-                });
-            }
+            return res.status(400).json({
+                success: false,
+                message:
+                    `Only ${availableStock} item(s) available`,
+            });
         }
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | UPDATE QUANTITY
-        |--------------------------------------------------------------------------
-        */
-
-        await pool.execute(
+        await connection.query(
             `
             UPDATE cart_items
-            SET quantity = ?
+            SET
+                quantity = ?,
+                updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
+                AND user_id = ?
             `,
             [
-                newQuantity,
-                itemId
+                quantityValue,
+                itemId,
+                userId,
             ]
         );
 
+        await connection.commit();
 
         return res.status(200).json({
             success: true,
 
             message:
-                "Cart item updated successfully",
-
-            item_id:
-                Number(itemId),
-
-            quantity:
-                newQuantity
+                "Cart updated successfully",
         });
-
-
     } catch (error) {
+        await connection.rollback();
 
         console.error(
-            "Update cart item error:"
+            "Update cart item error:",
+            error
         );
-
-        console.error(error);
-
 
         return res.status(500).json({
             success: false,
+
             message:
-                "Failed to update cart item"
+                "Failed to update cart item",
+
+            error:
+                process.env.NODE_ENV === "development"
+                    ? error.message
+                    : undefined,
         });
+    } finally {
+        connection.release();
     }
 };
 
-
-/*
-|--------------------------------------------------------------------------
-| REMOVE FROM CART
-|--------------------------------------------------------------------------
-*/
-
-export const removeFromCart = async (
-    req,
-    res
-) => {
-
+const removeFromCart = async (req, res) => {
     try {
+        const userId = req.user.id;
 
-        const userId =
-            req.user.id;
+        const itemId =
+            req.params.id ||
+            req.params.itemId;
 
+        if (!itemId) {
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Cart item ID is required",
+            });
+        }
 
-        const { itemId } =
-            req.params;
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | CHECK OWNERSHIP
-        |--------------------------------------------------------------------------
-        */
-
-        const [items] =
-            await pool.execute(
+        const [result] =
+            await pool.query(
                 `
-                SELECT
-                    ci.id
-                FROM cart_items ci
-
-                INNER JOIN carts c
-                    ON ci.cart_id = c.id
-
-                WHERE ci.id = ?
-                AND c.user_id = ?
-
-                LIMIT 1
+                DELETE FROM cart_items
+                WHERE id = ?
+                    AND user_id = ?
                 `,
                 [
                     itemId,
-                    userId
+                    userId,
                 ]
             );
 
-
-        if (items.length === 0) {
-
+        if (!result.affectedRows) {
             return res.status(404).json({
                 success: false,
                 message:
-                    "Cart item not found"
+                    "Cart item not found",
             });
         }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | DELETE ITEM
-        |--------------------------------------------------------------------------
-        */
-
-        await pool.execute(
-            `
-            DELETE FROM cart_items
-            WHERE id = ?
-            `,
-            [itemId]
-        );
-
 
         return res.status(200).json({
             success: true,
 
             message:
-                "Item removed from cart"
+                "Item removed from cart",
         });
-
-
     } catch (error) {
-
         console.error(
-            "Remove cart item error:"
+            "Remove cart item error:",
+            error
         );
-
-        console.error(error);
-
 
         return res.status(500).json({
             success: false,
+
             message:
-                "Failed to remove cart item"
+                "Failed to remove cart item",
+
+            error:
+                process.env.NODE_ENV === "development"
+                    ? error.message
+                    : undefined,
         });
     }
 };
 
-
-/*
-|--------------------------------------------------------------------------
-| CLEAR CART
-|--------------------------------------------------------------------------
-*/
-
-export const clearCart = async (
-    req,
-    res
-) => {
-
+const clearCart = async (req, res) => {
     try {
+        const userId = req.user.id;
 
-        const userId =
-            req.user.id;
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | FIND USER CART
-        |--------------------------------------------------------------------------
-        */
-
-        const [carts] =
-            await pool.execute(
-                `
-                SELECT id
-                FROM carts
-                WHERE user_id = ?
-                LIMIT 1
-                `,
-                [userId]
-            );
-
-
-        if (carts.length === 0) {
-
-            return res.status(200).json({
-                success: true,
-
-                message:
-                    "Cart is already empty"
-            });
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | DELETE ALL CART ITEMS
-        |--------------------------------------------------------------------------
-        */
-
-        await pool.execute(
+        await pool.query(
             `
             DELETE FROM cart_items
-            WHERE cart_id = ?
+            WHERE user_id = ?
             `,
-            [carts[0].id]
+            [userId]
         );
-
 
         return res.status(200).json({
             success: true,
 
             message:
-                "Cart cleared successfully"
+                "Cart cleared successfully",
         });
-
-
     } catch (error) {
-
         console.error(
-            "Clear cart error:"
+            "Clear cart error:",
+            error
         );
-
-        console.error(error);
-
 
         return res.status(500).json({
             success: false,
+
             message:
-                "Failed to clear cart"
+                "Failed to clear cart",
+
+            error:
+                process.env.NODE_ENV === "development"
+                    ? error.message
+                    : undefined,
         });
     }
+};
+
+export {
+    getCart,
+    addToCart,
+    updateCartItem,
+    removeFromCart,
+    clearCart,
 };
