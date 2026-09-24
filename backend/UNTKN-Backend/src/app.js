@@ -387,21 +387,64 @@ app.use(
     deliveryMethodRoutes
 );
 
-/*
- * Running Banner
- *
- * Keep this route mounted only once.
- * The actual GET/PUT logic is handled by
- * runningBanner.routes.js/controller.js.
- */
 app.use(
     "/api/settings/running-banner",
     runningBannerRoutes
 );
 
+/*
+|--------------------------------------------------------------------------
+| FRONTEND STATIC FILES
+|--------------------------------------------------------------------------
+*/
+
 app.use(
-    express.static(frontendPath)
+    express.static(frontendPath, {
+        index: false,
+        fallthrough: true,
+
+        setHeaders: (res, filePath) => {
+            if (filePath.endsWith(".css")) {
+                res.setHeader(
+                    "Content-Type",
+                    "text/css; charset=UTF-8"
+                );
+            }
+
+            if (filePath.endsWith(".js")) {
+                res.setHeader(
+                    "Content-Type",
+                    "text/javascript; charset=UTF-8"
+                );
+            }
+
+            if (filePath.endsWith(".json")) {
+                res.setHeader(
+                    "Content-Type",
+                    "application/json; charset=UTF-8"
+                );
+            }
+
+            if (
+                filePath.endsWith(".png") ||
+                filePath.endsWith(".jpg") ||
+                filePath.endsWith(".jpeg") ||
+                filePath.endsWith(".webp")
+            ) {
+                res.setHeader(
+                    "Cache-Control",
+                    "public, max-age=31536000, immutable"
+                );
+            }
+        }
+    })
 );
+
+/*
+|--------------------------------------------------------------------------
+| FRONTEND SPA FALLBACK
+|--------------------------------------------------------------------------
+*/
 
 app.use(
     (req, res, next) => {
@@ -415,6 +458,38 @@ app.use(
             return next();
         }
 
+        if (
+            req.path.startsWith("/uploads/")
+        ) {
+            return next();
+        }
+
+        if (
+            req.path.startsWith("/test/")
+        ) {
+            return next();
+        }
+
+        /*
+         * Never return index.html for missing
+         * JavaScript/CSS/image assets.
+         */
+        if (
+            req.path.startsWith("/assets/")
+        ) {
+            return res.status(404).json({
+                success: false,
+                message:
+                    "Frontend asset not found",
+                path: req.originalUrl
+            });
+        }
+
+        /*
+         * Other files such as favicon, sitemap,
+         * robots.txt etc. should also not receive
+         * the SPA HTML fallback.
+         */
         if (
             req.path.includes(".")
         ) {
@@ -430,6 +505,12 @@ app.use(
     }
 );
 
+/*
+|--------------------------------------------------------------------------
+| 404
+|--------------------------------------------------------------------------
+*/
+
 app.use(
     (req, res) => {
         res.status(404).json({
@@ -440,6 +521,12 @@ app.use(
         });
     }
 );
+
+/*
+|--------------------------------------------------------------------------
+| ERROR HANDLER
+|--------------------------------------------------------------------------
+*/
 
 app.use(errorHandler);
 
