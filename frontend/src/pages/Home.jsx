@@ -159,7 +159,7 @@ function Home() {
 
         <div className="hero-content">
           <p className="eyebrow">
-            CAPSULE 01 — NEW COLLECTION
+          
           </p>
 
           <h1>
@@ -305,7 +305,7 @@ function Home() {
 
         <div className="capsule-content">
           <p className="eyebrow">
-            CAPSULE 01
+            
           </p>
 
           <h2>
@@ -334,7 +334,9 @@ function Home() {
             </p>
 
             <h2>
-              CAMPAIGN 01
+              FLAME
+              <br />
+              WAFFLES
             </h2>
           </div>
 
@@ -353,7 +355,7 @@ function Home() {
 
           <div className="editorial-text">
             <p className="eyebrow">
-              CAMPAIGN 01
+            
             </p>
 
             <h3>
@@ -373,7 +375,7 @@ function Home() {
       <section className="about-section">
         <div className="about-label">
           <p>
-            04 / THE LABEL
+            
           </p>
         </div>
 
