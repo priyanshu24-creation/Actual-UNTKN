@@ -24,7 +24,7 @@ import newsletterRoutes from "./routes/newsletter.routes.js";
 import inquiryRoutes from "./routes/inquiry.routes.js";
 import settingsRoutes from "./routes/settings.routes.js";
 import lookbookRoutes from "./routes/lookbook.routes.js";
-import deliveryMethodRoutes from "./routes/deliveryMethod.routes.js";
+
 import runningBannerRoutes from "./routes/runningBanner.routes.js";
 import reviewRoutes from "./routes/review.routes.js";
 import couponRoutes from "./routes/coupon.routes.js";
@@ -429,10 +429,7 @@ app.use(
  * here because it would override the database-driven
  * delivery-method route.
  */
-app.use(
-    "/api/delivery-methods",
-    deliveryMethodRoutes
-);
+
 
 app.use(
     "/api/settings/running-banner",

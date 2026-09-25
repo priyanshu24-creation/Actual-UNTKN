@@ -200,15 +200,7 @@ function Checkout() {
           return;
         }
 
-        setDeliveryMethods(methods);
-
-        setDeliveryMethod((current) => {
-  const exists = methods.some(
-    (method) => method.id === current
-  );
-
-  return exists ? current : "";
-});
+        
       } catch (requestError) {
         console.error(
           "Delivery methods error:",
@@ -231,11 +223,14 @@ function Checkout() {
     loadDeliveryMethods();
 
     const handleWindowFocus = () => {
-      loadDeliveryMethods();
+      if (mounted) {
+        loadDeliveryMethods();
+      }
     };
 
     const handleVisibilityChange = () => {
       if (
+        mounted &&  
         document.visibilityState ===
         "visible"
       ) {
@@ -266,7 +261,7 @@ function Checkout() {
         handleVisibilityChange
       );
     };
-  }, []);
+ }, []); 
 
   useEffect(() => {
     const savedCode =
