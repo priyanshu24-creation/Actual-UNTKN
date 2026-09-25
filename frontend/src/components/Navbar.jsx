@@ -54,60 +54,53 @@ const normalizeMessages = (settings) => {
 };
 
 function Navbar() {
-  const [menuOpen, setMenuOpen] =
-    useState(false);
-
-  const [bannerEnabled, setBannerEnabled] =
-    useState(true);
-
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [bannerEnabled, setBannerEnabled] = useState(true);
   const [bannerMessages, setBannerMessages] =
     useState(DEFAULT_MESSAGES);
 
   const { totalItems } = useCart();
-
   const location = useLocation();
 
-  const loadRunningBanner =
-    useCallback(async () => {
-      try {
-        const response = await api.get(
-          "/settings/running-banner",
-          {
-            params: {
-              _: Date.now(),
-            },
-          }
-        );
-
-        const data = response?.data;
-
-        if (!data?.success) {
-          return;
+  const loadRunningBanner = useCallback(async () => {
+    try {
+      const response = await api.get(
+        "/settings/running-banner",
+        {
+          params: {
+            _: Date.now(),
+          },
         }
+      );
 
-        const settings = data?.settings;
+      const data = response?.data;
 
-        if (!settings) {
-          return;
-        }
-
-        const messages =
-          normalizeMessages(settings);
-
-        setBannerEnabled(
-          settings.enabled !== undefined
-            ? Boolean(settings.enabled)
-            : true
-        );
-
-        setBannerMessages(messages);
-      } catch (error) {
-        console.error(
-          "Failed to load running banner:",
-          error
-        );
+      if (!data?.success) {
+        return;
       }
-    }, []);
+
+      const settings = data?.settings;
+
+      if (!settings) {
+        return;
+      }
+
+      const messages = normalizeMessages(settings);
+
+      setBannerEnabled(
+        settings.enabled !== undefined
+          ? Boolean(settings.enabled)
+          : true
+      );
+
+      setBannerMessages(messages);
+    } catch (error) {
+      console.error(
+        "Failed to load running banner:",
+        error
+      );
+    }
+  }, []);
 
   useEffect(() => {
     setMenuOpen(false);
@@ -115,8 +108,7 @@ function Navbar() {
 
   useEffect(() => {
     if (menuOpen) {
-      document.body.style.overflow =
-        "hidden";
+      document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "";
     }
@@ -138,17 +130,13 @@ function Navbar() {
       handleBannerUpdate
     );
 
-    const interval = window.setInterval(
-      () => {
-        loadRunningBanner();
-      },
-      15000
-    );
+    const interval = window.setInterval(() => {
+      loadRunningBanner();
+    }, 15000);
 
     const handleVisibilityChange = () => {
       if (
-        document.visibilityState ===
-        "visible"
+        document.visibilityState === "visible"
       ) {
         loadRunningBanner();
       }
@@ -196,9 +184,7 @@ function Navbar() {
     return location.pathname === path;
   };
 
-  const renderBannerMessages = (
-    copyIndex
-  ) => {
+  const renderBannerMessages = (copyIndex) => {
     return bannerMessages.map(
       (message, index) => (
         <span
@@ -226,6 +212,9 @@ function Navbar() {
 
         <div className="navbar">
           <div className="navbar-inner">
+
+            {/* MOBILE HAMBURGER */}
+
             <button
               type="button"
               className="mobile-menu-button"
@@ -239,27 +228,32 @@ function Navbar() {
             >
               {menuOpen ? (
                 <X
-                  size={20}
-                  strokeWidth={1.5}
+                  size={21}
+                  strokeWidth={1.7}
                 />
               ) : (
                 <Menu
-                  size={20}
-                  strokeWidth={1.5}
+                  size={21}
+                  strokeWidth={1.7}
                 />
               )}
             </button>
+
+            {/* LOGO */}
 
             <Link
               to="/"
               className="logo"
               onClick={closeMenu}
+              aria-label="UNTKN Home"
             >
               <img
                 src={logo}
                 alt="UNTKN"
               />
             </Link>
+
+            {/* DESKTOP NAVIGATION */}
 
             <nav className="nav-links">
               <Link
@@ -276,9 +270,7 @@ function Navbar() {
               <Link
                 to="/collections"
                 className={
-                  isActive(
-                    "/collections"
-                  )
+                  isActive("/collections")
                     ? "active"
                     : ""
                 }
@@ -320,12 +312,15 @@ function Navbar() {
               </Link>
             </nav>
 
+            {/* DESKTOP ACTIONS */}
+
             <div className="nav-actions">
+
               <Link
-  to="/search"
-  aria-label="Search"
-  className="nav-action-button"
->
+                to="/search"
+                aria-label="Search"
+                className="nav-action-button"
+              >
                 <Search
                   size={19}
                   strokeWidth={1.5}
@@ -370,22 +365,55 @@ function Navbar() {
                   </span>
                 )}
               </Link>
+
             </div>
           </div>
         </div>
+
+        {/* MOBILE MENU */}
 
         {menuOpen && (
           <>
             <div
               className="mobile-menu-overlay"
               onClick={closeMenu}
+              aria-hidden="true"
             />
 
-            <div className="mobile-menu">
-              <nav>
+            <aside
+              className="mobile-menu open"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Mobile navigation"
+            >
+              <div className="mobile-menu-header">
+                <span className="mobile-menu-title">
+                  UNTKN
+                </span>
+
+                <button
+                  type="button"
+                  className="mobile-menu-close"
+                  onClick={closeMenu}
+                  aria-label="Close navigation menu"
+                >
+                  <X
+                    size={20}
+                    strokeWidth={1.7}
+                  />
+                </button>
+              </div>
+
+              <nav className="mobile-menu-nav">
+
                 <Link
                   to="/shop"
                   onClick={closeMenu}
+                  className={
+                    isActive("/shop")
+                      ? "active"
+                      : ""
+                  }
                 >
                   SHOP
                 </Link>
@@ -393,6 +421,11 @@ function Navbar() {
                 <Link
                   to="/collections"
                   onClick={closeMenu}
+                  className={
+                    isActive("/collections")
+                      ? "active"
+                      : ""
+                  }
                 >
                   COLLECTIONS
                 </Link>
@@ -400,6 +433,11 @@ function Navbar() {
                 <Link
                   to="/lookbook"
                   onClick={closeMenu}
+                  className={
+                    isActive("/lookbook")
+                      ? "active"
+                      : ""
+                  }
                 >
                   LOOKBOOK
                 </Link>
@@ -407,6 +445,11 @@ function Navbar() {
                 <Link
                   to="/about"
                   onClick={closeMenu}
+                  className={
+                    isActive("/about")
+                      ? "active"
+                      : ""
+                  }
                 >
                   ABOUT
                 </Link>
@@ -414,11 +457,55 @@ function Navbar() {
                 <Link
                   to="/contact"
                   onClick={closeMenu}
+                  className={
+                    isActive("/contact")
+                      ? "active"
+                      : ""
+                  }
                 >
                   CONTACT
                 </Link>
+
+                <Link
+                  to="/wishlist"
+                  onClick={closeMenu}
+                  className={
+                    isActive("/wishlist")
+                      ? "active"
+                      : ""
+                  }
+                >
+                  WISHLIST
+                </Link>
+
+                <Link
+                  to="/account"
+                  onClick={closeMenu}
+                  className={
+                    isActive("/account")
+                      ? "active"
+                      : ""
+                  }
+                >
+                  ACCOUNT
+                </Link>
+
+                <Link
+                  to="/cart"
+                  onClick={closeMenu}
+                  className={
+                    isActive("/cart")
+                      ? "active"
+                      : ""
+                  }
+                >
+                  BAG
+                  {Number(totalItems) > 0 &&
+                    ` (${totalItems})`}
+                </Link>
+
               </nav>
-            </div>
+            </aside>
           </>
         )}
       </header>
