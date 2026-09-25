@@ -161,8 +161,7 @@ export const createOrder = async (req, res) => {
           p.name,
           p.base_price,
           p.sale_price,
-          p.stock_quantity AS product_stock,
-          p.active AS product_active,
+          p.published AS product_active,
 
           pv.sku,
           pv.price AS variant_price,
@@ -197,6 +196,7 @@ export const createOrder = async (req, res) => {
     }
 
     let subtotal = 0;
+
     const orderItems = [];
 
     for (const item of cartItems) {
@@ -239,34 +239,32 @@ export const createOrder = async (req, res) => {
         });
       }
 
-      const availableStock =
-        item.variant_id
-          ? Number(
-              item.variant_stock ?? 0
-            )
-          : Number(
-              item.product_stock ?? 0
-            );
+      if (item.variant_id) {
+        const availableStock =
+          Number(
+            item.variant_stock ?? 0
+          );
 
-      if (
-        !Number.isFinite(
-          availableStock
-        ) ||
-        availableStock <= 0 ||
-        quantity > availableStock
-      ) {
-        await connection.rollback();
-        transactionStarted = false;
+        if (
+          !Number.isFinite(
+            availableStock
+          ) ||
+          availableStock <= 0 ||
+          quantity > availableStock
+        ) {
+          await connection.rollback();
+          transactionStarted = false;
 
-        return res.status(400).json({
-          success: false,
-          message: `Only ${Math.max(
-            0,
-            Math.floor(
-              availableStock
-            )
-          )} item(s) available for ${item.name}`,
-        });
+          return res.status(400).json({
+            success: false,
+            message: `Only ${Math.max(
+              0,
+              Math.floor(
+                availableStock
+              )
+            )} item(s) available for ${item.name}`,
+          });
+        }
       }
 
       let unitPrice;
@@ -659,33 +657,15 @@ export const createOrder = async (req, res) => {
           `
           UPDATE product_variants
           SET
-            stock_quantity =
-              GREATEST(
-                0,
-                stock_quantity - ?
-              )
+            stock_quantity = GREATEST(
+              0,
+              stock_quantity - ?
+            )
           WHERE id = ?
           `,
           [
             item.quantity,
             item.variant_id,
-          ]
-        );
-      } else {
-        await connection.query(
-          `
-          UPDATE products
-          SET
-            stock_quantity =
-              GREATEST(
-                0,
-                stock_quantity - ?
-              )
-          WHERE id = ?
-          `,
-          [
-            item.quantity,
-            item.product_id,
           ]
         );
       }
@@ -935,6 +915,8 @@ export const cancelOrder = async (
   const connection =
     await db.getConnection();
 
+  let transactionStarted = false;
+
   try {
     const userId =
       req.user.id;
@@ -952,6 +934,7 @@ export const cancelOrder = async (
     }
 
     await connection.beginTransaction();
+    transactionStarted = true;
 
     const [orders] =
       await connection.query(
@@ -972,6 +955,7 @@ export const cancelOrder = async (
 
     if (!orders.length) {
       await connection.rollback();
+      transactionStarted = false;
 
       return res.status(404).json({
         success: false,
@@ -998,6 +982,7 @@ export const cancelOrder = async (
       ].includes(status)
     ) {
       await connection.rollback();
+      transactionStarted = false;
 
       return res.status(400).json({
         success: false,
@@ -1034,20 +1019,6 @@ export const cancelOrder = async (
             item.variant_id,
           ]
         );
-      } else {
-        await connection.query(
-          `
-          UPDATE products
-          SET
-            stock_quantity =
-              stock_quantity + ?
-          WHERE id = ?
-          `,
-          [
-            item.quantity,
-            item.product_id,
-          ]
-        );
       }
     }
 
@@ -1068,6 +1039,7 @@ export const cancelOrder = async (
     );
 
     await connection.commit();
+    transactionStarted = false;
 
     return res.status(200).json({
       success: true,
@@ -1075,7 +1047,16 @@ export const cancelOrder = async (
         "Order cancelled successfully",
     });
   } catch (error) {
-    await connection.rollback();
+    if (transactionStarted) {
+      try {
+        await connection.rollback();
+      } catch (rollbackError) {
+        console.error(
+          "Cancel rollback error:",
+          rollbackError
+        );
+      }
+    }
 
     console.error(
       "Cancel order error:",
