@@ -157,7 +157,10 @@ const Navbar = () => {
       handleRunningBannerUpdated
     );
 
-
+    const bannerInterval = setInterval(
+      loadRunningBanner,
+      30000
+    );
 
     const cartInterval = setInterval(
       loadCartCount,
@@ -725,3 +728,4 @@ const Navbar = () => {
 };
 
 export default Navbar;
+  
