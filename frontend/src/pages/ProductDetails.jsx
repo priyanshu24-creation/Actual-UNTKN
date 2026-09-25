@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 
 import {
@@ -9,6 +9,8 @@ import {
   Truck,
   RotateCcw,
   X,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 import api from "../services/api";
@@ -121,6 +123,9 @@ function ProductDetails() {
 
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState("");
+
+  const galleryTouchStartX = useRef(null);
+  const galleryTouchStartY = useRef(null);
 
   const [addingToCart, setAddingToCart] = useState(false);
   const [bagNotification, setBagNotification] = useState(null);
@@ -1008,6 +1013,85 @@ function ProductDetails() {
 
   
 
+  const getCurrentImageIndex = () => {
+    const index = productImages.indexOf(
+      selectedImage
+    );
+
+    return index >= 0 ? index : 0;
+  };
+
+  const showNextImage = () => {
+    if (productImages.length <= 1) {
+      return;
+    }
+
+    const currentIndex = getCurrentImageIndex();
+    const nextIndex =
+      (currentIndex + 1) % productImages.length;
+
+    setSelectedImage(productImages[nextIndex]);
+  };
+
+  const showPreviousImage = () => {
+    if (productImages.length <= 1) {
+      return;
+    }
+
+    const currentIndex = getCurrentImageIndex();
+    const previousIndex =
+      (currentIndex - 1 + productImages.length) %
+      productImages.length;
+
+    setSelectedImage(productImages[previousIndex]);
+  };
+
+  const handleGalleryTouchStart = (event) => {
+    const touch = event.touches?.[0];
+
+    if (!touch) {
+      return;
+    }
+
+    galleryTouchStartX.current = touch.clientX;
+    galleryTouchStartY.current = touch.clientY;
+  };
+
+  const handleGalleryTouchEnd = (event) => {
+    if (galleryTouchStartX.current === null) {
+      return;
+    }
+
+    const touch = event.changedTouches?.[0];
+
+    if (!touch) {
+      galleryTouchStartX.current = null;
+      galleryTouchStartY.current = null;
+      return;
+    }
+
+    const deltaX =
+      touch.clientX - galleryTouchStartX.current;
+    const deltaY =
+      touch.clientY - galleryTouchStartY.current;
+
+    galleryTouchStartX.current = null;
+    galleryTouchStartY.current = null;
+
+    if (
+      Math.abs(deltaX) <= Math.abs(deltaY) ||
+      Math.abs(deltaX) < 45
+    ) {
+      return;
+    }
+
+    if (deltaX < 0) {
+      showNextImage();
+    } else {
+      showPreviousImage();
+    }
+  };
+
   if (loading) {
     return (
       <div className="product-not-found">
@@ -1175,7 +1259,11 @@ function ProductDetails() {
         <div className="product-gallery">
 
 
-          <div className="main-product-image">
+          <div
+            className="main-product-image"
+            onTouchStart={handleGalleryTouchStart}
+            onTouchEnd={handleGalleryTouchEnd}
+          >
 
             {selectedImage ? (
               <img
@@ -1184,6 +1272,7 @@ function ProductDetails() {
                 loading="eager"
                 fetchPriority="high"
                 decoding="async"
+                draggable="false"
                 onError={handleImageError}
               />
             ) : (
@@ -1194,6 +1283,59 @@ function ProductDetails() {
               <span className="product-discount">
                 {discount}% OFF
               </span>
+            )}
+
+            {productImages.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  className="product-gallery-arrow product-gallery-prev"
+                  onClick={showPreviousImage}
+                  aria-label="Previous product image"
+                >
+                  <ChevronLeft
+                    size={20}
+                    strokeWidth={1.5}
+                  />
+                </button>
+
+                <button
+                  type="button"
+                  className="product-gallery-arrow product-gallery-next"
+                  onClick={showNextImage}
+                  aria-label="Next product image"
+                >
+                  <ChevronRight
+                    size={20}
+                    strokeWidth={1.5}
+                  />
+                </button>
+
+                <div
+                  className="product-image-dots"
+                  aria-label="Product image navigation"
+                >
+                  {productImages.map((image, index) => (
+                    <button
+                      key={`dot-${index}`}
+                      type="button"
+                      className={
+                        selectedImage === image
+                          ? "product-image-dot active"
+                          : "product-image-dot"
+                      }
+                      onClick={() => setSelectedImage(image)}
+                      aria-label={`View image ${index + 1}`}
+                    />
+                  ))}
+                </div>
+
+                <span className="product-image-counter">
+                  {getCurrentImageIndex() + 1}
+                  {" / "}
+                  {productImages.length}
+                </span>
+              </>
             )}
 
           </div>
