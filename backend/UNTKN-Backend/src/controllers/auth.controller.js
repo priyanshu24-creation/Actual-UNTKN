@@ -2,24 +2,24 @@ import bcrypt from "bcryptjs";
 import pool from "../config/database.js";
 import generateToken from "../utils/generateToken.js";
 
+const isProduction = process.env.NODE_ENV === "production";
+
 const cookieOptions = {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: isProduction,
     sameSite: "lax",
+    ...(isProduction ? { domain: ".untkn.in" } : {}),
     maxAge: 7 * 24 * 60 * 60 * 1000,
     path: "/"
 };
 
 const clearCookieOptions = {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: isProduction,
     sameSite: "lax",
+    ...(isProduction ? { domain: ".untkn.in" } : {}),
     path: "/"
 };
-
-// ======================================================
-// VALIDATION HELPERS
-// ======================================================
 
 const isValidEmail = (email) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -29,10 +29,6 @@ const isValidPhone = (phone) => {
     if (!phone) return true;
     return /^[0-9]{10,15}$/.test(phone);
 };
-
-// ======================================================
-// REGISTER
-// ======================================================
 
 export const register = async (req, res) => {
     try {
@@ -176,10 +172,6 @@ export const register = async (req, res) => {
     }
 };
 
-// ======================================================
-// LOGIN
-// ======================================================
-
 export const login = async (req, res) => {
     try {
         const {
@@ -286,10 +278,6 @@ export const login = async (req, res) => {
     }
 };
 
-// ======================================================
-// LOGOUT
-// ======================================================
-
 export const logout = (req, res) => {
     res.clearCookie(
         "token",
@@ -301,10 +289,6 @@ export const logout = (req, res) => {
         message: "Logout successful"
     });
 };
-
-// ======================================================
-// GET CURRENT USER
-// ======================================================
 
 export const getMe = async (req, res) => {
     try {
@@ -361,10 +345,6 @@ export const getMe = async (req, res) => {
     }
 };
 
-// ======================================================
-// UPDATE PROFILE
-// ======================================================
-
 export const updateProfile = async (req, res) => {
     try {
         const {
@@ -392,7 +372,6 @@ export const updateProfile = async (req, res) => {
             ? String(phone).trim()
             : null;
 
-        // Validate name
         if (cleanName.length < 2) {
             return res.status(400).json({
                 success: false,
@@ -407,7 +386,6 @@ export const updateProfile = async (req, res) => {
             });
         }
 
-        // Validate email
         if (!isValidEmail(normalizedEmail)) {
             return res.status(400).json({
                 success: false,
@@ -422,7 +400,6 @@ export const updateProfile = async (req, res) => {
             });
         }
 
-        // Validate phone
         if (!isValidPhone(cleanPhone)) {
             return res.status(400).json({
                 success: false,
@@ -430,7 +407,6 @@ export const updateProfile = async (req, res) => {
             });
         }
 
-        // Check if another account already uses this email
         const [existingUsers] = await pool.execute(
             `
             SELECT id
@@ -452,7 +428,6 @@ export const updateProfile = async (req, res) => {
             });
         }
 
-        // Update profile
         await pool.execute(
             `
             UPDATE users
@@ -470,7 +445,6 @@ export const updateProfile = async (req, res) => {
             ]
         );
 
-        // Get updated user
         const [users] = await pool.execute(
             `
             SELECT
@@ -497,7 +471,6 @@ export const updateProfile = async (req, res) => {
 
         const user = users[0];
 
-        // Generate new token with updated information
         const tokenUser = {
             id: user.id,
             name: user.name,
@@ -534,10 +507,6 @@ export const updateProfile = async (req, res) => {
         });
     }
 };
-
-// ======================================================
-// CREATE ADMIN
-// ======================================================
 
 export const createAdmin = async (req, res) => {
     try {

@@ -125,9 +125,9 @@ function Account() {
         const user = response.data.user;
 
         if (user.role !== "customer") {
-  window.location.replace("/admin");
-  return;
-}
+          window.location.replace("/");
+          return;
+        }
 
         const {
           firstName,

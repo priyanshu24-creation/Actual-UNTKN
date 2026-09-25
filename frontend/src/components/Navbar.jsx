@@ -335,6 +335,7 @@ function Navbar() {
               <Link
                 to="/wishlist"
                 aria-label="Wishlist"
+                className="nav-action-button"
               >
                 <Heart
                   size={19}
@@ -345,6 +346,7 @@ function Navbar() {
               <Link
                 to="/account"
                 aria-label="Account"
+                className="nav-action-button"
               >
                 <User
                   size={19}
