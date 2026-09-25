@@ -273,9 +273,7 @@ const Navbar = () => {
   // Exactly 2 copies of the message set is all a seamless marquee
   // needs: the track scrolls left by 50% (the width of ONE copy) and
   // then snaps back to 0, which is visually identical to the next
-  // copy already being in place. Duplicating 8x was fragile — it
-  // only stayed seamless if all 8 copies rendered at pixel-identical
-  // widths, and any rounding drift showed up as a stutter/jump.
+  // copy already being in place.
   const bannerSets = [0, 1];
 
   return (
@@ -343,11 +341,6 @@ const Navbar = () => {
           }
 
           to {
-            /* Track holds exactly 2 identical copies of the message
-               set, so moving left by 50% of the track's own width
-               moves exactly one full copy off-screen, landing back
-               on a pixel-identical frame. That's what makes the
-               loop seamless instead of jumpy. */
             transform: translate3d(-50%, 0, 0);
           }
         }

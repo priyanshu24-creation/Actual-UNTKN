@@ -324,10 +324,8 @@ function AdminRunningBanner() {
     </div>
   );
 
-  // Same fix as the live site's Navbar: 2 identical copies of the
-  // message set is all a seamless marquee needs (translate 50% of
-  // the track's own width = exactly one copy). Duplicating 8x was
-  // what made the real banner stutter/jump on loop.
+  // 2 identical copies of the message set is all a seamless marquee
+  // needs (translate 50% of the track's own width = exactly one copy).
   const previewSets = [0, 1];
 
   return (
@@ -383,8 +381,6 @@ function AdminRunningBanner() {
           }
 
           to {
-            /* 2 identical copies in the track, so -50% moves exactly
-               one copy's width — seamless loop, no jump. */
             transform: translate3d(-50%, 0, 0);
           }
         }
