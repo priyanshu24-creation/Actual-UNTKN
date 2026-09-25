@@ -27,7 +27,6 @@ const Navbar = () => {
     messages: [],
   });
 
-  const [currentMessage, setCurrentMessage] = useState(0);
   const [cartCount, setCartCount] = useState(0);
 
   const loadRunningBanner = async () => {
@@ -38,7 +37,6 @@ const Navbar = () => {
           params: {
             _: Date.now(),
           },
-
           headers: {
             "Cache-Control":
               "no-cache, no-store, must-revalidate",
@@ -48,15 +46,13 @@ const Navbar = () => {
         }
       );
 
-      const settings =
-        response?.data?.settings;
+      const settings = response?.data?.settings;
 
       if (!settings) {
         setBannerSettings({
           enabled: false,
           messages: [],
         });
-
         return;
       }
 
@@ -69,16 +65,13 @@ const Navbar = () => {
                 typeof message === "string" &&
                 message.trim().length > 0
             )
-            .map((message) =>
-              message.trim()
-            )
+            .map((message) => message.trim())
         : [];
 
       setBannerSettings({
         enabled:
           Boolean(settings.enabled) &&
           messages.length > 0,
-
         messages,
       });
     } catch (error) {
@@ -98,37 +91,28 @@ const Navbar = () => {
     try {
       const token =
         localStorage.getItem("token") ||
-        localStorage.getItem(
-          "accessToken"
-        );
+        localStorage.getItem("accessToken");
 
       if (!token) {
         setCartCount(0);
         return;
       }
 
-      const response =
-        await api.get("/cart");
+      const response = await api.get("/cart");
+      const data = response?.data;
 
-      const data =
-        response?.data;
+      const items = Array.isArray(data?.cart)
+        ? data.cart
+        : Array.isArray(data?.items)
+        ? data.items
+        : [];
 
-      const items =
-        Array.isArray(data?.cart)
-          ? data.cart
-          : Array.isArray(data?.items)
-          ? data.items
-          : [];
-
-      const count =
-        items.reduce(
-          (total, item) =>
-            total +
-            Number(
-              item?.quantity || 0
-            ),
-          0
-        );
+      const count = items.reduce(
+        (total, item) =>
+          total +
+          Number(item?.quantity || 0),
+        0
+      );
 
       setCartCount(count);
     } catch (error) {
@@ -140,21 +124,23 @@ const Navbar = () => {
     loadRunningBanner();
     loadCartCount();
 
-    const handleCartUpdated =
-      () => {
-        loadCartCount();
-      };
+    const handleCartUpdated = () => {
+      loadCartCount();
+    };
 
-    const handleStorage =
-      (event) => {
-        if (
-          event.key === "token" ||
-          event.key === "accessToken" ||
-          event.key === "cart"
-        ) {
-          loadCartCount();
-        }
-      };
+    const handleStorage = (event) => {
+      if (
+        event.key === "token" ||
+        event.key === "accessToken" ||
+        event.key === "cart"
+      ) {
+        loadCartCount();
+      }
+    };
+
+    const handleRunningBannerUpdated = () => {
+      loadRunningBanner();
+    };
 
     window.addEventListener(
       "cartUpdated",
@@ -166,17 +152,20 @@ const Navbar = () => {
       handleStorage
     );
 
-    const bannerInterval =
-      setInterval(
-        loadRunningBanner,
-        30000
-      );
+    window.addEventListener(
+      "runningBannerUpdated",
+      handleRunningBannerUpdated
+    );
 
-    const cartInterval =
-      setInterval(
-        loadCartCount,
-        30000
-      );
+    const bannerInterval = setInterval(
+      loadRunningBanner,
+      30000
+    );
+
+    const cartInterval = setInterval(
+      loadCartCount,
+      30000
+    );
 
     return () => {
       window.removeEventListener(
@@ -189,40 +178,15 @@ const Navbar = () => {
         handleStorage
       );
 
-      clearInterval(
-        bannerInterval
+      window.removeEventListener(
+        "runningBannerUpdated",
+        handleRunningBannerUpdated
       );
 
-      clearInterval(
-        cartInterval
-      );
+      clearInterval(bannerInterval);
+      clearInterval(cartInterval);
     };
   }, []);
-
-  useEffect(() => {
-    if (
-      !bannerSettings.enabled ||
-      bannerSettings.messages.length <= 1
-    ) {
-      setCurrentMessage(0);
-      return undefined;
-    }
-
-    const interval =
-      setInterval(() => {
-        setCurrentMessage(
-          (previous) =>
-            (previous + 1) %
-            bannerSettings.messages.length
-        );
-      }, 4000);
-
-    return () =>
-      clearInterval(interval);
-  }, [
-    bannerSettings.enabled,
-    bannerSettings.messages,
-  ]);
 
   useEffect(() => {
     setMenuOpen(false);
@@ -234,18 +198,13 @@ const Navbar = () => {
       return location.pathname === "/";
     }
 
-    return location.pathname.startsWith(
-      path
-    );
+    return location.pathname.startsWith(path);
   };
 
-  const handleSearchSubmit = (
-    event
-  ) => {
+  const handleSearchSubmit = (event) => {
     event.preventDefault();
 
-    const query =
-      searchValue.trim();
+    const query = searchValue.trim();
 
     if (!query) {
       return;
@@ -255,9 +214,7 @@ const Navbar = () => {
     setSearchValue("");
 
     navigate(
-      `/shop?search=${encodeURIComponent(
-        query
-      )}`
+      `/shop?search=${encodeURIComponent(query)}`
     );
   };
 
@@ -265,36 +222,155 @@ const Navbar = () => {
     setMenuOpen(false);
   };
 
-  const navigateFromMenu = (
-    path
-  ) => {
+  const navigateFromMenu = (path) => {
     setMenuOpen(false);
     navigate(path);
   };
 
+  const renderBannerSet = (setIndex) => (
+    <div
+      className="untkn-running-banner-set"
+      key={`banner-set-${setIndex}`}
+      aria-hidden={setIndex === 1}
+    >
+      {bannerSettings.messages.map(
+        (message, index) => (
+          <React.Fragment
+            key={`banner-message-${setIndex}-${index}`}
+          >
+            <span className="untkn-running-banner-message">
+              {message}
+            </span>
+
+            <span
+              className="untkn-running-banner-separator"
+              aria-hidden="true"
+            >
+              •
+            </span>
+          </React.Fragment>
+        )
+      )}
+    </div>
+  );
+
   return (
     <>
+      <style>{`
+        .untkn-running-banner {
+          width: 100%;
+          height: 32px;
+          overflow: hidden;
+          background: #111;
+          color: #fff;
+          display: flex;
+          align-items: center;
+          position: relative;
+          z-index: 2001;
+          white-space: nowrap;
+        }
+
+        .untkn-running-banner-track {
+          display: flex;
+          align-items: center;
+          width: max-content;
+          flex-shrink: 0;
+          animation: untkn-running-banner-scroll 24s linear infinite;
+          will-change: transform;
+        }
+
+        .untkn-running-banner-set {
+          display: flex;
+          align-items: center;
+          width: max-content;
+          flex-shrink: 0;
+        }
+
+        .untkn-running-banner-message {
+          display: inline-flex;
+          align-items: center;
+          flex-shrink: 0;
+          font-size: 9px;
+          font-weight: 500;
+          line-height: 1;
+          letter-spacing: 0.16em;
+          text-transform: uppercase;
+        }
+
+        .untkn-running-banner-separator {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+          margin: 0 52px;
+          opacity: 0.7;
+          font-size: 9px;
+        }
+
+        @keyframes untkn-running-banner-scroll {
+          from {
+            transform: translate3d(0, 0, 0);
+          }
+
+          to {
+            transform: translate3d(-50%, 0, 0);
+          }
+        }
+
+        .untkn-running-banner:hover
+          .untkn-running-banner-track {
+          animation-play-state: paused;
+        }
+
+        @media (max-width: 768px) {
+          .untkn-running-banner {
+            height: 30px;
+          }
+
+          .untkn-running-banner-track {
+            animation-duration: 18s;
+          }
+
+          .untkn-running-banner-message {
+            font-size: 8px;
+            letter-spacing: 0.13em;
+          }
+
+          .untkn-running-banner-separator {
+            margin: 0 30px;
+            font-size: 8px;
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .untkn-running-banner-track {
+            animation: none;
+            transform: translate3d(0, 0, 0);
+          }
+        }
+      `}</style>
+
       {bannerSettings.enabled &&
-        bannerSettings.messages.length >
-          0 && (
-          <div className="untkn-running-banner">
-            <marquee behavior="scroll" direction="left" scrollamount="6">
-              {bannerSettings.messages[currentMessage]}
-            </marquee>
+        bannerSettings.messages.length > 0 && (
+          <div
+            className="untkn-running-banner"
+            aria-label="Announcements"
+          >
+            <div className="untkn-running-banner-track">
+              {renderBannerSet(0)}
+              {renderBannerSet(1)}
+            </div>
           </div>
         )}
 
       <header className="navbar">
         <div className="navbar-inner">
-
           <button
             type="button"
             className="mobile-menu-button"
             aria-label="Open menu"
             aria-expanded={menuOpen}
-            onClick={() =>
-              setMenuOpen(true)
-            }
+            onClick={() => setMenuOpen(true)}
           >
             <Menu
               size={20}
@@ -311,7 +387,6 @@ const Navbar = () => {
           </Link>
 
           <nav className="nav-links">
-
             <Link
               to="/"
               className={
@@ -337,9 +412,7 @@ const Navbar = () => {
             <Link
               to="/new-arrivals"
               className={
-                isActive(
-                  "/new-arrivals"
-                )
+                isActive("/new-arrivals")
                   ? "active"
                   : ""
               }
@@ -350,9 +423,7 @@ const Navbar = () => {
             <Link
               to="/collections"
               className={
-                isActive(
-                  "/collections"
-                )
+                isActive("/collections")
                   ? "active"
                   : ""
               }
@@ -370,22 +441,16 @@ const Navbar = () => {
             >
               LOOKBOOK
             </Link>
-
           </nav>
 
           <div className="nav-actions">
-
             <button
               type="button"
               className={`nav-action-button ${
-                searchOpen
-                  ? "active"
-                  : ""
+                searchOpen ? "active" : ""
               }`}
               aria-label="Search"
-              aria-expanded={
-                searchOpen
-              }
+              aria-expanded={searchOpen}
               onClick={() =>
                 setSearchOpen(
                   (open) => !open
@@ -401,9 +466,7 @@ const Navbar = () => {
             <Link
               to="/wishlist"
               className={`nav-action-button ${
-                isActive(
-                  "/wishlist"
-                )
+                isActive("/wishlist")
                   ? "active"
                   : ""
               }`}
@@ -418,9 +481,7 @@ const Navbar = () => {
             <Link
               to="/account"
               className={`nav-action-button ${
-                isActive(
-                  "/account"
-                )
+                isActive("/account")
                   ? "active"
                   : ""
               }`}
@@ -458,13 +519,11 @@ const Navbar = () => {
                 </span>
               )}
             </Link>
-
           </div>
         </div>
 
         {searchOpen && (
           <div className="untkn-search-panel">
-
             <form
               className="untkn-search-form"
               onSubmit={
@@ -493,10 +552,7 @@ const Navbar = () => {
                 type="button"
                 className="untkn-search-close"
                 onClick={() => {
-                  setSearchOpen(
-                    false
-                  );
-
+                  setSearchOpen(false);
                   setSearchValue("");
                 }}
                 aria-label="Close search"
@@ -506,9 +562,7 @@ const Navbar = () => {
                   strokeWidth={1.5}
                 />
               </button>
-
             </form>
-
           </div>
         )}
       </header>
@@ -526,9 +580,7 @@ const Navbar = () => {
             }
             aria-label="Mobile navigation"
           >
-
             <div className="untkn-mobile-menu-header">
-
               <span className="logo">
                 UNTKN
               </span>
@@ -544,11 +596,9 @@ const Navbar = () => {
                   strokeWidth={1.5}
                 />
               </button>
-
             </div>
 
             <nav className="untkn-mobile-links">
-
               <button
                 type="button"
                 className={
@@ -578,8 +628,6 @@ const Navbar = () => {
               >
                 SHOP
               </button>
-
-              
 
               <button
                 type="button"
@@ -671,7 +719,6 @@ const Navbar = () => {
                   ? ` (${cartCount})`
                   : ""}
               </button>
-
             </nav>
           </aside>
         </div>
