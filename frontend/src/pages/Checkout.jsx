@@ -25,7 +25,7 @@ function Checkout() {
     useState("");
 
   const [deliveryLoading, setDeliveryLoading] =
-    useState(false);
+    useState(true);
 
   const [formData, setFormData] = useState({
     firstName: "",
@@ -112,21 +112,72 @@ function Checkout() {
           : [];
 
         const methods = rawMethods
-          .filter(
-            (method) =>
-              method &&
-              (method.enabled ??
-                method.isActive ??
-                method.is_active ??
-                true) !== false
-          )
+          .filter((method) => {
+            if (!method || !method.id) {
+              return false;
+            }
+
+            /*
+             * The backend/database uses isActive / is_active
+             * as the authoritative availability flag.
+             *
+             * Do not allow an old "enabled" value to override
+             * an explicit false value from the backend.
+             */
+            if (
+              Object.prototype.hasOwnProperty.call(
+                method,
+                "isActive"
+              )
+            ) {
+              return (
+                method.isActive === true ||
+                method.isActive === 1 ||
+                method.isActive === "1" ||
+                method.isActive === "true"
+              );
+            }
+
+            if (
+              Object.prototype.hasOwnProperty.call(
+                method,
+                "is_active"
+              )
+            ) {
+              return (
+                method.is_active === true ||
+                method.is_active === 1 ||
+                method.is_active === "1" ||
+                method.is_active === "true"
+              );
+            }
+
+            /*
+             * Backward compatibility only when the backend
+             * does not provide isActive/is_active at all.
+             */
+            if (
+              Object.prototype.hasOwnProperty.call(
+                method,
+                "enabled"
+              )
+            ) {
+              return (
+                method.enabled === true ||
+                method.enabled === 1 ||
+                method.enabled === "1" ||
+                method.enabled === "true"
+              );
+            }
+
+            return false;
+          })
           .map((method) => ({
             id: method.id,
             name: method.name,
             description: method.description || "",
             price: Number(method.price ?? 0),
-          }))
-          .filter((method) => method.id);
+          }));
 
         if (!mounted) {
           return;
@@ -431,9 +482,12 @@ function Checkout() {
       return;
     }
 
-    if (!selectedDeliveryMethod) {
+    if (
+      !deliveryMethod ||
+      !selectedDeliveryMethod
+    ) {
       setError(
-        "Please select a delivery method."
+        "No delivery method is currently available."
       );
 
       return;
