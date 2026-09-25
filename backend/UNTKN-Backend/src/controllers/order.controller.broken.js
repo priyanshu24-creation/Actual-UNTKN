@@ -1,7 +1,7 @@
-import db from "../config/database.js";
-import crypto from "node:crypto";
+const db = require("../config/db");
+const crypto = require("crypto");
 
-export const createOrder = async (req, res) => {
+const createOrder = async (req, res) => {
   const connection = await db.getConnection();
 
   try {
@@ -122,7 +122,7 @@ export const createOrder = async (req, res) => {
           : Number(item.product_stock || 0);
 
       if (
-        availableStock <= 0 ||
+        availableStock > 0 &&
         Number(item.quantity) > availableStock
       ) {
         await connection.rollback();
@@ -133,6 +133,12 @@ export const createOrder = async (req, res) => {
         });
       }
 
+      /*
+       * IMPORTANT:
+       * Always use the current product price from the products table.
+       * Do not use pv.price here because it can contain an old/stale
+       * variant price after the admin changes the main product price.
+       */
       const unitPrice =
         item.sale_price !== null &&
         item.sale_price !== undefined
@@ -555,7 +561,7 @@ export const createOrder = async (req, res) => {
   }
 };
 
-export const getOrders = async (req, res) => {
+const getMyOrders = async (req, res) => {
   try {
     const userId = req.user.id;
 
@@ -587,7 +593,7 @@ export const getOrders = async (req, res) => {
   }
 };
 
-export const getOrderById = async (req, res) => {
+const getOrderById = async (req, res) => {
   try {
     const userId = req.user.id;
 
@@ -656,7 +662,7 @@ export const getOrderById = async (req, res) => {
   }
 };
 
-export const cancelOrder = async (req, res) => {
+const cancelOrder = async (req, res) => {
   const connection = await db.getConnection();
 
   try {
@@ -807,231 +813,76 @@ export const cancelOrder = async (req, res) => {
   }
 };
 
-export const getAdminOrders = async (req, res) => {
-  try {
-    const [orders] = await db.query(
-      `
-      SELECT
-        o.*,
-        u.name AS customer_name,
-        u.email AS customer_email,
-        u.phone AS customer_phone
-      FROM orders o
-      LEFT JOIN users u
-        ON u.id = o.user_id
-      ORDER BY o.created_at DESC
-      `
-    );
-
-    return res.status(200).json({
-      success: true,
-      count: orders.length,
-      orders,
-    });
-  } catch (error) {
-    console.error(
-      "Admin get orders error:",
-      error
-    );
-
-    return res.status(500).json({
-      success: false,
-      message: "Failed to fetch admin orders",
-    });
-  }
+module.exports = {
+  createOrder,
+  getMyOrders,
+  getOrderById,
+  cancelOrder,
 };
+ 
 
-export const getAdminOrderById = async (
-  req,
-  res
-) => {
-  try {
-    const orderId = Number(
-      req.params.id ||
-      req.params.orderId
-    );
+        const [orders] = await pool.execute(
+            `
+            SELECT
+                id,
+                order_status,
+                payment_status
+            FROM orders
+            WHERE id = ?
+              AND user_id = ?
+            LIMIT 1
+            `,
+            [orderId, userId]
+        );
 
-    if (
-      !Number.isInteger(orderId) ||
-      orderId <= 0
-    ) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid Order ID",
-      });
+        if (orders.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "Order not found"
+            });
+        }
+
+        const order = orders[0];
+
+        if (
+            order.order_status !== "pending" &&
+            order.order_status !== "confirmed"
+        ) {
+            return res.status(400).json({
+                success: false,
+                message: "This order cannot be cancelled"
+            });
+        }
+
+        if (order.payment_status === "paid") {
+            return res.status(400).json({
+                success: false,
+                message: "Paid orders require refund processing"
+            });
+        }
+
+        await pool.execute(
+            `
+            UPDATE orders
+            SET
+                order_status = 'cancelled',
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+              AND user_id = ?
+            `,
+            [orderId, userId]
+        );
+
+        return res.status(200).json({
+            success: true,
+            message: "Order cancelled successfully"
+        });
+    } catch (error) {
+        console.error("Cancel order error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Failed to cancel order"
+        });
     }
-
-    const [orders] = await db.query(
-      `
-      SELECT
-        o.*,
-        u.name AS customer_name,
-        u.email AS customer_email,
-        u.phone AS customer_phone
-      FROM orders o
-      LEFT JOIN users u
-        ON u.id = o.user_id
-      WHERE o.id = ?
-      LIMIT 1
-      `,
-      [orderId]
-    );
-
-    if (!orders.length) {
-      return res.status(404).json({
-        success: false,
-        message: "Order not found",
-      });
-    }
-
-    const [items] = await db.query(
-      `
-      SELECT *
-      FROM order_items
-      WHERE order_id = ?
-      ORDER BY id ASC
-      `,
-      [orderId]
-    );
-
-    let payments = [];
-
-    try {
-      const [paymentRows] = await db.query(
-        `
-        SELECT *
-        FROM payments
-        WHERE order_id = ?
-        ORDER BY created_at DESC
-        `,
-        [orderId]
-      );
-
-      payments = paymentRows;
-    } catch (paymentError) {
-      console.error(
-        "Admin payment lookup error:",
-        paymentError
-      );
-    }
-
-    return res.status(200).json({
-      success: true,
-      order: {
-        ...orders[0],
-        items,
-        payments,
-      },
-    });
-  } catch (error) {
-    console.error(
-      "Admin get order error:",
-      error
-    );
-
-    return res.status(500).json({
-      success: false,
-      message: "Failed to fetch admin order",
-    });
-  }
-};
-
-export const updateAdminOrderStatus = async (
-  req,
-  res
-) => {
-  try {
-    const orderId = Number(
-      req.params.id ||
-      req.params.orderId
-    );
-
-    const requestedStatus =
-      req.body?.order_status ??
-      req.body?.status;
-
-    const orderStatus =
-      typeof requestedStatus === "string"
-        ? requestedStatus.trim().toLowerCase()
-        : "";
-
-    const allowedStatuses = [
-      "pending",
-      "confirmed",
-      "processing",
-      "shipped",
-      "delivered",
-      "completed",
-      "cancelled",
-      "canceled",
-      "failed",
-      "refunded",
-    ];
-
-    if (
-      !Number.isInteger(orderId) ||
-      orderId <= 0
-    ) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid Order ID",
-      });
-    }
-
-    if (
-      !allowedStatuses.includes(orderStatus)
-    ) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid order status",
-      });
-    }
-
-    const [result] = await db.query(
-      `
-      UPDATE orders
-      SET
-        order_status = ?,
-        updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-      `,
-      [
-        orderStatus,
-        orderId,
-      ]
-    );
-
-    if (!result.affectedRows) {
-      return res.status(404).json({
-        success: false,
-        message: "Order not found",
-      });
-    }
-
-    const [orders] = await db.query(
-      `
-      SELECT *
-      FROM orders
-      WHERE id = ?
-      LIMIT 1
-      `,
-      [orderId]
-    );
-
-    return res.status(200).json({
-      success: true,
-      message: "Order status updated successfully",
-      order: orders[0] || null,
-    });
-  } catch (error) {
-    console.error(
-      "Admin update order status error:",
-      error
-    );
-
-    return res.status(500).json({
-      success: false,
-      message: "Failed to update order status",
-    });
-  }
 };

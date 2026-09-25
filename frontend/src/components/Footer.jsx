@@ -70,9 +70,7 @@ function Footer() {
         <div className="footer-column">
           <h3>SHOP</h3>
 
-          <Link to="/shop">
-            New Arrivals
-          </Link>
+         
 
           <Link to="/shop?category=T-Shirts">
             T-Shirts
