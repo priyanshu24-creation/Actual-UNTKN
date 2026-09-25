@@ -353,35 +353,6 @@ app.use(
     couponRoutes
 );
 
-app.get(
-    "/api/delivery-methods",
-    (req, res) => {
-        res.status(200).json({
-            success: true,
-
-            deliveryMethods: [
-                {
-                    id: "standard",
-                    name: "STANDARD DELIVERY",
-                    description:
-                        "5–7 BUSINESS DAYS",
-                    price: 99,
-                    isActive: true
-                },
-
-                {
-                    id: "express",
-                    name: "EXPRESS DELIVERY",
-                    description:
-                        "2–3 BUSINESS DAYS",
-                    price: 199,
-                    isActive: true
-                }
-            ]
-        });
-    }
-);
-
 app.use(
     "/api/delivery-methods",
     deliveryMethodRoutes
@@ -391,12 +362,6 @@ app.use(
     "/api/settings/running-banner",
     runningBannerRoutes
 );
-
-/*
-|--------------------------------------------------------------------------
-| FRONTEND STATIC FILES
-|--------------------------------------------------------------------------
-*/
 
 app.use(
     express.static(frontendPath, {
@@ -440,12 +405,6 @@ app.use(
     })
 );
 
-/*
-|--------------------------------------------------------------------------
-| FRONTEND SPA FALLBACK
-|--------------------------------------------------------------------------
-*/
-
 app.use(
     (req, res, next) => {
         if (req.method !== "GET") {
@@ -470,10 +429,6 @@ app.use(
             return next();
         }
 
-        /*
-         * Never return index.html for missing
-         * JavaScript/CSS/image assets.
-         */
         if (
             req.path.startsWith("/assets/")
         ) {
@@ -485,11 +440,6 @@ app.use(
             });
         }
 
-        /*
-         * Other files such as favicon, sitemap,
-         * robots.txt etc. should also not receive
-         * the SPA HTML fallback.
-         */
         if (
             req.path.includes(".")
         ) {
@@ -505,12 +455,6 @@ app.use(
     }
 );
 
-/*
-|--------------------------------------------------------------------------
-| 404
-|--------------------------------------------------------------------------
-*/
-
 app.use(
     (req, res) => {
         res.status(404).json({
@@ -521,12 +465,6 @@ app.use(
         });
     }
 );
-
-/*
-|--------------------------------------------------------------------------
-| ERROR HANDLER
-|--------------------------------------------------------------------------
-*/
 
 app.use(errorHandler);
 

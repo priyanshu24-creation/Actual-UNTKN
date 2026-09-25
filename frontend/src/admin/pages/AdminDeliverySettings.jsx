@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Truck,
   Zap,
@@ -10,29 +10,71 @@ import {
 } from "lucide-react";
 
 function AdminDeliverySettings() {
-  const defaultDeliveryMethods = [
-    {
-      id: "standard",
-      name: "STANDARD DELIVERY",
-      description: "5–7 BUSINESS DAYS",
-      price: 99,
-      enabled: true,
-    },
-    {
-      id: "express",
-      name: "EXPRESS DELIVERY",
-      description: "2–3 BUSINESS DAYS",
-      price: 199,
-      enabled: true,
-    },
-  ];
-
-  const [deliveryMethods, setDeliveryMethods] = useState(
-    defaultDeliveryMethods
-  );
-
+  const [deliveryMethods, setDeliveryMethods] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
+
+  /* ========================================
+     LOAD DELIVERY METHODS
+  ======================================== */
+
+  const normalizeDeliveryMethods = (methods) => {
+    if (!Array.isArray(methods)) {
+      return [];
+    }
+
+    return methods.map((method) => ({
+      id: method.id,
+      name: method.name,
+      description: method.description || "",
+      price: Number(method.price ?? 0),
+      enabled:
+        method.isActive ??
+        method.enabled ??
+        method.is_active ??
+        false,
+    }));
+  };
+
+  const loadDeliveryMethods = async () => {
+    try {
+      setLoading(true);
+      setError("");
+
+      const response = await api.get("/delivery-methods/admin");
+
+      const methods = normalizeDeliveryMethods(
+        response.data?.deliveryMethods ??
+          response.data?.methods ??
+          []
+      );
+
+      setDeliveryMethods(methods);
+
+      if (methods.length === 0) {
+        setError("No delivery methods are configured.");
+      }
+    } catch (requestError) {
+      console.error(
+        "Failed to load delivery methods:",
+        requestError
+      );
+
+      setDeliveryMethods([]);
+      setError(
+        requestError?.response?.data?.message ||
+          "Unable to load delivery settings. Please try again."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadDeliveryMethods();
+  }, []);
 
   /* ========================================
      TOGGLE DELIVERY METHOD
@@ -51,6 +93,7 @@ function AdminDeliverySettings() {
     );
 
     setSaved(false);
+    setError("");
   };
 
   /* ========================================
@@ -77,47 +120,68 @@ function AdminDeliverySettings() {
   ======================================== */
 
   const handleSave = async () => {
+    if (saving || loading) {
+      return;
+    }
+
     setSaving(true);
     setSaved(false);
+    setError("");
 
-    /*
-      FRONTEND TEMPORARY STORAGE
+    try {
+      const payload = {
+        deliveryMethods: deliveryMethods.map((method) => ({
+          id: method.id,
+          name: method.name,
+          description: method.description,
+          price: Math.max(0, Number(method.price || 0)),
+          isActive: Boolean(method.enabled),
+        })),
+      };
 
-      This allows the frontend to work before
-      your friend's backend API is connected.
+      const response = await api.put(
+        "/delivery-methods/admin",
+        payload
+      );
 
-      Later your friend can replace this with:
+      const updatedMethods = normalizeDeliveryMethods(
+        response.data?.deliveryMethods ??
+          response.data?.methods ??
+          payload.deliveryMethods
+      );
 
-      await api.put("/delivery-methods", {
-        deliveryMethods,
-      });
-    */
+      setDeliveryMethods(updatedMethods);
+      setSaved(true);
 
-    localStorage.setItem(
-      "untkn-delivery-methods",
-      JSON.stringify(deliveryMethods)
-    );
+      window.setTimeout(() => {
+        setSaved(false);
+      }, 3000);
+    } catch (requestError) {
+      console.error(
+        "Failed to save delivery methods:",
+        requestError
+      );
 
-    await new Promise((resolve) => setTimeout(resolve, 800));
-
-    setSaving(false);
-    setSaved(true);
-
-    setTimeout(() => {
-      setSaved(false);
-    }, 3000);
+      setError(
+        requestError?.response?.data?.message ||
+          "Unable to save delivery settings. Please try again."
+      );
+    } finally {
+      setSaving(false);
+    }
   };
 
   /* ========================================
      RESET SETTINGS
   ======================================== */
 
-  const handleReset = () => {
-    setDeliveryMethods(defaultDeliveryMethods);
-
-    localStorage.removeItem("untkn-delivery-methods");
+  const handleReset = async () => {
+    if (saving || loading) {
+      return;
+    }
 
     setSaved(false);
+    await loadDeliveryMethods();
   };
 
   return (
@@ -159,7 +223,7 @@ function AdminDeliverySettings() {
             type="button"
             className="admin-delivery-save"
             onClick={handleSave}
-            disabled={saving}
+            disabled={saving || loading}
           >
             {saving ? (
               <>
@@ -187,6 +251,23 @@ function AdminDeliverySettings() {
 
         </div>
       </div>
+
+      {error && (
+        <div
+          role="alert"
+          style={{
+            marginTop: "20px",
+            padding: "14px 16px",
+            border: "1px solid #b3261e",
+            background: "#fff5f5",
+            color: "#8a1c16",
+            fontSize: "13px",
+            lineHeight: "1.5",
+          }}
+        >
+          {error}
+        </div>
+      )}
 
       {/* ========================================
           INFO
@@ -216,7 +297,31 @@ function AdminDeliverySettings() {
 
       <div className="admin-delivery-grid">
 
-        {deliveryMethods.map((method) => (
+        {loading ? (
+          <div
+            style={{
+              gridColumn: "1 / -1",
+              padding: "40px 0",
+              textAlign: "center",
+              fontSize: "13px",
+              letterSpacing: "0.04em",
+            }}
+          >
+            LOADING DELIVERY SETTINGS...
+          </div>
+        ) : deliveryMethods.length === 0 ? (
+          <div
+            style={{
+              gridColumn: "1 / -1",
+              padding: "40px 0",
+              textAlign: "center",
+              fontSize: "13px",
+            }}
+          >
+            NO DELIVERY METHODS ARE CONFIGURED.
+          </div>
+        ) : (
+          deliveryMethods.map((method) => (
 
           <div
             className={`admin-delivery-card ${
@@ -293,6 +398,7 @@ function AdminDeliverySettings() {
                     : "Enable"
                 } ${method.name}`}
                 aria-pressed={method.enabled}
+                disabled={saving || loading}
               >
                 {method.enabled ? (
                   <ToggleRight size={38} />
@@ -325,6 +431,7 @@ function AdminDeliverySettings() {
                   min="0"
                   step="1"
                   value={method.price}
+                  disabled={saving || loading}
                   onChange={(event) =>
                     handlePriceChange(
                       method.id,
@@ -390,7 +497,8 @@ function AdminDeliverySettings() {
 
           </div>
 
-        ))}
+          ))
+        )}
 
       </div>
 

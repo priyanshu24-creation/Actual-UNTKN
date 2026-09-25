@@ -10,21 +10,6 @@ import {
 import api from "../services/api";
 import { useCart } from "../context/CartContext";
 
-const DEFAULT_DELIVERY_METHODS = [
-  {
-    id: "standard",
-    name: "STANDARD DELIVERY",
-    description: "5–7 BUSINESS DAYS",
-    price: 99,
-  },
-  {
-    id: "express",
-    name: "EXPRESS DELIVERY",
-    description: "2–3 BUSINESS DAYS",
-    price: 199,
-  },
-];
-
 function Checkout() {
   const navigate = useNavigate();
 
@@ -35,12 +20,9 @@ function Checkout() {
     refreshCart,
   } = useCart();
 
-  const [deliveryMethods, setDeliveryMethods] = useState(
-    DEFAULT_DELIVERY_METHODS
-  );
-
+  const [deliveryMethods, setDeliveryMethods] = useState([]);
   const [deliveryMethod, setDeliveryMethod] =
-    useState("standard");
+    useState("");
 
   const [deliveryLoading, setDeliveryLoading] =
     useState(false);
@@ -121,33 +103,44 @@ function Checkout() {
           "/delivery-methods"
         );
 
-        const methods = Array.isArray(
+        const rawMethods = Array.isArray(
           response.data?.deliveryMethods
         )
           ? response.data.deliveryMethods
+          : Array.isArray(response.data?.methods)
+          ? response.data.methods
           : [];
+
+        const methods = rawMethods
+          .filter(
+            (method) =>
+              method &&
+              (method.enabled ??
+                method.isActive ??
+                method.is_active ??
+                true) !== false
+          )
+          .map((method) => ({
+            id: method.id,
+            name: method.name,
+            description: method.description || "",
+            price: Number(method.price ?? 0),
+          }))
+          .filter((method) => method.id);
 
         if (!mounted) {
           return;
         }
 
-        if (methods.length > 0) {
-          setDeliveryMethods(methods);
+        setDeliveryMethods(methods);
 
-          setDeliveryMethod((current) => {
-            const exists = methods.some(
-              (method) => method.id === current
-            );
-
-            return exists ? current : methods[0].id;
-          });
-        } else {
-          setDeliveryMethods(
-            DEFAULT_DELIVERY_METHODS
+        setDeliveryMethod((current) => {
+          const exists = methods.some(
+            (method) => method.id === current
           );
 
-          setDeliveryMethod("standard");
-        }
+          return exists ? current : methods[0]?.id || "";
+        });
       } catch (requestError) {
         console.error(
           "Delivery methods error:",
@@ -158,11 +151,8 @@ function Checkout() {
           return;
         }
 
-        setDeliveryMethods(
-          DEFAULT_DELIVERY_METHODS
-        );
-
-        setDeliveryMethod("standard");
+        setDeliveryMethods([]);
+        setDeliveryMethod("");
       } finally {
         if (mounted) {
           setDeliveryLoading(false);
@@ -312,9 +302,7 @@ function Checkout() {
     deliveryMethods.find(
       (method) =>
         method.id === deliveryMethod
-    ) ||
-    deliveryMethods[0] ||
-    DEFAULT_DELIVERY_METHODS[0];
+    ) || null;
 
   const shipping = Number(
     selectedDeliveryMethod?.price || 0
@@ -350,6 +338,14 @@ function Checkout() {
   };
 
   const handleDeliveryChange = (methodId) => {
+    const methodExists = deliveryMethods.some(
+      (method) => method.id === methodId
+    );
+
+    if (!methodExists) {
+      return;
+    }
+
     setDeliveryMethod(methodId);
 
     if (error) {
@@ -970,6 +966,19 @@ function Checkout() {
                 >
                   LOADING DELIVERY OPTIONS...
                 </div>
+              ) : deliveryMethods.length === 0 ? (
+                <div
+                  style={{
+                    padding: "20px 0",
+                    fontSize: "13px",
+                    lineHeight: "1.5",
+                    borderTop: "1px solid #e5e5e5",
+                    borderBottom: "1px solid #e5e5e5",
+                  }}
+                >
+                  NO DELIVERY METHODS ARE CURRENTLY AVAILABLE.
+                  PLEASE TRY AGAIN LATER.
+                </div>
               ) : (
                 <div className="delivery-methods">
                   {deliveryMethods.map(
@@ -1465,7 +1474,12 @@ function Checkout() {
           <button
             type="submit"
             className="checkout-submit"
-            disabled={submitting}
+            disabled={
+              submitting ||
+              deliveryLoading ||
+              deliveryMethods.length === 0 ||
+              !selectedDeliveryMethod
+            }
           >
             {submitting
               ? "CREATING ORDER..."
