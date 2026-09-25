@@ -14,8 +14,25 @@ const noCache = (res) => {
         "Cache-Control",
         "no-store, no-cache, must-revalidate, proxy-revalidate"
     );
+
     res.setHeader("Pragma", "no-cache");
     res.setHeader("Expires", "0");
+};
+
+const normalizeId = (id) => {
+    const value = String(id ?? "")
+        .trim()
+        .toLowerCase();
+
+    if (value === "1") {
+        return "standard";
+    }
+
+    if (value === "2") {
+        return "express";
+    }
+
+    return value;
 };
 
 const toBoolean = (value) => {
@@ -27,7 +44,7 @@ const toBoolean = (value) => {
     );
 };
 
-const normalizeMethod = (row) => ({
+const normalizeRow = (row) => ({
     id: String(row.id),
     name: row.name,
     description: row.description || "",
@@ -36,13 +53,19 @@ const normalizeMethod = (row) => ({
 });
 
 /*
-    GET CUSTOMER DELIVERY METHODS
+|--------------------------------------------------------------------------
+| CUSTOMER
+|--------------------------------------------------------------------------
+| GET /api/delivery-methods
+|
+| Only active delivery methods are returned.
+|--------------------------------------------------------------------------
 */
 router.get("/", async (req, res) => {
     try {
         noCache(res);
 
-        const [rows] = await pool.query(`
+        const [rows] = await pool.execute(`
             SELECT
                 id,
                 name,
@@ -56,24 +79,27 @@ router.get("/", async (req, res) => {
 
         return res.status(200).json({
             success: true,
-            deliveryMethods: rows.map(normalizeMethod)
+            deliveryMethods: rows.map(normalizeRow)
         });
     } catch (error) {
         console.error(
-            "GET delivery methods error:",
+            "GET /api/delivery-methods error:",
             error
         );
 
         return res.status(500).json({
             success: false,
-            message: "Failed to load delivery methods",
-            error: error.message
+            message: "Failed to load delivery methods"
         });
     }
 });
 
 /*
-    GET ADMIN DELIVERY METHODS
+|--------------------------------------------------------------------------
+| ADMIN - LOAD ALL METHODS
+|--------------------------------------------------------------------------
+| GET /api/delivery-methods/admin
+|--------------------------------------------------------------------------
 */
 router.get(
     "/admin",
@@ -83,7 +109,7 @@ router.get(
         try {
             noCache(res);
 
-            const [rows] = await pool.query(`
+            const [rows] = await pool.execute(`
                 SELECT
                     id,
                     name,
@@ -96,8 +122,9 @@ router.get(
 
             return res.status(200).json({
                 success: true,
-                deliveryMethods:
-                    rows.map(normalizeMethod)
+                deliveryMethods: rows.map(
+                    normalizeRow
+                )
             });
         } catch (error) {
             console.error(
@@ -108,15 +135,132 @@ router.get(
             return res.status(500).json({
                 success: false,
                 message:
-                    "Failed to load delivery settings",
-                error: error.message
+                    "Failed to load delivery settings"
             });
         }
     }
 );
 
 /*
-    SAVE ADMIN DELIVERY METHODS
+|--------------------------------------------------------------------------
+| ADMIN - TOGGLE ONE METHOD IMMEDIATELY
+|--------------------------------------------------------------------------
+| PATCH /api/delivery-methods/admin/:id
+|
+| This is the important connection between Admin and Checkout.
+|--------------------------------------------------------------------------
+*/
+router.patch(
+    "/admin/:id",
+    authenticate,
+    requireAdmin,
+    async (req, res) => {
+        try {
+            noCache(res);
+
+            const id = normalizeId(
+                req.params.id
+            );
+
+            if (
+                id !== "standard" &&
+                id !== "express"
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    message:
+                        "Invalid delivery method"
+                });
+            }
+
+            if (
+                !Object.prototype.hasOwnProperty.call(
+                    req.body || {},
+                    "isActive"
+                )
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    message:
+                        "isActive is required"
+                });
+            }
+
+            const isActive =
+                req.body.isActive === true ||
+                req.body.isActive === 1 ||
+                req.body.isActive === "1" ||
+                req.body.isActive === "true";
+
+            const [result] =
+                await pool.execute(
+                    `
+                    UPDATE delivery_methods
+                    SET
+                        is_active = ?,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                    `,
+                    [
+                        isActive ? 1 : 0,
+                        id
+                    ]
+                );
+
+            if (result.affectedRows === 0) {
+                return res.status(404).json({
+                    success: false,
+                    message:
+                        "Delivery method not found"
+                });
+            }
+
+            const [rows] =
+                await pool.execute(
+                    `
+                    SELECT
+                        id,
+                        name,
+                        description,
+                        price,
+                        is_active
+                    FROM delivery_methods
+                    WHERE id = ?
+                    LIMIT 1
+                    `,
+                    [id]
+                );
+
+            return res.status(200).json({
+                success: true,
+                message:
+                    "Delivery availability updated",
+                deliveryMethod:
+                    normalizeRow(rows[0])
+            });
+        } catch (error) {
+            console.error(
+                "PATCH delivery method error:",
+                error
+            );
+
+            return res.status(500).json({
+                success: false,
+                message:
+                    "Failed to update delivery availability"
+            });
+        }
+    }
+);
+
+/*
+|--------------------------------------------------------------------------
+| ADMIN - SAVE ALL SETTINGS
+|--------------------------------------------------------------------------
+| PUT /api/delivery-methods/admin
+|
+| Used for delivery fees and also safely persists availability.
+|--------------------------------------------------------------------------
 */
 router.put(
     "/admin",
@@ -129,12 +273,10 @@ router.put(
         try {
             noCache(res);
 
-            const deliveryMethods =
+            const methods =
                 req.body?.deliveryMethods;
 
-            if (!Array.isArray(deliveryMethods)) {
-                connection.release();
-
+            if (!Array.isArray(methods)) {
                 return res.status(400).json({
                     success: false,
                     message:
@@ -144,46 +286,19 @@ router.put(
 
             await connection.beginTransaction();
 
-            for (const method of deliveryMethods) {
-                const rawId =
-                    String(method?.id ?? "")
-                        .trim()
-                        .toLowerCase();
-
-                let id = rawId;
-
-                if (
-                    rawId === "1" ||
-                    rawId === "standard"
-                ) {
-                    id = "standard";
-                }
-
-                if (
-                    rawId === "2" ||
-                    rawId === "express"
-                ) {
-                    id = "express";
-                }
+            for (const method of methods) {
+                const id = normalizeId(
+                    method?.id
+                );
 
                 if (
                     id !== "standard" &&
                     id !== "express"
                 ) {
                     throw new Error(
-                        `Invalid delivery method id: ${method?.id}`
+                        `Invalid delivery method: ${method?.id}`
                     );
                 }
-
-                const active =
-                    method?.isActive === true ||
-                    method?.isActive === 1 ||
-                    method?.isActive === "1" ||
-                    method?.isActive === "true" ||
-                    method?.enabled === true ||
-                    method?.enabled === 1 ||
-                    method?.enabled === "1" ||
-                    method?.enabled === "true";
 
                 const price = Number(
                     method?.price ?? 0
@@ -194,18 +309,36 @@ router.put(
                     price < 0
                 ) {
                     throw new Error(
-                        `Invalid delivery price for ${id}`
+                        `Invalid price for ${id}`
                     );
                 }
 
-                /*
-                    IMPORTANT:
-                    Your real MySQL table uses:
-                    id = "standard"
-                    id = "express"
+                let isActive = false;
 
-                    So update the existing rows directly.
-                */
+                if (
+                    Object.prototype.hasOwnProperty.call(
+                        method,
+                        "isActive"
+                    )
+                ) {
+                    isActive =
+                        method.isActive === true ||
+                        method.isActive === 1 ||
+                        method.isActive === "1" ||
+                        method.isActive === "true";
+                } else if (
+                    Object.prototype.hasOwnProperty.call(
+                        method,
+                        "enabled"
+                    )
+                ) {
+                    isActive =
+                        method.enabled === true ||
+                        method.enabled === 1 ||
+                        method.enabled === "1" ||
+                        method.enabled === "true";
+                }
+
                 const [result] =
                     await connection.execute(
                         `
@@ -220,7 +353,7 @@ router.put(
                             Number(
                                 price.toFixed(2)
                             ),
-                            active ? 1 : 0,
+                            isActive ? 1 : 0,
                             id
                         ]
                     );
@@ -235,7 +368,7 @@ router.put(
             await connection.commit();
 
             const [rows] =
-                await connection.query(`
+                await connection.execute(`
                     SELECT
                         id,
                         name,
@@ -251,22 +384,21 @@ router.put(
                 message:
                     "Delivery settings saved successfully",
                 deliveryMethods:
-                    rows.map(normalizeMethod)
+                    rows.map(normalizeRow)
             });
-
         } catch (error) {
             await connection.rollback();
 
             console.error(
-                "SAVE delivery methods error:",
+                "PUT delivery methods error:",
                 error
             );
 
             return res.status(500).json({
                 success: false,
                 message:
-                    "Failed to save delivery settings",
-                error: error.message
+                    error.message ||
+                    "Failed to save delivery settings"
             });
         } finally {
             connection.release();
