@@ -46,11 +46,9 @@ const normalizeMessages = (settings) => {
     )
     .filter(Boolean);
 
-  if (normalized.length === 0) {
-    return DEFAULT_MESSAGES;
-  }
-
-  return normalized;
+  return normalized.length > 0
+    ? normalized
+    : DEFAULT_MESSAGES;
 };
 
 function Navbar() {
@@ -63,7 +61,6 @@ function Navbar() {
     useState(DEFAULT_MESSAGES);
 
   const { totalItems } = useCart();
-
   const location = useLocation();
 
   const loadRunningBanner =
@@ -90,16 +87,15 @@ function Navbar() {
           return;
         }
 
-        const messages =
-          normalizeMessages(settings);
-
         setBannerEnabled(
           settings.enabled !== undefined
             ? Boolean(settings.enabled)
             : true
         );
 
-        setBannerMessages(messages);
+        setBannerMessages(
+          normalizeMessages(settings)
+        );
       } catch (error) {
         console.error(
           "Failed to load running banner:",
@@ -113,11 +109,9 @@ function Navbar() {
   }, [location.pathname]);
 
   useEffect(() => {
-    if (menuOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
+    document.body.style.overflow = menuOpen
+      ? "hidden"
+      : "";
 
     return () => {
       document.body.style.overflow = "";
@@ -131,18 +125,6 @@ function Navbar() {
       loadRunningBanner();
     };
 
-    window.addEventListener(
-      "runningBannerUpdated",
-      handleBannerUpdate
-    );
-
-    const interval = window.setInterval(
-      () => {
-        loadRunningBanner();
-      },
-      15000
-    );
-
     const handleVisibilityChange = () => {
       if (
         document.visibilityState === "visible"
@@ -150,6 +132,16 @@ function Navbar() {
         loadRunningBanner();
       }
     };
+
+    const interval = window.setInterval(
+      loadRunningBanner,
+      15000
+    );
+
+    window.addEventListener(
+      "runningBannerUpdated",
+      handleBannerUpdate
+    );
 
     document.addEventListener(
       "visibilitychange",
@@ -186,7 +178,9 @@ function Navbar() {
   };
 
   const toggleMenu = () => {
-    setMenuOpen((previous) => !previous);
+    setMenuOpen(
+      (previous) => !previous
+    );
   };
 
   const isActive = (path) => {
@@ -273,6 +267,7 @@ function Navbar() {
             {/* DESKTOP NAVIGATION */}
 
             <nav className="nav-links">
+
               <Link
                 to="/shop"
                 className={
@@ -327,6 +322,7 @@ function Navbar() {
               >
                 CONTACT
               </Link>
+
             </nav>
 
             {/* NAV ACTIONS */}
@@ -355,9 +351,12 @@ function Navbar() {
                 />
               </Link>
 
+              {/* ACCOUNT */}
+
               <Link
                 to="/account"
-                aria-label="Account"
+                aria-label="My Account"
+                title="My Account"
                 className="nav-action-button"
               >
                 <User
@@ -366,9 +365,11 @@ function Navbar() {
                 />
               </Link>
 
+              {/* CART */}
+
               <Link
                 to="/cart"
-                aria-label="Cart"
+                aria-label="Shopping Bag"
                 className="nav-action-button navbar-cart"
               >
                 <ShoppingBag
@@ -405,17 +406,11 @@ function Navbar() {
               aria-label="Mobile navigation"
             >
 
-              {/* MOBILE MENU CONTENT */}
-
               <div className="mobile-menu-inner">
-
-                {/* LABEL */}
 
                 <div className="mobile-menu-label">
                   NAVIGATION
                 </div>
-
-                {/* NAVIGATION LINKS */}
 
                 <nav className="mobile-nav-links">
 
@@ -486,7 +481,7 @@ function Navbar() {
 
                 </nav>
 
-                {/* QUICK ACTIONS */}
+                {/* MOBILE ACTIONS */}
 
                 <div className="mobile-menu-actions">
 
@@ -498,7 +493,9 @@ function Navbar() {
                       size={16}
                       strokeWidth={1.5}
                     />
-                    <span>SEARCH</span>
+                    <span>
+                      SEARCH
+                    </span>
                   </Link>
 
                   <Link
@@ -509,8 +506,12 @@ function Navbar() {
                       size={16}
                       strokeWidth={1.5}
                     />
-                    <span>WISHLIST</span>
+                    <span>
+                      WISHLIST
+                    </span>
                   </Link>
+
+                  {/* ACCOUNT */}
 
                   <Link
                     to="/account"
@@ -520,7 +521,9 @@ function Navbar() {
                       size={16}
                       strokeWidth={1.5}
                     />
-                    <span>ACCOUNT</span>
+                    <span>
+                      ACCOUNT
+                    </span>
                   </Link>
 
                 </div>
