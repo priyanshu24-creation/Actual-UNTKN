@@ -3,39 +3,124 @@ import crypto from "node:crypto";
 
 export const createOrder = async (req, res) => {
   const connection = await db.getConnection();
+  let transactionStarted = false;
 
   try {
-    const userId = req.user.id;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required",
+      });
+    }
 
     const {
       shipping_address,
       shippingAddress,
+      shipping_address_line1,
+      shipping_address_line2,
+      shipping_city,
+      shipping_state,
+      shipping_postal_code,
+      shipping_country,
+      shipping_name,
+      shipping_phone,
+      shipping_email,
       billing_address,
       billingAddress,
       payment_method,
       paymentMethod,
       coupon_code,
       couponCode,
-    } = req.body;
+      notes,
+    } = req.body || {};
 
-    const shippingAddressValue =
-      shipping_address ||
-      shippingAddress;
+    const normalizeAddress = (value) => {
+      if (value === null || value === undefined) {
+        return null;
+      }
 
-    const billingAddressValue =
-      billing_address ||
-      billingAddress ||
-      shippingAddressValue;
+      if (typeof value === "object") {
+        return value;
+      }
 
-    const paymentMethodValue =
-      payment_method ||
-      paymentMethod ||
-      "cod";
+      const stringValue = String(value).trim();
 
-    const couponCodeValue =
-      coupon_code ||
-      couponCode ||
-      null;
+      if (!stringValue) {
+        return null;
+      }
+
+      try {
+        return JSON.parse(stringValue);
+      } catch {
+        return stringValue;
+      }
+    };
+
+    let shippingAddressValue = normalizeAddress(
+      shipping_address ?? shippingAddress
+    );
+
+    if (!shippingAddressValue) {
+      const addressLine1 = String(
+        shipping_address_line1 ?? ""
+      ).trim();
+
+      const addressLine2 = String(
+        shipping_address_line2 ?? ""
+      ).trim();
+
+      const city = String(
+        shipping_city ?? ""
+      ).trim();
+
+      const state = String(
+        shipping_state ?? ""
+      ).trim();
+
+      const postalCode = String(
+        shipping_postal_code ?? ""
+      ).trim();
+
+      const country =
+        String(
+          shipping_country ?? "India"
+        ).trim() || "India";
+
+      if (
+        addressLine1 ||
+        city ||
+        state ||
+        postalCode
+      ) {
+        shippingAddressValue = {
+          name: String(
+            shipping_name ?? ""
+          ).trim(),
+
+          phone: String(
+            shipping_phone ?? ""
+          ).trim(),
+
+          email: String(
+            shipping_email ?? ""
+          ).trim(),
+
+          address: addressLine1,
+
+          apartment: addressLine2,
+
+          city,
+
+          state,
+
+          pincode: postalCode,
+
+          country,
+        };
+      }
+    }
 
     if (!shippingAddressValue) {
       return res.status(400).json({
@@ -44,45 +129,66 @@ export const createOrder = async (req, res) => {
       });
     }
 
+    const billingAddressValue =
+      normalizeAddress(
+        billing_address ?? billingAddress
+      ) || shippingAddressValue;
+
+    const paymentMethodValue =
+      String(
+        payment_method ??
+          paymentMethod ??
+          "cod"
+      ).trim() || "cod";
+
+    const couponCodeValue =
+      coupon_code ??
+      couponCode ??
+      null;
+
     await connection.beginTransaction();
+    transactionStarted = true;
 
-    const [cartItems] = await connection.query(
-      `
-      SELECT
-        ci.id AS cart_item_id,
-        ci.product_id,
-        ci.variant_id,
-        ci.quantity,
+    const [cartItems] =
+      await connection.query(
+        `
+        SELECT
+          ci.id AS cart_item_id,
+          ci.product_id,
+          ci.variant_id,
+          ci.quantity,
 
-        p.name,
-        p.base_price,
-        p.sale_price,
-        p.stock_quantity AS product_stock,
-        p.active AS product_active,
+          p.name,
+          p.base_price,
+          p.sale_price,
+          p.stock_quantity AS product_stock,
+          p.active AS product_active,
 
-        pv.sku,
-        pv.stock_quantity,
-        pv.active AS variant_active,
-        pv.size,
-        pv.color
+          pv.sku,
+          pv.price AS variant_price,
+          pv.stock_quantity AS variant_stock,
+          pv.active AS variant_active,
+          pv.size,
+          pv.color
 
-      FROM cart_items ci
+        FROM cart_items ci
 
-      INNER JOIN products p
-        ON p.id = ci.product_id
+        INNER JOIN products p
+          ON p.id = ci.product_id
 
-      LEFT JOIN product_variants pv
-        ON pv.id = ci.variant_id
+        LEFT JOIN product_variants pv
+          ON pv.id = ci.variant_id
 
-      WHERE ci.user_id = ?
+        WHERE ci.user_id = ?
 
-      FOR UPDATE
-      `,
-      [userId]
-    );
+        FOR UPDATE
+        `,
+        [userId]
+      );
 
     if (!cartItems.length) {
       await connection.rollback();
+      transactionStarted = false;
 
       return res.status(400).json({
         success: false,
@@ -91,12 +197,12 @@ export const createOrder = async (req, res) => {
     }
 
     let subtotal = 0;
-
     const orderItems = [];
 
     for (const item of cartItems) {
       if (!item.product_active) {
         await connection.rollback();
+        transactionStarted = false;
 
         return res.status(400).json({
           success: false,
@@ -109,6 +215,7 @@ export const createOrder = async (req, res) => {
         !item.variant_active
       ) {
         await connection.rollback();
+        transactionStarted = false;
 
         return res.status(400).json({
           success: false,
@@ -116,34 +223,100 @@ export const createOrder = async (req, res) => {
         });
       }
 
-      const availableStock =
-        item.variant_id
-          ? Number(item.stock_quantity || 0)
-          : Number(item.product_stock || 0);
-
-      if (
-        availableStock <= 0 ||
-        Number(item.quantity) > availableStock
-      ) {
-        await connection.rollback();
-
-        return res.status(400).json({
-          success: false,
-          message: `Only ${availableStock} item(s) available for ${item.name}`,
-        });
-      }
-
-      const unitPrice =
-        item.sale_price !== null &&
-        item.sale_price !== undefined
-          ? Number(item.sale_price)
-          : Number(item.base_price);
-
       const quantity =
         Number(item.quantity);
 
+      if (
+        !Number.isInteger(quantity) ||
+        quantity <= 0
+      ) {
+        await connection.rollback();
+        transactionStarted = false;
+
+        return res.status(400).json({
+          success: false,
+          message: `Invalid quantity for ${item.name}`,
+        });
+      }
+
+      const availableStock =
+        item.variant_id
+          ? Number(
+              item.variant_stock ?? 0
+            )
+          : Number(
+              item.product_stock ?? 0
+            );
+
+      if (
+        !Number.isFinite(
+          availableStock
+        ) ||
+        availableStock <= 0 ||
+        quantity > availableStock
+      ) {
+        await connection.rollback();
+        transactionStarted = false;
+
+        return res.status(400).json({
+          success: false,
+          message: `Only ${Math.max(
+            0,
+            Math.floor(
+              availableStock
+            )
+          )} item(s) available for ${item.name}`,
+        });
+      }
+
+      let unitPrice;
+
+      if (
+        item.variant_id &&
+        item.variant_price !== null &&
+        item.variant_price !== undefined
+      ) {
+        unitPrice =
+          Number(
+            item.variant_price
+          );
+      } else if (
+        item.sale_price !== null &&
+        item.sale_price !== undefined
+      ) {
+        unitPrice =
+          Number(
+            item.sale_price
+          );
+      } else {
+        unitPrice =
+          Number(
+            item.base_price
+          );
+      }
+
+      if (
+        !Number.isFinite(
+          unitPrice
+        ) ||
+        unitPrice < 0
+      ) {
+        await connection.rollback();
+        transactionStarted = false;
+
+        return res.status(400).json({
+          success: false,
+          message: `Invalid price for ${item.name}`,
+        });
+      }
+
       const totalPrice =
-        unitPrice * quantity;
+        Number(
+          (
+            unitPrice *
+            quantity
+          ).toFixed(2)
+        );
 
       subtotal += totalPrice;
 
@@ -179,39 +352,25 @@ export const createOrder = async (req, res) => {
       });
     }
 
-    let discount = 0;
+    subtotal =
+      Number(
+        subtotal.toFixed(2)
+      );
 
+    let discount = 0;
     let coupon = null;
 
     if (couponCodeValue) {
       const normalizedCoupon =
-        String(couponCodeValue)
+        String(
+          couponCodeValue
+        )
           .trim()
           .toUpperCase();
 
-      const [coupons] = await connection.query(
-        `
-        SELECT
-          id,
-          code,
-          discount_type,
-          discount_value,
-          minimum_order_amount,
-          maximum_discount_amount,
-          usage_limit,
-          used_count,
-          starts_at,
-          expires_at,
-          active
-        FROM coupons
-        WHERE UPPER(code) = ?
-        LIMIT 1
-        `,
-        [normalizedCoupon]
-      );
-
-      if (!coupons.length) {
+      if (!normalizedCoupon) {
         await connection.rollback();
+        transactionStarted = false;
 
         return res.status(400).json({
           success: false,
@@ -219,12 +378,47 @@ export const createOrder = async (req, res) => {
         });
       }
 
-      coupon = coupons[0];
+      const [coupons] =
+        await connection.query(
+          `
+          SELECT
+            id,
+            code,
+            discount_type,
+            discount_value,
+            minimum_order_amount,
+            maximum_discount_amount,
+            usage_limit,
+            used_count,
+            starts_at,
+            expires_at,
+            active
+          FROM coupons
+          WHERE UPPER(code) = ?
+          LIMIT 1
+          `,
+          [normalizedCoupon]
+        );
 
-      const now = new Date();
+      if (!coupons.length) {
+        await connection.rollback();
+        transactionStarted = false;
+
+        return res.status(400).json({
+          success: false,
+          message: "Invalid coupon code",
+        });
+      }
+
+      coupon =
+        coupons[0];
+
+      const now =
+        new Date();
 
       if (!coupon.active) {
         await connection.rollback();
+        transactionStarted = false;
 
         return res.status(400).json({
           success: false,
@@ -234,39 +428,53 @@ export const createOrder = async (req, res) => {
 
       if (
         coupon.starts_at &&
-        new Date(coupon.starts_at) > now
+        new Date(
+          coupon.starts_at
+        ) > now
       ) {
         await connection.rollback();
+        transactionStarted = false;
 
         return res.status(400).json({
           success: false,
-          message: "This coupon is not active yet",
+          message:
+            "This coupon is not active yet",
         });
       }
 
       if (
         coupon.expires_at &&
-        new Date(coupon.expires_at) < now
+        new Date(
+          coupon.expires_at
+        ) < now
       ) {
         await connection.rollback();
+        transactionStarted = false;
 
         return res.status(400).json({
           success: false,
-          message: "This coupon has expired",
+          message:
+            "This coupon has expired",
         });
       }
 
       if (
         coupon.usage_limit !== null &&
         coupon.usage_limit !== undefined &&
-        Number(coupon.used_count || 0) >=
-          Number(coupon.usage_limit)
+        Number(
+          coupon.used_count || 0
+        ) >=
+          Number(
+            coupon.usage_limit
+          )
       ) {
         await connection.rollback();
+        transactionStarted = false;
 
         return res.status(400).json({
           success: false,
-          message: "This coupon usage limit has been reached",
+          message:
+            "This coupon usage limit has been reached",
         });
       }
 
@@ -274,9 +482,12 @@ export const createOrder = async (req, res) => {
         coupon.minimum_order_amount !== null &&
         coupon.minimum_order_amount !== undefined &&
         subtotal <
-          Number(coupon.minimum_order_amount)
+          Number(
+            coupon.minimum_order_amount
+          )
       ) {
         await connection.rollback();
+        transactionStarted = false;
 
         return res.status(400).json({
           success: false,
@@ -288,54 +499,67 @@ export const createOrder = async (req, res) => {
 
       const discountType =
         String(
-          coupon.discount_type || ""
+          coupon.discount_type ||
+            ""
         ).toLowerCase();
 
       const discountValue =
-        Number(coupon.discount_value || 0);
+        Number(
+          coupon.discount_value ||
+            0
+        );
 
       if (
-        discountType === "percentage" ||
-        discountType === "percent"
+        discountType ===
+          "percentage" ||
+        discountType ===
+          "percent"
       ) {
         discount =
           subtotal *
           (discountValue / 100);
 
         if (
-          coupon.maximum_discount_amount !==
-            null &&
-          coupon.maximum_discount_amount !==
-            undefined
+          coupon.maximum_discount_amount !== null &&
+          coupon.maximum_discount_amount !== undefined
         ) {
-          discount = Math.min(
-            discount,
-            Number(
-              coupon.maximum_discount_amount
-            )
-          );
+          discount =
+            Math.min(
+              discount,
+              Number(
+                coupon.maximum_discount_amount
+              )
+            );
         }
       } else {
-        discount = discountValue;
+        discount =
+          discountValue;
       }
 
-      discount = Math.max(
-        0,
-        Math.min(discount, subtotal)
-      );
+      discount =
+        Number(
+          Math.max(
+            0,
+            Math.min(
+              discount,
+              subtotal
+            )
+          ).toFixed(2)
+        );
     }
 
     const shippingCharge = 0;
-
     const tax = 0;
 
     const totalAmount =
-      Math.max(
-        0,
-        subtotal -
-          discount +
-          shippingCharge +
-          tax
+      Number(
+        Math.max(
+          0,
+          subtotal -
+            discount +
+            shippingCharge +
+            tax
+        ).toFixed(2)
       );
 
     const orderNumber =
@@ -473,8 +697,12 @@ export const createOrder = async (req, res) => {
         UPDATE coupons
         SET
           used_count =
-            COALESCE(used_count, 0) + 1,
-          updated_at = CURRENT_TIMESTAMP
+            COALESCE(
+              used_count,
+              0
+            ) + 1,
+          updated_at =
+            CURRENT_TIMESTAMP
         WHERE id = ?
         `,
         [coupon.id]
@@ -490,19 +718,28 @@ export const createOrder = async (req, res) => {
     );
 
     await connection.commit();
+    transactionStarted = false;
 
     return res.status(201).json({
       success: true,
-      message: "Order created successfully",
+      message:
+        "Order created successfully",
 
       order: {
         id: orderId,
-        order_id: orderId,
-        order_number: orderNumber,
+
+        order_id:
+          orderId,
+
+        order_number:
+          orderNumber,
 
         subtotal,
+
         discount,
-        discount_amount: discount,
+
+        discount_amount:
+          discount,
 
         shipping:
           shippingCharge,
@@ -510,8 +747,13 @@ export const createOrder = async (req, res) => {
         shipping_amount:
           shippingCharge,
 
+        shipping_fee:
+          shippingCharge,
+
         tax,
-        tax_amount: tax,
+
+        tax_amount:
+          tax,
 
         total:
           totalAmount,
@@ -532,10 +774,22 @@ export const createOrder = async (req, res) => {
           coupon
             ? coupon.code
             : null,
+
+        items:
+          orderItems,
       },
     });
   } catch (error) {
-    await connection.rollback();
+    if (transactionStarted) {
+      try {
+        await connection.rollback();
+      } catch (rollbackError) {
+        console.error(
+          "Order rollback error:",
+          rollbackError
+        );
+      }
+    }
 
     console.error(
       "Create order error:",
@@ -544,9 +798,12 @@ export const createOrder = async (req, res) => {
 
     return res.status(500).json({
       success: false,
-      message: "Failed to create order",
+      message:
+        "Failed to create order",
+
       error:
-        process.env.NODE_ENV === "development"
+        process.env.NODE_ENV ===
+        "development"
           ? error.message
           : undefined,
     });
@@ -555,20 +812,25 @@ export const createOrder = async (req, res) => {
   }
 };
 
-export const getOrders = async (req, res) => {
+export const getOrders = async (
+  req,
+  res
+) => {
   try {
-    const userId = req.user.id;
+    const userId =
+      req.user.id;
 
-    const [orders] = await db.query(
-      `
-      SELECT
-        o.*
-      FROM orders o
-      WHERE o.user_id = ?
-      ORDER BY o.created_at DESC
-      `,
-      [userId]
-    );
+    const [orders] =
+      await db.query(
+        `
+        SELECT
+          o.*
+        FROM orders o
+        WHERE o.user_id = ?
+        ORDER BY o.created_at DESC
+        `,
+        [userId]
+      );
 
     return res.status(200).json({
       success: true,
@@ -582,14 +844,19 @@ export const getOrders = async (req, res) => {
 
     return res.status(500).json({
       success: false,
-      message: "Failed to load orders",
+      message:
+        "Failed to load orders",
     });
   }
 };
 
-export const getOrderById = async (req, res) => {
+export const getOrderById = async (
+  req,
+  res
+) => {
   try {
-    const userId = req.user.id;
+    const userId =
+      req.user.id;
 
     const orderId =
       req.params.id ||
@@ -598,29 +865,32 @@ export const getOrderById = async (req, res) => {
     if (!orderId) {
       return res.status(400).json({
         success: false,
-        message: "Order ID is required",
+        message:
+          "Order ID is required",
       });
     }
 
-    const [orders] = await db.query(
-      `
-      SELECT
-        *
-      FROM orders
-      WHERE id = ?
-        AND user_id = ?
-      LIMIT 1
-      `,
-      [
-        orderId,
-        userId,
-      ]
-    );
+    const [orders] =
+      await db.query(
+        `
+        SELECT
+          *
+        FROM orders
+        WHERE id = ?
+          AND user_id = ?
+        LIMIT 1
+        `,
+        [
+          orderId,
+          userId,
+        ]
+      );
 
     if (!orders.length) {
       return res.status(404).json({
         success: false,
-        message: "Order not found",
+        message:
+          "Order not found",
       });
     }
 
@@ -638,6 +908,7 @@ export const getOrderById = async (req, res) => {
 
     return res.status(200).json({
       success: true,
+
       order: {
         ...orders[0],
         items,
@@ -651,16 +922,22 @@ export const getOrderById = async (req, res) => {
 
     return res.status(500).json({
       success: false,
-      message: "Failed to load order",
+      message:
+        "Failed to load order",
     });
   }
 };
 
-export const cancelOrder = async (req, res) => {
-  const connection = await db.getConnection();
+export const cancelOrder = async (
+  req,
+  res
+) => {
+  const connection =
+    await db.getConnection();
 
   try {
-    const userId = req.user.id;
+    const userId =
+      req.user.id;
 
     const orderId =
       req.params.id ||
@@ -669,34 +946,37 @@ export const cancelOrder = async (req, res) => {
     if (!orderId) {
       return res.status(400).json({
         success: false,
-        message: "Order ID is required",
+        message:
+          "Order ID is required",
       });
     }
 
     await connection.beginTransaction();
 
-    const [orders] = await connection.query(
-      `
-      SELECT
-        id,
-        order_status
-      FROM orders
-      WHERE id = ?
-        AND user_id = ?
-      LIMIT 1
-      `,
-      [
-        orderId,
-        userId,
-      ]
-    );
+    const [orders] =
+      await connection.query(
+        `
+        SELECT
+          id,
+          order_status
+        FROM orders
+        WHERE id = ?
+          AND user_id = ?
+        LIMIT 1
+        `,
+        [
+          orderId,
+          userId,
+        ]
+      );
 
     if (!orders.length) {
       await connection.rollback();
 
       return res.status(404).json({
         success: false,
-        message: "Order not found",
+        message:
+          "Order not found",
       });
     }
 
@@ -705,7 +985,8 @@ export const cancelOrder = async (req, res) => {
 
     const status =
       String(
-        order.order_status || ""
+        order.order_status ||
+          ""
       ).toLowerCase();
 
     if (
@@ -720,7 +1001,8 @@ export const cancelOrder = async (req, res) => {
 
       return res.status(400).json({
         success: false,
-        message: "This order cannot be cancelled",
+        message:
+          "This order cannot be cancelled",
       });
     }
 
@@ -774,7 +1056,8 @@ export const cancelOrder = async (req, res) => {
       UPDATE orders
       SET
         order_status = 'cancelled',
-        updated_at = CURRENT_TIMESTAMP
+        updated_at =
+          CURRENT_TIMESTAMP
       WHERE id = ?
         AND user_id = ?
       `,
@@ -788,7 +1071,8 @@ export const cancelOrder = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: "Order cancelled successfully",
+      message:
+        "Order cancelled successfully",
     });
   } catch (error) {
     await connection.rollback();
@@ -800,28 +1084,33 @@ export const cancelOrder = async (req, res) => {
 
     return res.status(500).json({
       success: false,
-      message: "Failed to cancel order",
+      message:
+        "Failed to cancel order",
     });
   } finally {
     connection.release();
   }
 };
 
-export const getAdminOrders = async (req, res) => {
+export const getAdminOrders = async (
+  req,
+  res
+) => {
   try {
-    const [orders] = await db.query(
-      `
-      SELECT
-        o.*,
-        u.name AS customer_name,
-        u.email AS customer_email,
-        u.phone AS customer_phone
-      FROM orders o
-      LEFT JOIN users u
-        ON u.id = o.user_id
-      ORDER BY o.created_at DESC
-      `
-    );
+    const [orders] =
+      await db.query(
+        `
+        SELECT
+          o.*,
+          u.name AS customer_name,
+          u.email AS customer_email,
+          u.phone AS customer_phone
+        FROM orders o
+        LEFT JOIN users u
+          ON u.id = o.user_id
+        ORDER BY o.created_at DESC
+        `
+      );
 
     return res.status(200).json({
       success: true,
@@ -836,7 +1125,8 @@ export const getAdminOrders = async (req, res) => {
 
     return res.status(500).json({
       success: false,
-      message: "Failed to fetch admin orders",
+      message:
+        "Failed to fetch admin orders",
     });
   }
 };
@@ -846,10 +1136,11 @@ export const getAdminOrderById = async (
   res
 ) => {
   try {
-    const orderId = Number(
-      req.params.id ||
-      req.params.orderId
-    );
+    const orderId =
+      Number(
+        req.params.id ||
+          req.params.orderId
+      );
 
     if (
       !Number.isInteger(orderId) ||
@@ -857,58 +1148,66 @@ export const getAdminOrderById = async (
     ) {
       return res.status(400).json({
         success: false,
-        message: "Invalid Order ID",
+        message:
+          "Invalid Order ID",
       });
     }
 
-    const [orders] = await db.query(
-      `
-      SELECT
-        o.*,
-        u.name AS customer_name,
-        u.email AS customer_email,
-        u.phone AS customer_phone
-      FROM orders o
-      LEFT JOIN users u
-        ON u.id = o.user_id
-      WHERE o.id = ?
-      LIMIT 1
-      `,
-      [orderId]
-    );
-
-    if (!orders.length) {
-      return res.status(404).json({
-        success: false,
-        message: "Order not found",
-      });
-    }
-
-    const [items] = await db.query(
-      `
-      SELECT *
-      FROM order_items
-      WHERE order_id = ?
-      ORDER BY id ASC
-      `,
-      [orderId]
-    );
-
-    let payments = [];
-
-    try {
-      const [paymentRows] = await db.query(
+    const [orders] =
+      await db.query(
         `
-        SELECT *
-        FROM payments
-        WHERE order_id = ?
-        ORDER BY created_at DESC
+        SELECT
+          o.*,
+          u.name AS customer_name,
+          u.email AS customer_email,
+          u.phone AS customer_phone
+        FROM orders o
+        LEFT JOIN users u
+          ON u.id = o.user_id
+        WHERE o.id = ?
+        LIMIT 1
         `,
         [orderId]
       );
 
-      payments = paymentRows;
-    } catch (paymentError) {
+    if (!orders.length) {
+      return res.status(404).json({
+        success: false,
+        message:
+          "Order not found",
+      });
+    }
+
+    const [items] =
+      await db.query(
+        `
+        SELECT *
+        FROM order_items
+        WHERE order_id = ?
+        ORDER BY id ASC
+        `,
+        [orderId]
+      );
+
+    let payments = [];
+
+    try {
+      const [paymentRows] =
+        await db.query(
+          `
+          SELECT *
+          FROM payments
+          WHERE order_id = ?
+          ORDER BY created_at DESC
+          `,
+          [orderId]
+        );
+
+      payments =
+        paymentRows;
+    } catch (
+      paymentError
+    ) {
       console.error(
         "Admin payment lookup error:",
         paymentError
@@ -917,6 +1216,7 @@ export const getAdminOrderById = async (
 
     return res.status(200).json({
       success: true,
+
       order: {
         ...orders[0],
         items,
@@ -931,107 +1231,129 @@ export const getAdminOrderById = async (
 
     return res.status(500).json({
       success: false,
-      message: "Failed to fetch admin order",
+      message:
+        "Failed to fetch admin order",
     });
   }
 };
 
-export const updateAdminOrderStatus = async (
-  req,
-  res
-) => {
-  try {
-    const orderId = Number(
-      req.params.id ||
-      req.params.orderId
-    );
+export const updateAdminOrderStatus =
+  async (
+    req,
+    res
+  ) => {
+    try {
+      const orderId =
+        Number(
+          req.params.id ||
+            req.params.orderId
+        );
 
-    const requestedStatus =
-      req.body?.order_status ??
-      req.body?.status;
+      const requestedStatus =
+        req.body?.order_status ??
+        req.body?.status;
 
-    const orderStatus =
-      typeof requestedStatus === "string"
-        ? requestedStatus.trim().toLowerCase()
-        : "";
+      const orderStatus =
+        typeof requestedStatus ===
+        "string"
+          ? requestedStatus
+              .trim()
+              .toLowerCase()
+          : "";
 
-    const allowedStatuses = [
-      "pending",
-      "confirmed",
-      "processing",
-      "shipped",
-      "delivered",
-      "completed",
-      "cancelled",
-      "canceled",
-      "failed",
-      "refunded",
-    ];
+      const allowedStatuses = [
+        "pending",
+        "confirmed",
+        "processing",
+        "shipped",
+        "delivered",
+        "completed",
+        "cancelled",
+        "canceled",
+        "failed",
+        "refunded",
+      ];
 
-    if (
-      !Number.isInteger(orderId) ||
-      orderId <= 0
-    ) {
-      return res.status(400).json({
+      if (
+        !Number.isInteger(
+          orderId
+        ) ||
+        orderId <= 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Invalid Order ID",
+        });
+      }
+
+      if (
+        !allowedStatuses.includes(
+          orderStatus
+        )
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Invalid order status",
+        });
+      }
+
+      const [result] =
+        await db.query(
+          `
+          UPDATE orders
+          SET
+            order_status = ?,
+            updated_at =
+              CURRENT_TIMESTAMP
+          WHERE id = ?
+          `,
+          [
+            orderStatus,
+            orderId,
+          ]
+        );
+
+      if (
+        !result.affectedRows
+      ) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "Order not found",
+        });
+      }
+
+      const [orders] =
+        await db.query(
+          `
+          SELECT *
+          FROM orders
+          WHERE id = ?
+          LIMIT 1
+          `,
+          [orderId]
+        );
+
+      return res.status(200).json({
+        success: true,
+        message:
+          "Order status updated successfully",
+
+        order:
+          orders[0] || null,
+      });
+    } catch (error) {
+      console.error(
+        "Admin update order status error:",
+        error
+      );
+
+      return res.status(500).json({
         success: false,
-        message: "Invalid Order ID",
+        message:
+          "Failed to update order status",
       });
     }
-
-    if (
-      !allowedStatuses.includes(orderStatus)
-    ) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid order status",
-      });
-    }
-
-    const [result] = await db.query(
-      `
-      UPDATE orders
-      SET
-        order_status = ?,
-        updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-      `,
-      [
-        orderStatus,
-        orderId,
-      ]
-    );
-
-    if (!result.affectedRows) {
-      return res.status(404).json({
-        success: false,
-        message: "Order not found",
-      });
-    }
-
-    const [orders] = await db.query(
-      `
-      SELECT *
-      FROM orders
-      WHERE id = ?
-      LIMIT 1
-      `,
-      [orderId]
-    );
-
-    return res.status(200).json({
-      success: true,
-      message: "Order status updated successfully",
-      order: orders[0] || null,
-    });
-  } catch (error) {
-    console.error(
-      "Admin update order status error:",
-      error
-    );
-
-    return res.status(500).json({
-      success: false,
-      message: "Failed to update order status",
-    });
-  }
-};
+  };
