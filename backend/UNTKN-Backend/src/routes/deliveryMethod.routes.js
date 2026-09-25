@@ -74,7 +74,13 @@ router.get("/", async (req, res) => {
                 is_active
             FROM delivery_methods
             WHERE is_active = 1
-            ORDER BY sort_order ASC, id ASC
+            ORDER BY
+                CASE
+                    WHEN id = 'standard' THEN 1
+                    WHEN id = 'express' THEN 2
+                    ELSE 3
+                END,
+                id ASC
         `);
 
         return res.status(200).json({
@@ -117,7 +123,13 @@ router.get(
                     price,
                     is_active
                 FROM delivery_methods
-                ORDER BY sort_order ASC, id ASC
+                ORDER BY
+                CASE
+                    WHEN id = 'standard' THEN 1
+                    WHEN id = 'express' THEN 2
+                    ELSE 3
+                END,
+                id ASC
             `);
 
             return res.status(200).json({
@@ -376,7 +388,13 @@ router.put(
                         price,
                         is_active
                     FROM delivery_methods
-                    ORDER BY sort_order ASC, id ASC
+                    ORDER BY
+                CASE
+                    WHEN id = 'standard' THEN 1
+                    WHEN id = 'express' THEN 2
+                    ELSE 3
+                END,
+                id ASC
                 `);
 
             return res.status(200).json({
