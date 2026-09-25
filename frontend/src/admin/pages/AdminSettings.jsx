@@ -12,20 +12,15 @@ import {
 
 import api from "../../services/api.js";
 
-const defaultSettings = {
+const DEFAULT_SETTINGS = {
   storeName: "UNTKN",
   tagline: "More than just a T-shirt",
 
   runningBannerEnabled: true,
-
   runningBannerMessage1:
     "FREE SHIPPING ON ORDERS ABOVE ₹999",
-
-  runningBannerMessage2:
-    "NEW DROP LIVE NOW",
-
-  runningBannerMessage3:
-    "EASY RETURNS",
+  runningBannerMessage2: "NEW DROP LIVE NOW",
+  runningBannerMessage3: "EASY RETURNS",
 
   email: "support@untkn.in",
   phone: "+91 98765 43210",
@@ -48,9 +43,233 @@ const defaultSettings = {
   maintenanceMode: false,
 };
 
+const safeString = (value, fallback = "") => {
+  if (value === null || value === undefined) {
+    return fallback;
+  }
+
+  return String(value);
+};
+
+const safeBoolean = (value, fallback = false) => {
+  if (value === null || value === undefined) {
+    return fallback;
+  }
+
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    return value.toLowerCase() === "true";
+  }
+
+  if (typeof value === "number") {
+    return value === 1;
+  }
+
+  return Boolean(value);
+};
+
+const safeNumberString = (value, fallback = "") => {
+  if (value === null || value === undefined) {
+    return fallback;
+  }
+
+  if (value === "") {
+    return "";
+  }
+
+  const number = Number(value);
+
+  if (!Number.isFinite(number)) {
+    return fallback;
+  }
+
+  return String(number);
+};
+
+const normalizeMessages = (bannerSettings) => {
+  if (!bannerSettings) {
+    return [
+      DEFAULT_SETTINGS.runningBannerMessage1,
+      DEFAULT_SETTINGS.runningBannerMessage2,
+      DEFAULT_SETTINGS.runningBannerMessage3,
+    ];
+  }
+
+  if (
+    Array.isArray(bannerSettings.messages)
+  ) {
+    return [
+      safeString(
+        bannerSettings.messages[0],
+        DEFAULT_SETTINGS.runningBannerMessage1
+      ),
+      safeString(
+        bannerSettings.messages[1],
+        DEFAULT_SETTINGS.runningBannerMessage2
+      ),
+      safeString(
+        bannerSettings.messages[2],
+        DEFAULT_SETTINGS.runningBannerMessage3
+      ),
+    ];
+  }
+
+  return [
+    safeString(
+      bannerSettings.message_1,
+      DEFAULT_SETTINGS.runningBannerMessage1
+    ),
+    safeString(
+      bannerSettings.message_2,
+      DEFAULT_SETTINGS.runningBannerMessage2
+    ),
+    safeString(
+      bannerSettings.message_3,
+      DEFAULT_SETTINGS.runningBannerMessage3
+    ),
+  ];
+};
+
+const normalizeSettings = (
+  storeSettings = {},
+  bannerSettings = {}
+) => {
+  const messages = normalizeMessages(
+    bannerSettings
+  );
+
+  return {
+    storeName: safeString(
+      storeSettings.storeName,
+      DEFAULT_SETTINGS.storeName
+    ),
+
+    tagline: safeString(
+      storeSettings.tagline,
+      DEFAULT_SETTINGS.tagline
+    ),
+
+    runningBannerEnabled: safeBoolean(
+      bannerSettings.enabled,
+      DEFAULT_SETTINGS.runningBannerEnabled
+    ),
+
+    runningBannerMessage1:
+      messages[0],
+
+    runningBannerMessage2:
+      messages[1],
+
+    runningBannerMessage3:
+      messages[2],
+
+    email: safeString(
+      storeSettings.email,
+      DEFAULT_SETTINGS.email
+    ),
+
+    phone: safeString(
+      storeSettings.phone,
+      DEFAULT_SETTINGS.phone
+    ),
+
+    whatsapp: safeString(
+      storeSettings.whatsapp,
+      DEFAULT_SETTINGS.whatsapp
+    ),
+
+    address: safeString(
+      storeSettings.address,
+      DEFAULT_SETTINGS.address
+    ),
+
+    instagram: safeString(
+      storeSettings.instagram,
+      DEFAULT_SETTINGS.instagram
+    ),
+
+    facebook: safeString(
+      storeSettings.facebook,
+      DEFAULT_SETTINGS.facebook
+    ),
+
+    youtube: safeString(
+      storeSettings.youtube,
+      DEFAULT_SETTINGS.youtube
+    ),
+
+    website: safeString(
+      storeSettings.website,
+      DEFAULT_SETTINGS.website
+    ),
+
+    currency: safeString(
+      storeSettings.currency,
+      DEFAULT_SETTINGS.currency
+    ),
+
+    currencySymbol: safeString(
+      storeSettings.currencySymbol,
+      DEFAULT_SETTINGS.currencySymbol
+    ),
+
+    freeShipping: safeNumberString(
+      storeSettings.freeShipping,
+      DEFAULT_SETTINGS.freeShipping
+    ),
+
+    shippingCharge: safeNumberString(
+      storeSettings.shippingCharge,
+      DEFAULT_SETTINGS.shippingCharge
+    ),
+
+    contactEnabled: safeBoolean(
+      storeSettings.contactEnabled,
+      DEFAULT_SETTINGS.contactEnabled
+    ),
+
+    newsletterEnabled: safeBoolean(
+      storeSettings.newsletterEnabled,
+      DEFAULT_SETTINGS.newsletterEnabled
+    ),
+
+    maintenanceMode: safeBoolean(
+      storeSettings.maintenanceMode,
+      DEFAULT_SETTINGS.maintenanceMode
+    ),
+  };
+};
+
+const getResponseSettings = (response) => {
+  if (!response) {
+    return {};
+  }
+
+  if (
+    response.data &&
+    typeof response.data === "object"
+  ) {
+    if (
+      response.data.settings &&
+      typeof response.data.settings === "object"
+    ) {
+      return response.data.settings;
+    }
+
+    return response.data;
+  }
+
+  return {};
+};
+
 function AdminSettings() {
   const [settings, setSettings] =
-    useState(defaultSettings);
+    useState(() => ({
+      ...DEFAULT_SETTINGS,
+    }));
 
   const [loading, setLoading] =
     useState(true);
@@ -76,8 +295,20 @@ function AdminSettings() {
           settingsResponse,
           bannerResponse,
         ] = await Promise.all([
-          api.get("/settings/admin"),
-          api.get("/settings/running-banner"),
+          api.get("/settings/admin", {
+            params: {
+              _: Date.now(),
+            },
+          }),
+
+          api.get(
+            "/settings/running-banner",
+            {
+              params: {
+                _: Date.now(),
+              },
+            }
+          ),
         ]);
 
         if (!mounted) {
@@ -85,61 +316,22 @@ function AdminSettings() {
         }
 
         const storeSettings =
-          settingsResponse.data?.settings ||
-          {};
+          getResponseSettings(
+            settingsResponse
+          );
 
         const bannerSettings =
-          bannerResponse.data?.settings ||
-          {};
+          getResponseSettings(
+            bannerResponse
+          );
 
-        const bannerMessages =
-          Array.isArray(
-            bannerSettings.messages
-          ) &&
-          bannerSettings.messages.length === 3
-            ? bannerSettings.messages
-            : [
-                defaultSettings.runningBannerMessage1,
-                defaultSettings.runningBannerMessage2,
-                defaultSettings.runningBannerMessage3,
-              ];
+        const normalized =
+          normalizeSettings(
+            storeSettings,
+            bannerSettings
+          );
 
-        setSettings({
-          ...defaultSettings,
-          ...storeSettings,
-
-          runningBannerEnabled:
-            bannerSettings.enabled !== undefined
-              ? Boolean(
-                  bannerSettings.enabled
-                )
-              : defaultSettings.runningBannerEnabled,
-
-          runningBannerMessage1:
-            bannerMessages[0],
-
-          runningBannerMessage2:
-            bannerMessages[1],
-
-          runningBannerMessage3:
-            bannerMessages[2],
-
-          freeShipping:
-            storeSettings.freeShipping !==
-            undefined
-              ? String(
-                  storeSettings.freeShipping
-                )
-              : defaultSettings.freeShipping,
-
-          shippingCharge:
-            storeSettings.shippingCharge !==
-            undefined
-              ? String(
-                  storeSettings.shippingCharge
-                )
-              : defaultSettings.shippingCharge,
-        });
+        setSettings(normalized);
       } catch (err) {
         console.error(
           "Failed to load settings:",
@@ -150,10 +342,17 @@ function AdminSettings() {
           return;
         }
 
-        setError(
-          err.response?.data?.message ||
-            "Failed to load store settings."
-        );
+        const message =
+          err?.response?.data?.message ||
+          err?.response?.data?.error ||
+          err?.message ||
+          "Failed to load store settings.";
+
+        setError(message);
+
+        setSettings({
+          ...DEFAULT_SETTINGS,
+        });
       } finally {
         if (mounted) {
           setLoading(false);
@@ -180,8 +379,8 @@ function AdminSettings() {
       ...current,
       [name]:
         type === "checkbox"
-          ? checked
-          : value,
+          ? Boolean(checked)
+          : value ?? "",
     }));
 
     setSaved(false);
@@ -200,51 +399,97 @@ function AdminSettings() {
       setSaved(false);
       setError("");
 
-      const storePayload = {
-        storeName: settings.storeName,
-        tagline: settings.tagline,
-        email: settings.email,
-        phone: settings.phone,
-        whatsapp: settings.whatsapp,
-        address: settings.address,
-        instagram: settings.instagram,
-        facebook: settings.facebook,
-        youtube: settings.youtube,
-        website: settings.website,
-        currency: settings.currency,
-        currencySymbol: settings.currencySymbol,
-        freeShipping: Number(
-          settings.freeShipping || 0
-        ),
-        shippingCharge: Number(
-          settings.shippingCharge || 0
-        ),
-        contactEnabled:
-          Boolean(settings.contactEnabled),
-        newsletterEnabled:
-          Boolean(settings.newsletterEnabled),
-        maintenanceMode:
-          Boolean(settings.maintenanceMode),
-      };
+      const storeName = safeString(
+        settings.storeName
+      ).trim();
+
+      const email = safeString(
+        settings.email
+      ).trim();
+
+      const freeShippingValue =
+        safeString(
+          settings.freeShipping
+        ).trim();
+
+      const shippingChargeValue =
+        safeString(
+          settings.shippingCharge
+        ).trim();
+
+      if (!storeName) {
+        setError(
+          "Store Name is required."
+        );
+        return;
+      }
+
+      if (!email) {
+        setError(
+          "Email Address is required."
+        );
+        return;
+      }
+
+      if (!freeShippingValue) {
+        setError(
+          "Free Shipping Above must be a valid number."
+        );
+        return;
+      }
+
+      if (!shippingChargeValue) {
+        setError(
+          "Standard Shipping Charge must be a valid number."
+        );
+        return;
+      }
+
+      const freeShipping =
+        Number(freeShippingValue);
+
+      const shippingCharge =
+        Number(shippingChargeValue);
+
+      if (
+        !Number.isFinite(
+          freeShipping
+        ) ||
+        freeShipping < 0
+      ) {
+        setError(
+          "Free Shipping Above must be a valid number."
+        );
+        return;
+      }
+
+      if (
+        !Number.isFinite(
+          shippingCharge
+        ) ||
+        shippingCharge < 0
+      ) {
+        setError(
+          "Standard Shipping Charge must be a valid number."
+        );
+        return;
+      }
 
       const bannerMessages = [
-        String(
-          settings.runningBannerMessage1 ||
-            ""
+        safeString(
+          settings.runningBannerMessage1
         )
           .trim()
           .slice(0, 80),
 
-        String(
-          settings.runningBannerMessage2 ||
-            ""
+        safeString(
+          settings.runningBannerMessage2
         )
           .trim()
           .slice(0, 80),
 
-        String(
-          settings.runningBannerMessage3 ||
-            ""
+        safeString(
+          settings.runningBannerMessage3
         )
           .trim()
           .slice(0, 80),
@@ -258,35 +503,94 @@ function AdminSettings() {
         setError(
           "All three running banner messages are required."
         );
-
         return;
       }
 
-      if (
-        !Number.isFinite(
-          Number(settings.freeShipping)
-        ) ||
-        Number(settings.freeShipping) < 0
-      ) {
-        setError(
-          "Free Shipping Above must be a valid number."
-        );
+      const storePayload = {
+        storeName,
 
-        return;
-      }
+        tagline: safeString(
+          settings.tagline
+        ).trim(),
 
-      if (
-        !Number.isFinite(
-          Number(settings.shippingCharge)
-        ) ||
-        Number(settings.shippingCharge) < 0
-      ) {
-        setError(
-          "Standard Shipping Charge must be a valid number."
-        );
+        email,
 
-        return;
-      }
+        phone: safeString(
+          settings.phone
+        ).trim(),
+
+        whatsapp: safeString(
+          settings.whatsapp
+        ).trim(),
+
+        address: safeString(
+          settings.address
+        ).trim(),
+
+        instagram: safeString(
+          settings.instagram
+        ).trim(),
+
+        facebook: safeString(
+          settings.facebook
+        ).trim(),
+
+        youtube: safeString(
+          settings.youtube
+        ).trim(),
+
+        website: safeString(
+          settings.website
+        ).trim(),
+
+        currency: safeString(
+          settings.currency,
+          "INR"
+        ),
+
+        currencySymbol: safeString(
+          settings.currencySymbol,
+          "₹"
+        ),
+
+        freeShipping,
+
+        shippingCharge,
+
+        contactEnabled:
+          Boolean(
+            settings.contactEnabled
+          ),
+
+        newsletterEnabled:
+          Boolean(
+            settings.newsletterEnabled
+          ),
+
+        maintenanceMode:
+          Boolean(
+            settings.maintenanceMode
+          ),
+      };
+
+      const bannerPayload = {
+        enabled:
+          Boolean(
+            settings.runningBannerEnabled
+          ),
+
+        messages:
+          bannerMessages,
+
+        message_1:
+          bannerMessages[0],
+
+        message_2:
+          bannerMessages[1],
+
+        message_3:
+          bannerMessages[2],
+      };
 
       const [
         settingsResponse,
@@ -299,95 +603,41 @@ function AdminSettings() {
 
         api.put(
           "/settings/running-banner",
-          {
-            enabled:
-              Boolean(
-                settings.runningBannerEnabled
-              ),
-            messages: bannerMessages,
-          }
+          bannerPayload
         ),
       ]);
 
-      if (
-        !settingsResponse.data?.success &&
-        !settingsResponse.data?.settings
-      ) {
-        throw new Error(
-          settingsResponse.data?.message ||
-            "Failed to save store settings."
-        );
-      }
-
-      if (
-        !bannerResponse.data?.success
-      ) {
-        throw new Error(
-          bannerResponse.data?.message ||
-            "Failed to save running banner settings."
-        );
-      }
-
       const savedStoreSettings =
-        settingsResponse.data?.settings ||
-        {};
+        getResponseSettings(
+          settingsResponse
+        );
 
       const savedBannerSettings =
-        bannerResponse.data?.settings ||
-        {};
+        getResponseSettings(
+          bannerResponse
+        );
 
-      const savedBannerMessages =
-        Array.isArray(
-          savedBannerSettings.messages
-        ) &&
-        savedBannerSettings.messages.length ===
-          3
-          ? savedBannerSettings.messages
-          : bannerMessages;
+      const normalizedSaved =
+        normalizeSettings(
+          {
+            ...storePayload,
+            ...savedStoreSettings,
+          },
+          {
+            ...bannerPayload,
+            ...savedBannerSettings,
+          }
+        );
 
-      setSettings({
-        ...defaultSettings,
-        ...savedStoreSettings,
+      setSettings(
+        normalizedSaved
+      );
 
-        runningBannerEnabled:
-          savedBannerSettings.enabled !==
-          undefined
-            ? Boolean(
-                savedBannerSettings.enabled
-              )
-            : Boolean(
-                settings.runningBannerEnabled
-              ),
-
-        runningBannerMessage1:
-          savedBannerMessages[0],
-
-        runningBannerMessage2:
-          savedBannerMessages[1],
-
-        runningBannerMessage3:
-          savedBannerMessages[2],
-
-        freeShipping:
-          savedStoreSettings.freeShipping !==
-          undefined
-            ? String(
-                savedStoreSettings.freeShipping
-              )
-            : String(
-                settings.freeShipping
-              ),
-
-        shippingCharge:
-          savedStoreSettings.shippingCharge !==
-          undefined
-            ? String(
-                savedStoreSettings.shippingCharge
-              )
-            : String(
-                settings.shippingCharge
-              ),
-      });
+      window.dispatchEvent(
+        new Event(
+          "runningBannerUpdated"
+        )
+      );
 
       setSaved(true);
 
@@ -400,11 +650,13 @@ function AdminSettings() {
         err
       );
 
-      setError(
-        err.response?.data?.message ||
-          err.message ||
-          "Failed to save store settings."
-      );
+      const message =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message ||
+        "Failed to save store settings.";
+
+      setError(message);
     } finally {
       setSaving(false);
     }
@@ -441,8 +693,8 @@ function AdminSettings() {
           <h1>Settings</h1>
 
           <p>
-            Manage your store information and
-            storefront settings.
+            Manage your store information
+            and storefront settings.
           </p>
         </div>
 
@@ -502,8 +754,8 @@ function AdminSettings() {
               </h2>
 
               <p>
-                Basic information displayed across
-                the storefront.
+                Basic information displayed
+                across the storefront.
               </p>
             </div>
           </div>
@@ -518,7 +770,9 @@ function AdminSettings() {
                 id="storeName"
                 name="storeName"
                 type="text"
-                value={settings.storeName}
+                value={
+                  settings.storeName ?? ""
+                }
                 onChange={handleChange}
                 required
                 disabled={saving}
@@ -534,7 +788,9 @@ function AdminSettings() {
                 id="tagline"
                 name="tagline"
                 type="text"
-                value={settings.tagline}
+                value={
+                  settings.tagline ?? ""
+                }
                 onChange={handleChange}
                 disabled={saving}
               />
@@ -555,7 +811,9 @@ function AdminSettings() {
                   id="website"
                   name="website"
                   type="url"
-                  value={settings.website}
+                  value={
+                    settings.website ?? ""
+                  }
                   onChange={handleChange}
                   placeholder="https://untkn.in"
                   disabled={saving}
@@ -584,7 +842,8 @@ function AdminSettings() {
               </h2>
 
               <p>
-                Contact details shown on the website.
+                Contact details shown on
+                the website.
               </p>
             </div>
           </div>
@@ -605,7 +864,9 @@ function AdminSettings() {
                   id="email"
                   name="email"
                   type="email"
-                  value={settings.email}
+                  value={
+                    settings.email ?? ""
+                  }
                   onChange={handleChange}
                   disabled={saving}
                 />
@@ -627,7 +888,9 @@ function AdminSettings() {
                   id="phone"
                   name="phone"
                   type="tel"
-                  value={settings.phone}
+                  value={
+                    settings.phone ?? ""
+                  }
                   onChange={handleChange}
                   disabled={saving}
                 />
@@ -649,7 +912,9 @@ function AdminSettings() {
                   id="whatsapp"
                   name="whatsapp"
                   type="tel"
-                  value={settings.whatsapp}
+                  value={
+                    settings.whatsapp ?? ""
+                  }
                   onChange={handleChange}
                   disabled={saving}
                 />
@@ -671,7 +936,9 @@ function AdminSettings() {
                   id="address"
                   name="address"
                   type="text"
-                  value={settings.address}
+                  value={
+                    settings.address ?? ""
+                  }
                   onChange={handleChange}
                   disabled={saving}
                 />
@@ -699,8 +966,8 @@ function AdminSettings() {
               </h2>
 
               <p>
-                Manage your social media profile
-                links.
+                Manage your social media
+                profile links.
               </p>
             </div>
           </div>
@@ -722,7 +989,9 @@ function AdminSettings() {
                   name="instagram"
                   type="url"
                   placeholder="https://instagram.com/..."
-                  value={settings.instagram}
+                  value={
+                    settings.instagram ?? ""
+                  }
                   onChange={handleChange}
                   disabled={saving}
                 />
@@ -745,7 +1014,9 @@ function AdminSettings() {
                   name="facebook"
                   type="url"
                   placeholder="https://facebook.com/..."
-                  value={settings.facebook}
+                  value={
+                    settings.facebook ?? ""
+                  }
                   onChange={handleChange}
                   disabled={saving}
                 />
@@ -768,7 +1039,9 @@ function AdminSettings() {
                   name="youtube"
                   type="url"
                   placeholder="https://youtube.com/..."
-                  value={settings.youtube}
+                  value={
+                    settings.youtube ?? ""
+                  }
                   onChange={handleChange}
                   disabled={saving}
                 />
@@ -796,8 +1069,9 @@ function AdminSettings() {
               </h2>
 
               <p>
-                Manage the scrolling announcement bar
-                displayed at the top of the website.
+                Manage the scrolling
+                announcement bar displayed
+                at the top of the website.
               </p>
             </div>
           </div>
@@ -814,7 +1088,8 @@ function AdminSettings() {
                 type="text"
                 maxLength={80}
                 value={
-                  settings.runningBannerMessage1
+                  settings.runningBannerMessage1 ??
+                  ""
                 }
                 onChange={handleChange}
                 placeholder="FREE SHIPPING ON ORDERS ABOVE ₹999"
@@ -833,7 +1108,8 @@ function AdminSettings() {
                 type="text"
                 maxLength={80}
                 value={
-                  settings.runningBannerMessage2
+                  settings.runningBannerMessage2 ??
+                  ""
                 }
                 onChange={handleChange}
                 placeholder="NEW DROP LIVE NOW"
@@ -852,7 +1128,8 @@ function AdminSettings() {
                 type="text"
                 maxLength={80}
                 value={
-                  settings.runningBannerMessage3
+                  settings.runningBannerMessage3 ??
+                  ""
                 }
                 onChange={handleChange}
                 placeholder="EASY RETURNS"
@@ -869,17 +1146,18 @@ function AdminSettings() {
                 </strong>
 
                 <span>
-                  Show the scrolling announcement bar
-                  on the customer website.
+                  Show the scrolling
+                  announcement bar on the
+                  customer website.
                 </span>
               </div>
 
               <input
                 type="checkbox"
                 name="runningBannerEnabled"
-                checked={
+                checked={Boolean(
                   settings.runningBannerEnabled
-                }
+                )}
                 onChange={handleChange}
                 disabled={saving}
               />
@@ -908,8 +1186,8 @@ function AdminSettings() {
               </h2>
 
               <p>
-                Configure currency and shipping
-                options.
+                Configure currency and
+                shipping options.
               </p>
             </div>
           </div>
@@ -923,7 +1201,9 @@ function AdminSettings() {
               <select
                 id="currency"
                 name="currency"
-                value={settings.currency}
+                value={
+                  settings.currency ?? "INR"
+                }
                 onChange={handleChange}
                 disabled={saving}
               >
@@ -951,7 +1231,7 @@ function AdminSettings() {
                 name="currencySymbol"
                 type="text"
                 value={
-                  settings.currencySymbol
+                  settings.currencySymbol ?? "₹"
                 }
                 onChange={handleChange}
                 disabled={saving}
@@ -968,7 +1248,10 @@ function AdminSettings() {
                 name="freeShipping"
                 type="number"
                 min="0"
-                value={settings.freeShipping}
+                step="0.01"
+                value={
+                  settings.freeShipping ?? ""
+                }
                 onChange={handleChange}
                 disabled={saving}
               />
@@ -984,8 +1267,9 @@ function AdminSettings() {
                 name="shippingCharge"
                 type="number"
                 min="0"
+                step="0.01"
                 value={
-                  settings.shippingCharge
+                  settings.shippingCharge ?? ""
                 }
                 onChange={handleChange}
                 disabled={saving}
@@ -1013,8 +1297,8 @@ function AdminSettings() {
               </h2>
 
               <p>
-                Enable or disable selected storefront
-                features.
+                Enable or disable selected
+                storefront features.
               </p>
             </div>
           </div>
@@ -1035,9 +1319,9 @@ function AdminSettings() {
               <input
                 type="checkbox"
                 name="contactEnabled"
-                checked={
+                checked={Boolean(
                   settings.contactEnabled
-                }
+                )}
                 onChange={handleChange}
                 disabled={saving}
               />
@@ -1060,9 +1344,9 @@ function AdminSettings() {
               <input
                 type="checkbox"
                 name="newsletterEnabled"
-                checked={
+                checked={Boolean(
                   settings.newsletterEnabled
-                }
+                )}
                 onChange={handleChange}
                 disabled={saving}
               />
@@ -1077,17 +1361,17 @@ function AdminSettings() {
                 </strong>
 
                 <span>
-                  Temporarily disable the customer
-                  storefront.
+                  Temporarily disable the
+                  customer storefront.
                 </span>
               </div>
 
               <input
                 type="checkbox"
                 name="maintenanceMode"
-                checked={
+                checked={Boolean(
                   settings.maintenanceMode
-                }
+                )}
                 onChange={handleChange}
                 disabled={saving}
               />
