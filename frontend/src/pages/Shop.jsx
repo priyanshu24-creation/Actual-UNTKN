@@ -1,18 +1,26 @@
-import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import {
+  useSearchParams,
+} from "react-router-dom";
 
-import api from "../services/api";
-import ProductCard from "../components/ProductCard";
+import api from "../services/api.js";
+import ProductCard from "../components/ProductCard.jsx";
+
+const CATEGORIES = [
+  "All",
+  "T-Shirts",
+  "Hoodies",
+  "Thermals",
+  "Bottomwear",
+];
 
 function Shop() {
   const [searchParams, setSearchParams] =
     useSearchParams();
-
-  const urlCategory =
-    searchParams.get("category") || "All";
-
-  const [sort, setSort] =
-    useState("featured");
 
   const [products, setProducts] =
     useState([]);
@@ -23,22 +31,23 @@ function Shop() {
   const [error, setError] =
     useState("");
 
-  const categories = [
-    "All",
-    "T-Shirts",
-    "Hoodies",
-    "Thermals",
-    "Bottomwear",
-  ];
+  const [sort, setSort] =
+    useState("featured");
 
-  const category =
-    categories.includes(urlCategory)
-      ? urlCategory
-      : "All";
+  const categoryFromUrl =
+    searchParams.get("category") || "All";
 
-  /* =========================
-     GET IMAGE URL
-  ========================= */
+  const collectionFromUrl =
+    searchParams.get("collection") || "";
+
+  const featuredFromUrl =
+    searchParams.get("featured") === "true";
+
+  const category = CATEGORIES.includes(
+    categoryFromUrl
+  )
+    ? categoryFromUrl
+    : "All";
 
   const getImageUrl = (image) => {
     if (!image) {
@@ -52,223 +61,375 @@ function Shop() {
     return (
       image.image_url ||
       image.imageUrl ||
-      image.url ||
       image.secure_url ||
       image.secureUrl ||
+      image.url ||
       ""
     );
   };
 
-  /* =========================
-     LOAD PRODUCTS
-  ========================= */
+  const getProductImage = (product) => {
+    if (
+      product?.image &&
+      typeof product.image === "string"
+    ) {
+      return product.image;
+    }
 
-  useEffect(() => {
-    const loadProducts = async () => {
+    if (
+      product?.image_url &&
+      typeof product.image_url === "string"
+    ) {
+      return product.image_url;
+    }
+
+    if (
+      product?.imageUrl &&
+      typeof product.imageUrl === "string"
+    ) {
+      return product.imageUrl;
+    }
+
+    if (
+      product?.primary_image &&
+      typeof product.primary_image === "string"
+    ) {
+      return product.primary_image;
+    }
+
+    if (
+      product?.primaryImage &&
+      typeof product.primaryImage === "string"
+    ) {
+      return product.primaryImage;
+    }
+
+    if (
+      Array.isArray(product?.images) &&
+      product.images.length > 0
+    ) {
+      const firstImage =
+        product.images.find(
+          (item) =>
+            Boolean(getImageUrl(item))
+        );
+
+      return getImageUrl(firstImage);
+    }
+
+    return "";
+  };
+
+  const getCategory = (product) => {
+    if (
+      product?.category &&
+      typeof product.category === "object"
+    ) {
+      return (
+        product.category?.name ||
+        product.category?.title ||
+        ""
+      );
+    }
+
+    return String(
+      product?.category_name ||
+        product?.category ||
+        product?.categoryName ||
+        ""
+    ).trim();
+  };
+
+  const getCollection = (product) => {
+    if (
+      product?.collection &&
+      typeof product.collection === "object"
+    ) {
+      return (
+        product.collection?.name ||
+        product.collection?.title ||
+        product.collection?.slug ||
+        ""
+      );
+    }
+
+    return String(
+      product?.collection_name ||
+        product?.collection ||
+        product?.collectionName ||
+        ""
+    ).trim();
+  };
+
+  const getPrice = (product) => {
+    const basePrice = Number(
+      product?.base_price ??
+        product?.basePrice ??
+        product?.price ??
+        0
+    );
+
+    const salePrice =
+      product?.sale_price !== null &&
+      product?.sale_price !== undefined
+        ? Number(product.sale_price)
+        : product?.salePrice !== null &&
+            product?.salePrice !== undefined
+          ? Number(product.salePrice)
+          : null;
+
+    if (
+      salePrice !== null &&
+      Number.isFinite(salePrice) &&
+      salePrice < basePrice
+    ) {
+      return salePrice;
+    }
+
+    return basePrice;
+  };
+
+  const getBasePrice = (product) => {
+    return Number(
+      product?.base_price ??
+        product?.basePrice ??
+        product?.price ??
+        0
+    );
+  };
+
+  const getFeatured = (product) => {
+    return Boolean(
+      product?.is_featured ??
+        product?.featured ??
+        false
+    );
+  };
+
+  const isProductActive = (product) => {
+    if (
+      product?.is_active === false ||
+      product?.is_active === 0
+    ) {
+      return false;
+    }
+
+    if (
+      product?.active === false ||
+      product?.active === 0
+    ) {
+      return false;
+    }
+
+    if (
+      product?.published === false ||
+      product?.published === 0
+    ) {
+      return false;
+    }
+
+    return true;
+  };
+
+  const normalizeProduct = (
+    product
+  ) => {
+    const image =
+      getProductImage(product);
+
+    const basePrice =
+      getBasePrice(product);
+
+    const price =
+      getPrice(product);
+
+    return {
+      ...product,
+
+      id: product?.id,
+
+      name:
+        product?.name ||
+        product?.product_name ||
+        "UNTKN Product",
+
+      slug:
+        product?.slug ||
+        String(product?.id || ""),
+
+      category:
+        getCategory(product),
+
+      collection:
+        getCollection(product),
+
+      image,
+
+      image_url: image,
+
+      images:
+        Array.isArray(product?.images)
+          ? product.images
+          : [],
+
+      base_price: basePrice,
+
+      sale_price:
+        product?.sale_price ??
+        product?.salePrice ??
+        null,
+
+      price,
+
+      featured:
+        getFeatured(product),
+
+      active: true,
+    };
+  };
+
+  const loadProducts =
+    async () => {
       try {
         setLoading(true);
         setError("");
 
-        const response = await api.get(
-          "/products",
-          {
-            params: {
-              page: 1,
-              limit: 100,
-            },
-          }
-        );
+        /*
+         * CUSTOMER SHOP ENDPOINT
+         *
+         * This is the same product database
+         * used by the admin panel.
+         *
+         * There is NO /admin dependency here.
+         */
 
-        if (!response.data?.success) {
+        const response =
+          await api.get(
+            "/products",
+            {
+              params: {
+                page: 1,
+                limit: 100,
+                _: Date.now(),
+              },
+            }
+          );
+
+        const data =
+          response?.data;
+
+        if (
+          data?.success === false
+        ) {
           throw new Error(
-            response.data?.message ||
+            data?.message ||
               "Failed to load products."
           );
         }
 
-        const apiProducts =
-          response.data.products ||
-          response.data.data ||
+        const rawProducts =
+          data?.products ||
+          data?.data?.products ||
+          data?.data ||
           [];
 
-        /* =========================
-           FILTER ACTIVE PRODUCTS
-        ========================= */
+        if (
+          !Array.isArray(rawProducts)
+        ) {
+          throw new Error(
+            "Invalid products response."
+          );
+        }
+
+        /*
+         * Only ACTIVE/PUBLISHED products
+         * are visible to customers.
+         */
 
         const activeProducts =
-          apiProducts.filter((product) => {
-            if (
-              product.is_active !== undefined
-            ) {
-              return Boolean(product.is_active);
-            }
+          rawProducts
+            .filter(
+              isProductActive
+            )
+            .map(
+              normalizeProduct
+            );
 
-            if (
-              product.active !== undefined
-            ) {
-              return Boolean(product.active);
-            }
-
-            return true;
-          });
-
-        /* =========================
-           LOAD IMAGES
-        ========================= */
+        /*
+         * Load product images from the
+         * public product image endpoint
+         * when the main product response
+         * doesn't contain an image.
+         */
 
         const productsWithImages =
           await Promise.all(
             activeProducts.map(
               async (product) => {
-                let images = [];
-
-                /*
-                 * First check whether the product
-                 * response already contains images.
-                 */
-
                 if (
-                  Array.isArray(product.images)
+                  product.image
                 ) {
-                  images = product.images;
+                  return product;
                 }
 
-                /*
-                 * If images are not included in the
-                 * product response, request them
-                 * from the product image endpoint.
-                 */
+                try {
+                  const imageResponse =
+                    await api.get(
+                      `/products/${product.id}/images`,
+                      {
+                        params: {
+                          _: Date.now(),
+                        },
+                      }
+                    );
 
-                if (images.length === 0) {
-                  try {
-                    const imageResponse =
-                      await api.get(
-                        `/products/${product.id}/images`
+                  const imageData =
+                    imageResponse?.data;
+
+                  const images =
+                    imageData?.images ||
+                    imageData?.data?.images ||
+                    imageData?.data ||
+                    [];
+
+                  if (
+                    Array.isArray(images) &&
+                    images.length > 0
+                  ) {
+                    const firstImage =
+                      images.find(
+                        (item) =>
+                          Boolean(
+                            getImageUrl(
+                              item
+                            )
+                          )
                       );
 
-                    if (
-                      imageResponse.data?.success
-                    ) {
-                      images =
-                        imageResponse.data.images ||
-                        imageResponse.data.data ||
-                        [];
-                    }
-                  } catch (imageError) {
-                    console.error(
-                      `Failed to load images for product ${product.id}:`,
-                      imageError
-                    );
+                    const image =
+                      getImageUrl(
+                        firstImage
+                      );
+
+                    return {
+                      ...product,
+
+                      image,
+
+                      image_url:
+                        image,
+
+                      images,
+                    };
                   }
-                }
-
-                /* =========================
-                   IMAGE URL
-                ========================= */
-
-                let imageUrl =
-                  getImageUrl(
-                    product.image
+                } catch (imageError) {
+                  console.warn(
+                    `Could not load image for product ${product.id}:`,
+                    imageError
                   );
-
-                if (!imageUrl) {
-                  imageUrl =
-                    getImageUrl(
-                      product.image_url
-                    );
                 }
 
-                if (
-                  !imageUrl &&
-                  images.length > 0
-                ) {
-                  imageUrl =
-                    getImageUrl(images[0]);
-                }
-
-                /* =========================
-                   PRICE
-                ========================= */
-
-                const basePrice = Number(
-                  product.base_price ??
-                    product.basePrice ??
-                    product.price ??
-                    0
-                );
-
-                const salePrice =
-                  product.sale_price !==
-                    null &&
-                  product.sale_price !==
-                    undefined
-                    ? Number(
-                        product.sale_price
-                      )
-                    : null;
-
-                const finalPrice =
-                  salePrice !== null &&
-                  salePrice < basePrice
-                    ? salePrice
-                    : basePrice;
-
-                /* =========================
-                   CATEGORY
-                ========================= */
-
-                const productCategory =
-                  product.category_name ||
-                  product.category ||
-                  "";
-
-                /* =========================
-                   NORMALIZED PRODUCT
-                ========================= */
-
-                return {
-                  ...product,
-
-                  id: product.id,
-
-                  name:
-                    product.name ||
-                    product.product_name ||
-                    "UNTKN Product",
-
-                  slug:
-                    product.slug || "",
-
-                  price: finalPrice,
-
-                  base_price: basePrice,
-
-                  sale_price: salePrice,
-
-                  category:
-                    productCategory,
-
-                  collection:
-                    product.collection_name ||
-                    product.collection ||
-                    "",
-
-                  image: imageUrl,
-
-                  image_url: imageUrl,
-
-                  images: images,
-
-                  featured:
-                    Boolean(
-                      product.is_featured
-                    ) ||
-                    Boolean(
-                      product.featured
-                    ),
-
-                  active: true,
-                };
+                return product;
               }
             )
           );
@@ -283,9 +444,9 @@ function Shop() {
         );
 
         setError(
-          requestError.response?.data
-            ?.message ||
-            requestError.message ||
+          requestError?.response
+            ?.data?.message ||
+            requestError?.message ||
             "Unable to load products."
         );
 
@@ -295,92 +456,201 @@ function Shop() {
       }
     };
 
+  useEffect(() => {
     loadProducts();
+
+    const handleProductUpdate =
+      () => {
+        loadProducts();
+      };
+
+    /*
+     * Allows the customer shop to
+     * refresh when another part of
+     * the application announces a
+     * product update.
+     */
+
+    window.addEventListener(
+      "productsUpdated",
+      handleProductUpdate
+    );
+
+    const handleVisibility =
+      () => {
+        if (
+          document.visibilityState ===
+          "visible"
+        ) {
+          loadProducts();
+        }
+      };
+
+    document.addEventListener(
+      "visibilitychange",
+      handleVisibility
+    );
+
+    return () => {
+      window.removeEventListener(
+        "productsUpdated",
+        handleProductUpdate
+      );
+
+      document.removeEventListener(
+        "visibilitychange",
+        handleVisibility
+      );
+    };
   }, []);
 
-  /* =========================
-     CATEGORY FILTER
-  ========================= */
+  const filteredProducts =
+    useMemo(() => {
+      let result = [
+        ...products,
+      ];
 
-  const filteredProducts = useMemo(() => {
-    let result = [...products];
+      if (
+        category !== "All"
+      ) {
+        result =
+          result.filter(
+            (product) =>
+              String(
+                product.category || ""
+              )
+                .toLowerCase()
+                .trim() ===
+              category
+                .toLowerCase()
+                .trim()
+          );
+      }
 
-    if (category !== "All") {
-      result = result.filter(
-        (product) =>
-          String(product.category)
-            .toLowerCase()
-            .trim() ===
-          String(category)
-            .toLowerCase()
-            .trim()
+      if (
+        collectionFromUrl
+      ) {
+        result =
+          result.filter(
+            (product) => {
+              const productCollection =
+                String(
+                  product.collection ||
+                    ""
+                )
+                  .toLowerCase()
+                  .trim();
+
+              return (
+                productCollection ===
+                  collectionFromUrl
+                    .toLowerCase()
+                    .trim() ||
+                productCollection.includes(
+                  collectionFromUrl
+                    .toLowerCase()
+                    .trim()
+                )
+              );
+            }
+          );
+      }
+
+      if (
+        featuredFromUrl
+      ) {
+        result =
+          result.filter(
+            (product) =>
+              product.featured
+          );
+      }
+
+      if (
+        sort === "price-low"
+      ) {
+        result.sort(
+          (a, b) =>
+            Number(a.price || 0) -
+            Number(b.price || 0)
+        );
+      }
+
+      if (
+        sort === "price-high"
+      ) {
+        result.sort(
+          (a, b) =>
+            Number(b.price || 0) -
+            Number(a.price || 0)
+        );
+      }
+
+      if (
+        sort === "name"
+      ) {
+        result.sort(
+          (a, b) =>
+            String(
+              a.name || ""
+            ).localeCompare(
+              String(
+                b.name || ""
+              )
+            )
+        );
+      }
+
+      if (
+        sort === "featured"
+      ) {
+        result.sort(
+          (a, b) =>
+            Number(
+              b.featured
+            ) -
+            Number(
+              a.featured
+            )
+        );
+      }
+
+      return result;
+    }, [
+      products,
+      category,
+      collectionFromUrl,
+      featuredFromUrl,
+      sort,
+    ]);
+
+  const handleCategory =
+    (selectedCategory) => {
+      const nextParams =
+        new URLSearchParams(
+          searchParams
+        );
+
+      if (
+        selectedCategory === "All"
+      ) {
+        nextParams.delete(
+          "category"
+        );
+      } else {
+        nextParams.set(
+          "category",
+          selectedCategory
+        );
+      }
+
+      setSearchParams(
+        nextParams
       );
-    }
-
-    /* =========================
-       SORT
-    ========================= */
-
-    if (sort === "price-low") {
-      result.sort(
-        (a, b) =>
-          Number(a.price || 0) -
-          Number(b.price || 0)
-      );
-    }
-
-    if (sort === "price-high") {
-      result.sort(
-        (a, b) =>
-          Number(b.price || 0) -
-          Number(a.price || 0)
-      );
-    }
-
-    if (sort === "name") {
-      result.sort((a, b) =>
-        String(a.name || "").localeCompare(
-          String(b.name || "")
-        )
-      );
-    }
-
-    if (sort === "featured") {
-      result.sort(
-        (a, b) =>
-          Number(b.featured) -
-          Number(a.featured)
-      );
-    }
-
-    return result;
-  }, [
-    products,
-    category,
-    sort,
-  ]);
-
-  /* =========================
-     CATEGORY CHANGE
-  ========================= */
-
-  const handleCategoryChange = (item) => {
-    if (item === "All") {
-      setSearchParams({});
-    } else {
-      setSearchParams({
-        category: item,
-      });
-    }
-  };
-
-  /* =========================
-     RENDER
-  ========================= */
+    };
 
   return (
     <div className="shop-page">
-      {/* HEADER */}
 
       <section className="shop-header">
         <div>
@@ -394,34 +664,43 @@ function Shop() {
         </div>
 
         <p className="shop-description">
-          Explore the latest drops, essential pieces
-          and limited-run collections.
+          Explore the latest
+          drops, essential
+          pieces and
+          limited-run
+          collections.
         </p>
       </section>
 
-      {/* CONTROLS */}
-
       <section className="shop-controls">
+
         <div className="category-list">
-          {categories.map((item) => (
-            <button
-              key={item}
-              type="button"
-              className={
-                category === item
-                  ? "category-button active"
-                  : "category-button"
-              }
-              onClick={() =>
-                handleCategoryChange(item)
-              }
-            >
-              {item}
-            </button>
-          ))}
+
+          {CATEGORIES.map(
+            (item) => (
+              <button
+                key={item}
+                type="button"
+                className={
+                  category === item
+                    ? "category-button active"
+                    : "category-button"
+                }
+                onClick={() =>
+                  handleCategory(
+                    item
+                  )
+                }
+              >
+                {item}
+              </button>
+            )
+          )}
+
         </div>
 
         <div className="sort-wrapper">
+
           <label htmlFor="sort">
             SORT
           </label>
@@ -430,7 +709,9 @@ function Shop() {
             id="sort"
             value={sort}
             onChange={(event) =>
-              setSort(event.target.value)
+              setSort(
+                event.target.value
+              )
             }
           >
             <option value="featured">
@@ -449,34 +730,42 @@ function Shop() {
               NAME
             </option>
           </select>
+
         </div>
+
       </section>
 
-      {/* ERROR */}
+      {!loading &&
+        !error && (
+          <div className="product-count">
+            {filteredProducts.length}{" "}
+            PRODUCTS
+          </div>
+        )}
 
       {error && (
         <div className="shop-empty">
           <h2>
-            UNABLE TO LOAD PRODUCTS
+            PRODUCTS COULD NOT BE LOADED
           </h2>
 
           <p>
             {error}
           </p>
+
+          <button
+            type="button"
+            onClick={
+              loadProducts
+            }
+          >
+            TRY AGAIN
+          </button>
         </div>
       )}
-
-      {/* PRODUCT COUNT */}
-
-      {!loading && !error && (
-        <div className="product-count">
-          {filteredProducts.length} PRODUCTS
-        </div>
-      )}
-
-      {/* PRODUCTS */}
 
       <section className="shop-products">
+
         {loading ? (
           <div className="shop-empty">
             <h2>
@@ -484,48 +773,49 @@ function Shop() {
             </h2>
 
             <p>
-              Please wait while we load the
-              latest UNTKN collection.
+              Please wait while
+              we load the latest
+              UNTKN collection.
             </p>
           </div>
-        ) : error ? (
-          <div className="shop-empty">
-            <h2>
-              PRODUCTS COULD NOT BE LOADED
-            </h2>
-
-            <p>
-              Please try again.
-            </p>
-          </div>
-        ) : filteredProducts.length > 0 ? (
-          filteredProducts.map((product) => (
-            <ProductCard
-              key={product.id}
-              product={product}
-            />
-          ))
-        ) : (
+        ) : error ? null : filteredProducts.length ===
+          0 ? (
           <div className="shop-empty">
             <h2>
               NO PRODUCTS
             </h2>
 
             <p>
-              No products were found in this
+              No products were
+              found in this
               category.
             </p>
 
-            <button
-              type="button"
-              onClick={() =>
-                handleCategoryChange("All")
-              }
-            >
-              VIEW ALL PRODUCTS
-            </button>
+            {category !==
+              "All" && (
+              <button
+                type="button"
+                onClick={() =>
+                  handleCategory(
+                    "All"
+                  )
+                }
+              >
+                VIEW ALL PRODUCTS
+              </button>
+            )}
           </div>
+        ) : (
+          filteredProducts.map(
+            (product) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+              />
+            )
+          )
         )}
+
       </section>
     </div>
   );
