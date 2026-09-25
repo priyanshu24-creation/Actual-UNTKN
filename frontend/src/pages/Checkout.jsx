@@ -99,8 +99,20 @@ function Checkout() {
       try {
         setDeliveryLoading(true);
 
+        setDeliveryMethods([]);
+        setDeliveryMethod("");
+
         const response = await api.get(
-          "/delivery-methods"
+          "/delivery-methods",
+          {
+            params: {
+              _delivery_config: Date.now(),
+            },
+            headers: {
+              "Cache-Control": "no-cache, no-store, must-revalidate",
+              "Pragma": "no-cache",
+            },
+          }
         );
 
         const rawMethods = Array.isArray(
@@ -113,17 +125,10 @@ function Checkout() {
 
         const methods = rawMethods
           .filter((method) => {
-            if (!method || !method.id) {
+            if (!method || method.id === undefined || method.id === null) {
               return false;
             }
 
-            /*
-             * The backend/database uses isActive / is_active
-             * as the authoritative availability flag.
-             *
-             * Do not allow an old "enabled" value to override
-             * an explicit false value from the backend.
-             */
             if (
               Object.prototype.hasOwnProperty.call(
                 method,
@@ -152,10 +157,6 @@ function Checkout() {
               );
             }
 
-            /*
-             * Backward compatibility only when the backend
-             * does not provide isActive/is_active at all.
-             */
             if (
               Object.prototype.hasOwnProperty.call(
                 method,
@@ -173,7 +174,7 @@ function Checkout() {
             return false;
           })
           .map((method) => ({
-            id: method.id,
+            id: String(method.id),
             name: method.name,
             description: method.description || "",
             price: Number(method.price ?? 0),
@@ -186,11 +187,13 @@ function Checkout() {
         setDeliveryMethods(methods);
 
         setDeliveryMethod((current) => {
+          const currentId = String(current || "");
+
           const exists = methods.some(
-            (method) => method.id === current
+            (method) => method.id === currentId
           );
 
-          return exists ? current : methods[0]?.id || "";
+          return exists ? currentId : methods[0]?.id || "";
         });
       } catch (requestError) {
         console.error(
@@ -352,7 +355,7 @@ function Checkout() {
   const selectedDeliveryMethod =
     deliveryMethods.find(
       (method) =>
-        method.id === deliveryMethod
+        String(method.id) === String(deliveryMethod)
     ) || null;
 
   const shipping = Number(
@@ -482,12 +485,9 @@ function Checkout() {
       return;
     }
 
-    if (
-      !deliveryMethod ||
-      !selectedDeliveryMethod
-    ) {
+    if (!selectedDeliveryMethod) {
       setError(
-        "No delivery method is currently available."
+        "Please select a delivery method."
       );
 
       return;

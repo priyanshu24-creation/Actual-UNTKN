@@ -586,23 +586,7 @@ const Navbar = () => {
                 SHOP
               </button>
 
-              <button
-                type="button"
-                className={
-                  isActive(
-                    "/new-arrivals"
-                  )
-                    ? "active"
-                    : ""
-                }
-                onClick={() =>
-                  navigateFromMenu(
-                    "/new-arrivals"
-                  )
-                }
-              >
-                NEW ARRIVALS
-              </button>
+              
 
               <button
                 type="button"
