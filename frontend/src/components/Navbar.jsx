@@ -14,6 +14,12 @@ import {
 } from "lucide-react";
 import api from "../services/api.js";
 
+const DEFAULT_BANNER_MESSAGES = [
+  "FREE SHIPPING ON ORDERS ABOVE ₹999",
+  "NEW DROP LIVE NOW",
+  "EASY RETURNS",
+];
+
 const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -77,12 +83,32 @@ const Navbar = () => {
           )
         : [];
 
+      let messages = [];
+
       const hasFieldValues =
         messagesFromFields.some(Boolean);
 
-      const messages = hasFieldValues
-        ? messagesFromFields.filter(Boolean)
-        : messagesFromArray.filter(Boolean);
+      if (hasFieldValues) {
+        messages = messagesFromFields.map(
+          (message, index) =>
+            message ||
+            DEFAULT_BANNER_MESSAGES[index]
+        );
+      } else if (
+        messagesFromArray.length > 0
+      ) {
+        messages = [0, 1, 2].map(
+          (index) =>
+            messagesFromArray[index] ||
+            DEFAULT_BANNER_MESSAGES[index]
+        );
+      } else {
+        messages = DEFAULT_BANNER_MESSAGES;
+      }
+
+      messages = messages
+        .slice(0, 3)
+        .filter(Boolean);
 
       setBannerSettings({
         enabled:
@@ -243,13 +269,6 @@ const Navbar = () => {
     navigate(path);
   };
 
-  /*
-   * One complete message sequence.
-   *
-   * Example:
-   *
-   * MESSAGE 1 • MESSAGE 2 • MESSAGE 3 •
-   */
   const renderBannerSet = (setIndex) => (
     <div
       className="untkn-running-banner-set"
@@ -277,14 +296,6 @@ const Navbar = () => {
     </div>
   );
 
-  /*
-   * Four identical copies make sure the banner
-   * remains filled even on large screens.
-   *
-   * The animation moves exactly one complete set.
-   * Since every set is identical, the restart is
-   * visually seamless.
-   */
   const bannerSets = [0, 1, 2, 3];
 
   return (
@@ -388,6 +399,33 @@ const Navbar = () => {
             transform: translate3d(0, 0, 0);
           }
         }
+
+        .untkn-mobile-menu {
+          z-index: 3000;
+        }
+
+        .untkn-menu-overlay {
+          z-index: 2999;
+        }
+
+        .untkn-mobile-links {
+          display: flex;
+          flex-direction: column;
+        }
+
+        .untkn-mobile-links button {
+          appearance: none;
+          border: 0;
+          background: transparent;
+          font: inherit;
+          text-align: left;
+          cursor: pointer;
+        }
+
+        .untkn-mobile-links button:focus-visible {
+          outline: 2px solid currentColor;
+          outline-offset: 4px;
+        }
       `}</style>
 
       {bannerSettings.enabled &&
@@ -409,7 +447,10 @@ const Navbar = () => {
             className="mobile-menu-button"
             aria-label="Open menu"
             aria-expanded={menuOpen}
-            onClick={() => setMenuOpen(true)}
+            onClick={() => {
+              setMenuOpen(true);
+              setSearchOpen(false);
+            }}
           >
             <Menu
               size={20}
@@ -641,20 +682,6 @@ const Navbar = () => {
               <button
                 type="button"
                 className={
-                  isActive("/")
-                    ? "active"
-                    : ""
-                }
-                onClick={() =>
-                  navigateFromMenu("/")
-                }
-              >
-                HOME
-              </button>
-
-              <button
-                type="button"
-                className={
                   isActive("/shop")
                     ? "active"
                     : ""
@@ -701,50 +728,29 @@ const Navbar = () => {
               <button
                 type="button"
                 className={
-                  isActive("/wishlist")
+                  isActive("/about")
                     ? "active"
                     : ""
                 }
                 onClick={() =>
-                  navigateFromMenu(
-                    "/wishlist"
-                  )
+                  navigateFromMenu("/about")
                 }
               >
-                WISHLIST
+                ABOUT
               </button>
 
               <button
                 type="button"
                 className={
-                  isActive("/account")
+                  isActive("/contact")
                     ? "active"
                     : ""
                 }
                 onClick={() =>
-                  navigateFromMenu(
-                    "/account"
-                  )
+                  navigateFromMenu("/contact")
                 }
               >
-                ACCOUNT
-              </button>
-
-              <button
-                type="button"
-                className={
-                  isActive("/cart")
-                    ? "active"
-                    : ""
-                }
-                onClick={() =>
-                  navigateFromMenu("/cart")
-                }
-              >
-                BAG
-                {cartCount > 0
-                  ? ` (${cartCount})`
-                  : ""}
+                CONTACT
               </button>
             </nav>
           </aside>
