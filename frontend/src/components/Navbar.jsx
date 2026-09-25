@@ -53,20 +53,36 @@ const Navbar = () => {
           enabled: false,
           messages: [],
         });
+
         return;
       }
 
-      const messages = Array.isArray(
+      const messagesFromFields = [
+        settings.message_1,
+        settings.message_2,
+        settings.message_3,
+      ].map((message) =>
+        typeof message === "string"
+          ? message.trim()
+          : ""
+      );
+
+      const messagesFromArray = Array.isArray(
         settings.messages
       )
-        ? settings.messages
-            .filter(
-              (message) =>
-                typeof message === "string" &&
-                message.trim().length > 0
-            )
-            .map((message) => message.trim())
+        ? settings.messages.map((message) =>
+            typeof message === "string"
+              ? message.trim()
+              : ""
+          )
         : [];
+
+      const hasFieldValues =
+        messagesFromFields.some(Boolean);
+
+      const messages = hasFieldValues
+        ? messagesFromFields.filter(Boolean)
+        : messagesFromArray.filter(Boolean);
 
       setBannerSettings({
         enabled:
@@ -80,10 +96,10 @@ const Navbar = () => {
         error
       );
 
-      setBannerSettings({
+      setBannerSettings((current) => ({
+        ...current,
         enabled: false,
-        messages: [],
-      });
+      }));
     }
   };
 
@@ -231,7 +247,7 @@ const Navbar = () => {
     <div
       className="untkn-running-banner-set"
       key={`banner-set-${setIndex}`}
-      aria-hidden={setIndex === 1}
+      aria-hidden={setIndex !== 0}
     >
       {bannerSettings.messages.map(
         (message, index) => (
@@ -254,6 +270,11 @@ const Navbar = () => {
     </div>
   );
 
+  const bannerSets = Array.from(
+    { length: 8 },
+    (_, index) => index
+  );
+
   return (
     <>
       <style>{`
@@ -274,8 +295,13 @@ const Navbar = () => {
           display: flex;
           align-items: center;
           width: max-content;
+          max-width: none;
           flex-shrink: 0;
-          animation: untkn-running-banner-scroll 24s linear infinite;
+          animation:
+            untkn-running-banner-scroll
+            24s
+            linear
+            infinite;
           will-change: transform;
         }
 
@@ -284,12 +310,14 @@ const Navbar = () => {
           align-items: center;
           width: max-content;
           flex-shrink: 0;
+          min-width: max-content;
         }
 
         .untkn-running-banner-message {
           display: inline-flex;
           align-items: center;
           flex-shrink: 0;
+          white-space: nowrap;
           font-size: 9px;
           font-weight: 500;
           line-height: 1;
@@ -302,9 +330,12 @@ const Navbar = () => {
           align-items: center;
           justify-content: center;
           flex-shrink: 0;
-          margin: 0 52px;
+          width: 1em;
+          margin-left: 52px;
+          margin-right: 52px;
           opacity: 0.7;
           font-size: 9px;
+          line-height: 1;
         }
 
         @keyframes untkn-running-banner-scroll {
@@ -313,7 +344,7 @@ const Navbar = () => {
           }
 
           to {
-            transform: translate3d(-50%, 0, 0);
+            transform: translate3d(-12.5%, 0, 0);
           }
         }
 
@@ -337,7 +368,8 @@ const Navbar = () => {
           }
 
           .untkn-running-banner-separator {
-            margin: 0 30px;
+            margin-left: 30px;
+            margin-right: 30px;
             font-size: 8px;
           }
         }
@@ -357,8 +389,7 @@ const Navbar = () => {
             aria-label="Announcements"
           >
             <div className="untkn-running-banner-track">
-              {renderBannerSet(0)}
-              {renderBannerSet(1)}
+              {bannerSets.map(renderBannerSet)}
             </div>
           </div>
         )}
@@ -728,4 +759,3 @@ const Navbar = () => {
 };
 
 export default Navbar;
-  
