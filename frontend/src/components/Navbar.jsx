@@ -257,11 +257,29 @@ function Navbar() {
               className="logo"
               onClick={closeMenu}
               aria-label="UNTKN Home"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+              }}
             >
               <img
                 src={logo}
                 alt="UNTKN"
               />
+
+              <span
+                style={{
+                  fontSize: "18px",
+                  fontWeight: 600,
+                  letterSpacing: "1.5px",
+                  lineHeight: 1,
+                  color: "inherit",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                UNTKN
+              </span>
             </Link>
 
             {/* DESKTOP NAVIGATION */}
@@ -493,6 +511,7 @@ function Navbar() {
                       size={16}
                       strokeWidth={1.5}
                     />
+
                     <span>
                       SEARCH
                     </span>
@@ -506,6 +525,7 @@ function Navbar() {
                       size={16}
                       strokeWidth={1.5}
                     />
+
                     <span>
                       WISHLIST
                     </span>
@@ -521,6 +541,7 @@ function Navbar() {
                       size={16}
                       strokeWidth={1.5}
                     />
+
                     <span>
                       ACCOUNT
                     </span>
