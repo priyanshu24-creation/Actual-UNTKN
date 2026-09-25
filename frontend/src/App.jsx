@@ -59,8 +59,6 @@ import AdminInquiryDetails from "./admin/pages/AdminInquiryDetails";
 
 import AdminSettings from "./admin/pages/AdminSettings";
 
-// DELIVERY SETTINGS
-import AdminDeliverySettings from "./admin/pages/AdminDeliverySettings";
 
 import AdminLogin from "./admin/pages/AdminLogin";
 import ProtectedAdminRoute from "./admin/components/ProtectedAdminRoute";
@@ -294,15 +292,6 @@ function AppContent() {
               <Route
                 path="lookbook"
                 element={<AdminLookbook />}
-              />
-
-              {/* =============================================
-                  DELIVERY SETTINGS
-              ============================================= */}
-
-              <Route
-                path="delivery-settings"
-                element={<AdminDeliverySettings />}
               />
 
               {/* =============================================

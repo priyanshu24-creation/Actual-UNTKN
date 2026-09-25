@@ -14,7 +14,6 @@ import {
   Settings,
   LogOut,
   X,
-  Truck,
 } from "lucide-react";
 
 import { useAdminAuth } from "../context/AdminAuthContext";
@@ -76,16 +75,6 @@ function AdminSidebar({ sidebarOpen, closeSidebar }) {
   path: "/admin/about",
   icon: Info,
 },
-
-    // =====================================================
-    // DELIVERY SETTINGS
-    // =====================================================
-
-    {
-      label: "Delivery Settings",
-      path: "/admin/delivery-settings",
-      icon: Truck,
-    },
 
     {
       label: "Settings",
