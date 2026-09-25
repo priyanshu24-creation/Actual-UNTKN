@@ -324,11 +324,11 @@ function AdminRunningBanner() {
     </div>
   );
 
-  const previewSets =
-    Array.from(
-      { length: 8 },
-      (_, index) => index
-    );
+  // Same fix as the live site's Navbar: 2 identical copies of the
+  // message set is all a seamless marquee needs (translate 50% of
+  // the track's own width = exactly one copy). Duplicating 8x was
+  // what made the real banner stutter/jump on loop.
+  const previewSets = [0, 1];
 
   return (
     <div className="admin-running-banner">
@@ -342,7 +342,6 @@ function AdminRunningBanner() {
           display: flex;
           align-items: center;
           width: max-content;
-          max-width: none;
           animation:
             admin-running-banner-scroll
             24s
@@ -355,8 +354,6 @@ function AdminRunningBanner() {
           display: flex;
           align-items: center;
           flex-shrink: 0;
-          width: max-content;
-          min-width: max-content;
         }
 
         .admin-running-banner-preview-item {
@@ -369,6 +366,7 @@ function AdminRunningBanner() {
           line-height: 1;
           letter-spacing: 0.16em;
           text-transform: uppercase;
+          padding: 0 26px;
         }
 
         .admin-running-banner-preview-separator {
@@ -376,8 +374,6 @@ function AdminRunningBanner() {
           align-items: center;
           justify-content: center;
           width: 1em;
-          margin-left: 52px;
-          margin-right: 52px;
           opacity: 0.7;
         }
 
@@ -387,7 +383,9 @@ function AdminRunningBanner() {
           }
 
           to {
-            transform: translate3d(-12.5%, 0, 0);
+            /* 2 identical copies in the track, so -50% moves exactly
+               one copy's width — seamless loop, no jump. */
+            transform: translate3d(-50%, 0, 0);
           }
         }
 
@@ -403,11 +401,7 @@ function AdminRunningBanner() {
 
           .admin-running-banner-preview-item {
             font-size: 8px;
-          }
-
-          .admin-running-banner-preview-separator {
-            margin-left: 30px;
-            margin-right: 30px;
+            padding: 0 15px;
           }
         }
 

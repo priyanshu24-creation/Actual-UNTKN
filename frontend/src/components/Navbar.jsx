@@ -270,10 +270,13 @@ const Navbar = () => {
     </div>
   );
 
-  const bannerSets = Array.from(
-    { length: 8 },
-    (_, index) => index
-  );
+  // Exactly 2 copies of the message set is all a seamless marquee
+  // needs: the track scrolls left by 50% (the width of ONE copy) and
+  // then snaps back to 0, which is visually identical to the next
+  // copy already being in place. Duplicating 8x was fragile — it
+  // only stayed seamless if all 8 copies rendered at pixel-identical
+  // widths, and any rounding drift showed up as a stutter/jump.
+  const bannerSets = [0, 1];
 
   return (
     <>
@@ -295,7 +298,6 @@ const Navbar = () => {
           display: flex;
           align-items: center;
           width: max-content;
-          max-width: none;
           flex-shrink: 0;
           animation:
             untkn-running-banner-scroll
@@ -308,9 +310,7 @@ const Navbar = () => {
         .untkn-running-banner-set {
           display: flex;
           align-items: center;
-          width: max-content;
           flex-shrink: 0;
-          min-width: max-content;
         }
 
         .untkn-running-banner-message {
@@ -323,6 +323,7 @@ const Navbar = () => {
           line-height: 1;
           letter-spacing: 0.16em;
           text-transform: uppercase;
+          padding: 0 26px;
         }
 
         .untkn-running-banner-separator {
@@ -331,8 +332,6 @@ const Navbar = () => {
           justify-content: center;
           flex-shrink: 0;
           width: 1em;
-          margin-left: 52px;
-          margin-right: 52px;
           opacity: 0.7;
           font-size: 9px;
           line-height: 1;
@@ -344,7 +343,12 @@ const Navbar = () => {
           }
 
           to {
-            transform: translate3d(-12.5%, 0, 0);
+            /* Track holds exactly 2 identical copies of the message
+               set, so moving left by 50% of the track's own width
+               moves exactly one full copy off-screen, landing back
+               on a pixel-identical frame. That's what makes the
+               loop seamless instead of jumpy. */
+            transform: translate3d(-50%, 0, 0);
           }
         }
 
@@ -365,11 +369,10 @@ const Navbar = () => {
           .untkn-running-banner-message {
             font-size: 8px;
             letter-spacing: 0.13em;
+            padding: 0 15px;
           }
 
           .untkn-running-banner-separator {
-            margin-left: 30px;
-            margin-right: 30px;
             font-size: 8px;
           }
         }
