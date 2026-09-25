@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
+  ArrowDown,
   ArrowRight,
-  Circle,
 } from "lucide-react";
 
 import logo from "../assets/images/logo.png";
@@ -70,45 +70,55 @@ const defaultAbout = {
 };
 
 function About() {
-  const [about, setAbout] = useState(defaultAbout);
+  const [about, setAbout] =
+    useState(defaultAbout);
 
   useEffect(() => {
     try {
-      const savedAbout = localStorage.getItem("untkn-about");
+      const savedAbout =
+        localStorage.getItem(
+          "untkn-about"
+        );
 
-      if (savedAbout) {
-        const parsedAbout = JSON.parse(savedAbout);
-
-        setAbout({
-          ...defaultAbout,
-          ...parsedAbout,
-
-          hero: {
-            ...defaultAbout.hero,
-            ...(parsedAbout.hero || {}),
-          },
-
-          manifesto: {
-            ...defaultAbout.manifesto,
-            ...(parsedAbout.manifesto || {}),
-          },
-
-          principles:
-            parsedAbout.principles?.length
-              ? parsedAbout.principles
-              : defaultAbout.principles,
-
-          statement: {
-            ...defaultAbout.statement,
-            ...(parsedAbout.statement || {}),
-          },
-
-          cta: {
-            ...defaultAbout.cta,
-            ...(parsedAbout.cta || {}),
-          },
-        });
+      if (!savedAbout) {
+        return;
       }
+
+      const parsedAbout =
+        JSON.parse(savedAbout);
+
+      setAbout({
+        ...defaultAbout,
+        ...parsedAbout,
+
+        hero: {
+          ...defaultAbout.hero,
+          ...(parsedAbout.hero || {}),
+        },
+
+        manifesto: {
+          ...defaultAbout.manifesto,
+          ...(parsedAbout.manifesto || {}),
+        },
+
+        principles:
+          Array.isArray(
+            parsedAbout.principles
+          ) &&
+          parsedAbout.principles.length
+            ? parsedAbout.principles
+            : defaultAbout.principles,
+
+        statement: {
+          ...defaultAbout.statement,
+          ...(parsedAbout.statement || {}),
+        },
+
+        cta: {
+          ...defaultAbout.cta,
+          ...(parsedAbout.cta || {}),
+        },
+      });
     } catch (error) {
       console.error(
         "Failed to load About content:",
@@ -117,263 +127,351 @@ function About() {
     }
   }, []);
 
-  const getHeadingLines = (heading = "") => {
-    return heading
+  const getHeadingLines = (
+    heading = ""
+  ) => {
+    return String(heading)
       .split("\n")
       .map((line) => line.trim())
       .filter(Boolean);
   };
 
-  const heroHeading = getHeadingLines(
-    about.hero.heading
-  );
+  const heroHeading =
+    getHeadingLines(
+      about.hero.heading
+    );
 
-  const manifestoHeading = getHeadingLines(
-    about.manifesto.heading
-  );
+  const manifestoHeading =
+    getHeadingLines(
+      about.manifesto.heading
+    );
 
-  const statementHeading = getHeadingLines(
-    about.statement.heading
-  );
+  const statementHeading =
+    getHeadingLines(
+      about.statement.heading
+    );
 
-  const ctaHeading = getHeadingLines(
-    about.cta.heading
-  );
+  const ctaHeading =
+    getHeadingLines(
+      about.cta.heading
+    );
 
   const aboutLogo =
     about.hero.logo || logo;
 
+  const ctaImage =
+    about.cta.image || "";
+
   return (
-    <div className="about-page">
+    <main className="about-redesign">
 
-      {/* =========================
+      {/* =================================
           HERO
-      ========================= */}
+      ================================= */}
 
-      <section className="about-hero">
+      <section className="about-redesign-hero">
 
-        <div className="about-number about-logo">
-          <img
-            src={aboutLogo}
-            alt="UNTKN logo"
+        <div className="about-hero-topline">
+          <span>
+            UNTKN / ABOUT
+          </span>
+
+          <span>
+            EST. 2026
+          </span>
+        </div>
+
+        <div className="about-hero-main">
+
+          <div className="about-hero-brand">
+            <img
+              src={aboutLogo}
+              alt="UNTKN"
+            />
+          </div>
+
+          <div className="about-hero-copy">
+
+            <p className="about-redesign-eyebrow">
+              {about.hero.eyebrow}
+            </p>
+
+            <h1>
+              {heroHeading.map(
+                (line, index) => (
+                  <span
+                    key={`${line}-${index}`}
+                  >
+                    {line}
+                  </span>
+                )
+              )}
+            </h1>
+
+            <p className="about-hero-text">
+              {about.hero.description}
+            </p>
+
+          </div>
+
+        </div>
+
+        <div className="about-hero-bottom">
+
+          <span>
+            SCROLL TO EXPLORE
+          </span>
+
+          <ArrowDown
+            size={16}
+            strokeWidth={1.4}
           />
-        </div>
-
-        <div className="about-hero-content">
-
-          <p className="eyebrow">
-            {about.hero.eyebrow}
-          </p>
-
-          <h1>
-            {heroHeading.map((line, index) => (
-              <span key={index}>
-                {line}
-
-                {index <
-                  heroHeading.length - 1 && (
-                  <br />
-                )}
-              </span>
-            ))}
-          </h1>
-
-          <p className="about-hero-description">
-            {about.hero.description}
-          </p>
 
         </div>
+
       </section>
 
 
-      {/* =========================
+      {/* =================================
           MANIFESTO
-      ========================= */}
+      ================================= */}
 
-      <section className="about-manifesto">
+      <section className="about-redesign-manifesto">
 
-        <div className="about-manifesto-number">
-          {about.manifesto.number}
+        <div className="about-manifesto-meta">
+
+          <span className="about-redesign-number">
+            {about.manifesto.number}
+          </span>
+
+          <span>
+            MANIFESTO
+          </span>
+
         </div>
 
-        <div className="about-manifesto-content">
+        <div className="about-manifesto-main">
 
-          <p className="eyebrow">
+          <p className="about-redesign-eyebrow">
             {about.manifesto.eyebrow}
           </p>
 
           <h2>
             {manifestoHeading.map(
               (line, index) => (
-                <span key={index}>
+                <span
+                  key={`${line}-${index}`}
+                >
                   {line}
-
-                  {index <
-                    manifestoHeading.length - 1 && (
-                    <br />
-                  )}
                 </span>
               )
             )}
           </h2>
 
-          <p>
-            {about.manifesto.paragraph1}
-          </p>
+          <div className="about-manifesto-text">
 
-          <p>
-            {about.manifesto.paragraph2}
-          </p>
+            <p>
+              {about.manifesto.paragraph1}
+            </p>
+
+            <p>
+              {about.manifesto.paragraph2}
+            </p>
+
+          </div>
 
         </div>
+
       </section>
 
 
-      {/* =========================
+      {/* =================================
           PRINCIPLES
-      ========================= */}
+      ================================= */}
 
-      <section className="about-principles">
+      <section className="about-redesign-principles">
 
-        <div className="about-section-heading">
+        <div className="about-principles-heading">
 
-          <p className="eyebrow">
-            03 / WHAT WE BELIEVE
+          <div>
+            <p className="about-redesign-eyebrow">
+              03 / WHAT WE BELIEVE
+            </p>
+
+            <h2>
+              OUR
+              <br />
+              PRINCIPLES.
+            </h2>
+          </div>
+
+          <p className="about-principles-intro">
+            Four ideas guide every
+            collection we create.
           </p>
-
-          <h2>
-            OUR
-            <br />
-            PRINCIPLES.
-          </h2>
 
         </div>
 
-        <div className="principles-grid">
+        <div className="about-principles-grid">
 
           {about.principles.map(
             (principle, index) => (
               <article
-                className="principle-card"
+                className="about-principle"
                 key={
                   principle.number ||
                   index
                 }
               >
 
-                <span>
-                  {principle.number}
-                </span>
+                <div className="about-principle-top">
+                  <span>
+                    {String(
+                      principle.number ||
+                        index + 1
+                    ).padStart(
+                      2,
+                      "0"
+                    )}
+                  </span>
 
-                <h3>
-                  {principle.title}
-                </h3>
+                  <ArrowRight
+                    size={16}
+                    strokeWidth={1.2}
+                  />
+                </div>
 
-                <p>
-                  {principle.description}
-                </p>
+                <div className="about-principle-content">
+
+                  <h3>
+                    {principle.title}
+                  </h3>
+
+                  <p>
+                    {principle.description}
+                  </p>
+
+                </div>
 
               </article>
             )
           )}
 
         </div>
+
       </section>
 
 
-      {/* =========================
+      {/* =================================
           STATEMENT
-      ========================= */}
+      ================================= */}
 
-      <section className="about-statement">
+      <section className="about-redesign-statement">
 
-        <Circle
-          size={24}
-          strokeWidth={1}
-        />
+        <div className="about-statement-index">
+          04
+        </div>
 
-        <p className="eyebrow">
-          {about.statement.eyebrow}
-        </p>
+        <div className="about-statement-center">
 
-        <h2>
-          {statementHeading.map(
-            (line, index) => (
-              <span key={index}>
-                {line}
-
-                {index <
-                  statementHeading.length - 1 && (
-                  <br />
-                )}
-              </span>
-            )
-          )}
-        </h2>
-
-        <p>
-          {about.statement.description}
-        </p>
-
-      </section>
-
-
-      {/* =========================
-          CTA
-      ========================= */}
-
-      <section
-        className="about-cta"
-        style={
-          about.cta.image
-            ? {
-                backgroundImage: `url("${about.cta.image}")`,
-              }
-            : undefined
-        }
-      >
-
-        <div>
-
-          <p className="eyebrow">
-            {about.cta.eyebrow}
+          <p className="about-redesign-eyebrow">
+            {about.statement.eyebrow}
           </p>
 
           <h2>
-            {ctaHeading.map(
+            {statementHeading.map(
               (line, index) => (
-                <span key={index}>
+                <span
+                  key={`${line}-${index}`}
+                >
                   {line}
-
-                  {index <
-                    ctaHeading.length - 1 && (
-                    <br />
-                  )}
                 </span>
               )
             )}
           </h2>
 
+          <p className="about-statement-description">
+            {about.statement.description}
+          </p>
+
         </div>
-
-        <Link
-          to={
-            about.cta.buttonLink ||
-            "/shop"
-          }
-        >
-          {about.cta.buttonText ||
-            "SHOP ALL"}
-
-          <ArrowRight
-            size={18}
-            strokeWidth={1.5}
-          />
-        </Link>
 
       </section>
 
-    </div>
+
+      {/* =================================
+          CTA / SHOP
+      ================================= */}
+
+      <section className="about-redesign-cta">
+
+        <div
+          className={
+            ctaImage
+              ? "about-cta-image has-image"
+              : "about-cta-image"
+          }
+          style={
+            ctaImage
+              ? {
+                  backgroundImage:
+                    `url("${ctaImage}")`,
+                }
+              : undefined
+          }
+        >
+
+          {!ctaImage && (
+            <div className="about-cta-placeholder">
+              UNTKN
+            </div>
+          )}
+
+          <div className="about-cta-overlay" />
+
+          <div className="about-cta-content">
+
+            <p className="about-redesign-eyebrow">
+              {about.cta.eyebrow}
+            </p>
+
+            <h2>
+              {ctaHeading.map(
+                (line, index) => (
+                  <span
+                    key={`${line}-${index}`}
+                  >
+                    {line}
+                  </span>
+                )
+              )}
+            </h2>
+
+            <Link
+              to={
+                about.cta.buttonLink ||
+                "/shop"
+              }
+              className="about-shop-button"
+            >
+              <span>
+                {about.cta.buttonText ||
+                  "SHOP ALL"}
+              </span>
+
+              <ArrowRight
+                size={17}
+                strokeWidth={1.5}
+              />
+            </Link>
+
+          </div>
+
+        </div>
+
+      </section>
+
+    </main>
   );
 }
 

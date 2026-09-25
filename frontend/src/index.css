@@ -18224,3 +18224,590 @@ main,
     margin: 0 30px;
   }
 }
+
+/* =========================================================
+   UNTKN ABOUT PAGE — PREMIUM EDITORIAL REDESIGN
+========================================================= */
+
+.about-redesign {
+  width: 100%;
+  overflow: hidden;
+  background: #fff;
+  color: #111;
+}
+
+.about-redesign * {
+  box-sizing: border-box;
+}
+
+.about-redesign-eyebrow {
+  margin: 0;
+  font-size: 9px;
+  line-height: 1.2;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.about-redesign-hero {
+  position: relative;
+  min-height: calc(100vh - 72px);
+  padding: 34px 5vw 32px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border-bottom: 1px solid #dedede;
+}
+
+.about-hero-topline {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 18px;
+  border-bottom: 1px solid #dedede;
+  font-size: 8px;
+  line-height: 1;
+  letter-spacing: 0.14em;
+}
+
+.about-hero-main {
+  width: 100%;
+  max-width: 1450px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(150px, 0.65fr) minmax(0, 1.35fr);
+  gap: 7vw;
+  align-items: center;
+  padding: 7vh 0;
+}
+
+.about-hero-brand {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+
+.about-hero-brand img {
+  display: block;
+  width: clamp(90px, 11vw, 160px);
+  height: auto;
+  object-fit: contain;
+}
+
+.about-hero-copy {
+  max-width: 1000px;
+}
+
+.about-hero-copy h1 {
+  margin: 18px 0 30px;
+  display: flex;
+  flex-direction: column;
+  font-size: clamp(68px, 10.5vw, 170px);
+  line-height: 0.82;
+  font-weight: 700;
+  letter-spacing: -0.075em;
+  text-transform: uppercase;
+}
+
+.about-hero-copy h1 span {
+  display: block;
+}
+
+.about-hero-text {
+  max-width: 430px;
+  margin: 0;
+  color: #666;
+  font-size: 12px;
+  line-height: 1.8;
+}
+
+.about-hero-bottom {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 8px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.about-hero-bottom svg {
+  animation: aboutArrowFloat 1.8s ease-in-out infinite;
+}
+
+@keyframes aboutArrowFloat {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(5px);
+  }
+}
+
+
+/* =========================================================
+   MANIFESTO
+========================================================= */
+
+.about-redesign-manifesto {
+  display: grid;
+  grid-template-columns: 0.7fr 2.3fr;
+  gap: 6vw;
+  padding: 130px 5vw;
+  border-bottom: 1px solid #dedede;
+}
+
+.about-manifesto-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 8px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.about-redesign-number {
+  color: #999;
+}
+
+.about-manifesto-main {
+  max-width: 1050px;
+}
+
+.about-manifesto-main h2 {
+  margin: 24px 0 55px;
+  display: flex;
+  flex-direction: column;
+  font-size: clamp(58px, 8vw, 125px);
+  line-height: 0.83;
+  letter-spacing: -0.065em;
+  text-transform: uppercase;
+}
+
+.about-manifesto-main h2 span {
+  display: block;
+}
+
+.about-manifesto-text {
+  max-width: 720px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 55px;
+}
+
+.about-manifesto-text p {
+  margin: 0;
+  color: #666;
+  font-size: 12px;
+  line-height: 1.9;
+}
+
+
+/* =========================================================
+   PRINCIPLES
+========================================================= */
+
+.about-redesign-principles {
+  padding: 130px 5vw;
+  border-bottom: 1px solid #dedede;
+}
+
+.about-principles-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 60px;
+}
+
+.about-principles-heading h2 {
+  margin: 20px 0 0;
+  font-size: clamp(60px, 8vw, 125px);
+  line-height: 0.8;
+  letter-spacing: -0.07em;
+  text-transform: uppercase;
+}
+
+.about-principles-intro {
+  max-width: 210px;
+  margin: 0 0 8px;
+  color: #777;
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.about-principles-grid {
+  margin-top: 90px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-top: 1px solid #dcdcdc;
+  border-left: 1px solid #dcdcdc;
+}
+
+.about-principle {
+  min-height: 340px;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border-right: 1px solid #dcdcdc;
+  border-bottom: 1px solid #dcdcdc;
+  transition:
+    background 220ms ease,
+    color 220ms ease;
+}
+
+.about-principle:hover {
+  background: #111;
+  color: #fff;
+}
+
+.about-principle-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.about-principle-top span {
+  font-size: 9px;
+  letter-spacing: 0.12em;
+}
+
+.about-principle-content h3 {
+  margin: 0 0 18px;
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+.about-principle-content p {
+  max-width: 270px;
+  margin: 0;
+  color: #777;
+  font-size: 10px;
+  line-height: 1.8;
+}
+
+.about-principle:hover
+.about-principle-content p {
+  color: #bbb;
+}
+
+
+/* =========================================================
+   STATEMENT
+========================================================= */
+
+.about-redesign-statement {
+  position: relative;
+  min-height: 620px;
+  padding: 100px 5vw;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-bottom: 1px solid #dedede;
+}
+
+.about-statement-index {
+  position: absolute;
+  top: 32px;
+  left: 5vw;
+  color: #999;
+  font-size: 9px;
+  letter-spacing: 0.14em;
+}
+
+.about-statement-center {
+  width: 100%;
+  max-width: 1050px;
+  text-align: center;
+}
+
+.about-statement-center h2 {
+  margin: 25px 0 35px;
+  display: flex;
+  flex-direction: column;
+  font-size: clamp(68px, 10vw, 160px);
+  line-height: 0.8;
+  letter-spacing: -0.075em;
+  text-transform: uppercase;
+}
+
+.about-statement-center h2 span {
+  display: block;
+}
+
+.about-statement-description {
+  max-width: 440px;
+  margin: 0 auto;
+  color: #666;
+  font-size: 11px;
+  line-height: 1.8;
+}
+
+
+/* =========================================================
+   CTA / SHOP
+========================================================= */
+
+.about-redesign-cta {
+  padding: 5vw;
+  background: #111;
+}
+
+.about-cta-image {
+  position: relative;
+  min-height: 720px;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+  background: #1b1b1b;
+  background-size: cover;
+  background-position: center;
+}
+
+.about-cta-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #333;
+  font-size: clamp(100px, 18vw, 280px);
+  font-weight: 700;
+  letter-spacing: -0.08em;
+}
+
+.about-cta-overlay {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      to top,
+      rgba(0, 0, 0, 0.82),
+      rgba(0, 0, 0, 0.12) 70%
+    );
+}
+
+.about-cta-content {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  padding: 55px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 50px;
+  color: #fff;
+}
+
+.about-cta-content h2 {
+  margin: 20px 0 0;
+  display: flex;
+  flex-direction: column;
+  font-size: clamp(68px, 10vw, 155px);
+  line-height: 0.8;
+  letter-spacing: -0.075em;
+  text-transform: uppercase;
+}
+
+.about-cta-content h2 span {
+  display: block;
+}
+
+.about-shop-button {
+  min-width: 150px;
+  height: 52px;
+  padding: 0 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 25px;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  color: #fff;
+  text-decoration: none;
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  transition:
+    background 200ms ease,
+    color 200ms ease;
+}
+
+.about-shop-button:hover {
+  background: #fff;
+  color: #111;
+}
+
+
+/* =========================================================
+   TABLET
+========================================================= */
+
+@media (max-width: 1000px) {
+
+  .about-hero-main {
+    grid-template-columns: 1fr;
+    gap: 50px;
+  }
+
+  .about-hero-brand img {
+    width: 90px;
+  }
+
+  .about-manifesto-text {
+    grid-template-columns: 1fr;
+    gap: 25px;
+  }
+
+  .about-principles-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .about-principle {
+    min-height: 300px;
+  }
+
+  .about-cta-content {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+}
+
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media (max-width: 600px) {
+
+  .about-redesign-hero {
+    min-height: calc(100svh - 70px);
+    padding: 25px 20px 25px;
+  }
+
+  .about-hero-topline {
+    font-size: 7px;
+  }
+
+  .about-hero-main {
+    gap: 55px;
+    padding: 45px 0;
+  }
+
+  .about-hero-brand img {
+    width: 70px;
+  }
+
+  .about-hero-copy h1 {
+    margin: 15px 0 25px;
+    font-size: clamp(54px, 16vw, 82px);
+    line-height: 0.84;
+  }
+
+  .about-hero-text {
+    max-width: 310px;
+    font-size: 11px;
+  }
+
+  .about-hero-bottom {
+    font-size: 7px;
+  }
+
+
+  .about-redesign-manifesto {
+    display: block;
+    padding: 80px 20px;
+  }
+
+  .about-manifesto-meta {
+    margin-bottom: 45px;
+  }
+
+  .about-manifesto-main h2 {
+    margin: 20px 0 40px;
+    font-size: clamp(52px, 15vw, 78px);
+  }
+
+  .about-manifesto-text {
+    gap: 22px;
+  }
+
+  .about-manifesto-text p {
+    font-size: 11px;
+    line-height: 1.8;
+  }
+
+
+  .about-redesign-principles {
+    padding: 80px 20px;
+  }
+
+  .about-principles-heading {
+    display: block;
+  }
+
+  .about-principles-heading h2 {
+    font-size: clamp(54px, 15vw, 80px);
+  }
+
+  .about-principles-intro {
+    margin-top: 30px;
+  }
+
+  .about-principles-grid {
+    grid-template-columns: 1fr;
+    margin-top: 55px;
+  }
+
+  .about-principle {
+    min-height: 250px;
+    padding: 24px;
+  }
+
+
+  .about-redesign-statement {
+    min-height: 500px;
+    padding: 80px 20px;
+  }
+
+  .about-statement-index {
+    top: 25px;
+    left: 20px;
+  }
+
+  .about-statement-center h2 {
+    margin: 20px 0 30px;
+    font-size: clamp(54px, 16vw, 84px);
+  }
+
+  .about-statement-description {
+    max-width: 320px;
+    font-size: 10px;
+  }
+
+
+  .about-redesign-cta {
+    padding: 12px;
+  }
+
+  .about-cta-image {
+    min-height: 620px;
+  }
+
+  .about-cta-content {
+    padding: 28px;
+    gap: 35px;
+  }
+
+  .about-cta-content h2 {
+    font-size: clamp(58px, 17vw, 90px);
+  }
+
+  .about-shop-button {
+    width: 100%;
+  }
+
+}
