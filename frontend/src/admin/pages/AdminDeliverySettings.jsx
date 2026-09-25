@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-
 import {
   Truck,
   Zap,
@@ -13,15 +12,13 @@ import {
 import api from "../../services/api";
 
 function AdminDeliverySettings() {
-  const [deliveryMethods, setDeliveryMethods] =
-    useState([]);
-
+  const [deliveryMethods, setDeliveryMethods] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
 
-  const toBoolean = (value) => {
+  const normalizeBoolean = (value) => {
     return (
       value === true ||
       value === 1 ||
@@ -36,280 +33,174 @@ function AdminDeliverySettings() {
     }
 
     return methods.map((method) => ({
-      id: String(method.id),
-      name: method.name,
-      description:
-        method.description || "",
-      price: Number(
-        method.price ?? 0
-      ),
-      enabled: toBoolean(
-        method.isActive ??
-          method.is_active ??
-          method.enabled
+      id: String(method?.id ?? ""),
+      name: String(method?.name ?? ""),
+      description: String(method?.description ?? ""),
+      price: Number(method?.price ?? 0),
+      enabled: normalizeBoolean(
+        method?.isActive ??
+          method?.is_active ??
+          method?.enabled
       ),
     }));
   };
 
-  const loadDeliveryMethods =
-    async () => {
-      try {
-        setLoading(true);
-        setError("");
+  const loadDeliveryMethods = async () => {
+    try {
+      setLoading(true);
+      setError("");
+      setSaved(false);
 
-        const response =
-          await api.get(
-            "/delivery-methods/admin",
-            {
-              params: {
-                _: Date.now(),
-              },
-              headers: {
-                "Cache-Control":
-                  "no-cache",
-                Pragma: "no-cache",
-              },
-            }
-          );
+      const response = await api.get(
+        `/delivery-methods/admin?_=${Date.now()}`
+      );
 
-        const methods =
-          normalizeMethods(
-            response.data
-              ?.deliveryMethods
-          );
-
-        setDeliveryMethods(
-          methods
+      if (!response.data?.success) {
+        throw new Error(
+          response.data?.message ||
+            "Failed to load delivery settings."
         );
-      } catch (requestError) {
-        console.error(
-          "Failed to load delivery methods:",
-          requestError
-        );
-
-        setDeliveryMethods([]);
-
-        setError(
-          requestError?.response
-            ?.data?.message ||
-            "Unable to load delivery settings."
-        );
-      } finally {
-        setLoading(false);
       }
-    };
+
+      const methods = normalizeMethods(
+        response.data?.deliveryMethods
+      );
+
+      setDeliveryMethods(methods);
+
+      if (methods.length === 0) {
+        setError(
+          "No delivery methods are configured in the database."
+        );
+      }
+    } catch (requestError) {
+      console.error(
+        "Failed to load delivery methods:",
+        requestError
+      );
+
+      setDeliveryMethods([]);
+
+      setError(
+        requestError?.response?.data?.message ||
+          requestError?.message ||
+          "Unable to load delivery settings."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     loadDeliveryMethods();
   }, []);
 
-  /*
-  |--------------------------------------------------------------------------
-  | TOGGLE
-  |--------------------------------------------------------------------------
-  | Toggle is saved immediately.
-  */
-  const handleToggle = async (id) => {
-    if (loading || saving) {
-      return;
-    }
+  const handleToggle = (id) => {
+    setDeliveryMethods((current) =>
+      current.map((method) =>
+        method.id === id
+          ? {
+              ...method,
+              enabled: !method.enabled,
+            }
+          : method
+      )
+    );
 
-    const currentMethod =
-      deliveryMethods.find(
-        (method) =>
-          method.id === id
-      );
-
-    if (!currentMethod) {
-      return;
-    }
-
-    const newValue =
-      !currentMethod.enabled;
-
+    setSaved(false);
     setError("");
-    setSaved(false);
-
-    setDeliveryMethods(
-      (currentMethods) =>
-        currentMethods.map(
-          (method) =>
-            method.id === id
-              ? {
-                  ...method,
-                  enabled:
-                    newValue,
-                }
-              : method
-        )
-    );
-
-    try {
-      setSaving(true);
-
-      const response =
-        await api.patch(
-          `/delivery-methods/admin/${encodeURIComponent(
-            id
-          )}`,
-          {
-            isActive: newValue,
-          }
-        );
-
-      const updated =
-        response.data
-          ?.deliveryMethod;
-
-      if (updated) {
-        setDeliveryMethods(
-          (currentMethods) =>
-            currentMethods.map(
-              (method) =>
-                method.id === id
-                  ? {
-                      ...method,
-                      enabled:
-                        toBoolean(
-                          updated.isActive
-                        ),
-                      price: Number(
-                        updated.price ??
-                          method.price
-                      ),
-                    }
-                  : method
-            )
-        );
-      }
-
-      setSaved(true);
-
-      window.setTimeout(
-        () => {
-          setSaved(false);
-        },
-        2000
-      );
-    } catch (requestError) {
-      console.error(
-        "Failed to update delivery availability:",
-        requestError
-      );
-
-      setDeliveryMethods(
-        (currentMethods) =>
-          currentMethods.map(
-            (method) =>
-              method.id === id
-                ? {
-                    ...method,
-                    enabled:
-                      currentMethod.enabled,
-                  }
-                : method
-          )
-      );
-
-      setError(
-        requestError?.response
-          ?.data?.message ||
-          "Unable to update delivery availability."
-      );
-    } finally {
-      setSaving(false);
-    }
   };
 
-  /*
-  |--------------------------------------------------------------------------
-  | CHANGE PRICE
-  |--------------------------------------------------------------------------
-  */
-  const handlePriceChange = (
-    id,
-    value
-  ) => {
-    setDeliveryMethods(
-      (currentMethods) =>
-        currentMethods.map(
-          (method) =>
-            method.id === id
-              ? {
-                  ...method,
-                  price: value,
-                }
-              : method
-        )
+  const handlePriceChange = (id, value) => {
+    setDeliveryMethods((current) =>
+      current.map((method) =>
+        method.id === id
+          ? {
+              ...method,
+              price: value,
+            }
+          : method
+      )
     );
 
     setSaved(false);
+    setError("");
   };
 
-  /*
-  |--------------------------------------------------------------------------
-  | SAVE PRICE + CURRENT STATE
-  |--------------------------------------------------------------------------
-  */
   const handleSave = async () => {
-    if (
-      saving ||
-      loading ||
-      deliveryMethods.length === 0
-    ) {
+    if (saving || loading) {
       return;
     }
 
-    try {
-      setSaving(true);
-      setSaved(false);
-      setError("");
+    if (deliveryMethods.length === 0) {
+      setError("No delivery methods available to save.");
+      return;
+    }
 
+    setSaving(true);
+    setSaved(false);
+    setError("");
+
+    try {
       const payload = {
-        deliveryMethods:
-          deliveryMethods.map(
-            (method) => ({
-              id: method.id,
-              name: method.name,
-              description:
-                method.description,
-              price: Math.max(
-                0,
-                Number(
-                  method.price || 0
-                )
-              ),
-              isActive:
-                method.enabled ===
-                true,
-            })
-          ),
+        deliveryMethods: deliveryMethods.map((method) => {
+          const numericPrice = Number(method.price);
+
+          if (
+            !Number.isFinite(numericPrice) ||
+            numericPrice < 0
+          ) {
+            throw new Error(
+              `Invalid price for ${method.name || method.id}.`
+            );
+          }
+
+          return {
+            id: method.id,
+            name: method.name,
+            description: method.description,
+            price: Number(numericPrice.toFixed(2)),
+            isActive: Boolean(method.enabled),
+          };
+        }),
       };
 
-      await api.put(
+      console.log(
+        "Saving delivery settings:",
+        payload
+      );
+
+      const response = await api.put(
         "/delivery-methods/admin",
         payload
       );
 
-      await loadDeliveryMethods();
+      if (!response.data?.success) {
+        throw new Error(
+          response.data?.message ||
+            "Failed to save delivery settings."
+        );
+      }
+
+      console.log(
+        "Delivery settings save response:",
+        response.data
+      );
 
       setSaved(true);
 
-      window.setTimeout(
-        () => {
-          setSaved(false);
-        },
-        2500
-      );
+      await loadDeliveryMethods();
     } catch (requestError) {
       console.error(
-        "Failed to save delivery settings:",
+        "Failed to save delivery methods:",
         requestError
       );
 
+      setSaved(false);
+
       setError(
-        requestError?.response
-          ?.data?.message ||
+        requestError?.response?.data?.message ||
+          requestError?.message ||
           "Unable to save delivery settings."
       );
     } finally {
@@ -318,62 +209,60 @@ function AdminDeliverySettings() {
   };
 
   const handleReset = async () => {
-    if (
-      saving ||
-      loading
-    ) {
+    if (saving || loading) {
       return;
     }
 
-    setSaved(false);
-
     await loadDeliveryMethods();
+  };
+
+  const getIcon = (method) => {
+    const name = String(
+      method?.name || ""
+    ).toLowerCase();
+
+    if (name.includes("express")) {
+      return <Zap size={22} strokeWidth={1.6} />;
+    }
+
+    return <Truck size={22} strokeWidth={1.6} />;
   };
 
   return (
     <div className="admin-delivery-settings">
 
       <div className="admin-delivery-header">
+
         <div>
           <span className="admin-delivery-eyebrow">
             SHIPPING CONFIGURATION
           </span>
 
-          <h1>
-            Delivery Settings
-          </h1>
+          <h1>Delivery Settings</h1>
 
           <p>
-            Manage the delivery
-            methods, availability
-            and fees shown to
-            customers during
-            checkout.
+            Manage the delivery methods, availability and
+            delivery fees shown to customers.
           </p>
         </div>
 
-        <div className="admin-delivery-header-actions">
+        <div className="admin-delivery-actions">
+
           <button
             type="button"
             className="admin-delivery-reset"
             onClick={handleReset}
-            disabled={
-              loading || saving
-            }
+            disabled={loading || saving}
           >
             <RefreshCw size={15} />
-            RESET
+            REFRESH
           </button>
 
           <button
             type="button"
             className="admin-delivery-save"
             onClick={handleSave}
-            disabled={
-              loading ||
-              saving ||
-              deliveryMethods.length === 0
-            }
+            disabled={loading || saving}
           >
             {saving ? (
               <>
@@ -395,338 +284,164 @@ function AdminDeliverySettings() {
               </>
             )}
           </button>
+
         </div>
       </div>
 
       {error && (
         <div
+          className="admin-delivery-error"
           role="alert"
-          style={{
-            marginTop: "20px",
-            padding:
-              "14px 16px",
-            border:
-              "1px solid #b3261e",
-            background:
-              "#fff5f5",
-            color: "#8a1c16",
-            fontSize: "13px",
-            lineHeight: "1.5",
-          }}
         >
           {error}
         </div>
       )}
 
-      <div className="admin-delivery-info">
-        <div className="admin-delivery-info-icon">
-          <Truck size={18} />
+      {loading ? (
+        <div className="admin-delivery-loading">
+          <RefreshCw
+            size={22}
+            className="admin-spin"
+          />
+          <span>
+            Loading delivery settings...
+          </span>
         </div>
-
-        <div>
-          <strong>
-            Delivery availability
-          </strong>
-
+      ) : deliveryMethods.length === 0 ? (
+        <div className="admin-delivery-empty">
+          <Truck size={30} strokeWidth={1.4} />
+          <h3>No delivery methods</h3>
           <p>
-            Turn a delivery
-            method OFF when
-            you do not want
-            customers to pay
-            for that delivery
-            service.
+            No delivery methods are available in the
+            database.
           </p>
         </div>
-      </div>
+      ) : (
+        <div className="admin-delivery-list">
 
-      <div className="admin-delivery-grid">
+          {deliveryMethods.map((method) => (
+            <div
+              key={method.id}
+              className={`admin-delivery-card ${
+                method.enabled
+                  ? "is-enabled"
+                  : "is-disabled"
+              }`}
+            >
 
-        {loading ? (
-          <div
-            style={{
-              gridColumn:
-                "1 / -1",
-              padding: "40px 0",
-              textAlign:
-                "center",
-              fontSize: "13px",
-            }}
-          >
-            LOADING DELIVERY
-            SETTINGS...
-          </div>
-        ) : deliveryMethods.length ===
-          0 ? (
-          <div
-            style={{
-              gridColumn:
-                "1 / -1",
-              padding: "40px 0",
-              textAlign:
-                "center",
-              fontSize: "13px",
-            }}
-          >
-            NO DELIVERY
-            METHODS ARE
-            CONFIGURED.
-          </div>
-        ) : (
-          deliveryMethods.map(
-            (method) => (
-              <div
-                className={`admin-delivery-card ${
-                  !method.enabled
-                    ? "admin-delivery-card-disabled"
-                    : ""
-                }`}
-                key={method.id}
-              >
+              <div className="admin-delivery-card-top">
 
-                <div className="admin-delivery-card-header">
+                <div className="admin-delivery-method-icon">
+                  {getIcon(method)}
+                </div>
 
-                  <div className="admin-delivery-method-icon">
-                    {method.id ===
-                    "express" ? (
-                      <Zap size={19} />
-                    ) : (
-                      <Truck size={19} />
-                    )}
-                  </div>
+                <div className="admin-delivery-method-info">
+                  <span className="admin-delivery-method-id">
+                    ID: {method.id}
+                  </span>
 
-                  <div className="admin-delivery-method-title">
-                    <h2>
-                      {method.name}
-                    </h2>
+                  <h2>
+                    {method.name}
+                  </h2>
 
-                    <span>
-                      {method.description}
-                    </span>
-                  </div>
+                  <p>
+                    {method.description}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  className={`admin-delivery-toggle ${
+                    method.enabled
+                      ? "is-enabled"
+                      : "is-disabled"
+                  }`}
+                  onClick={() =>
+                    handleToggle(method.id)
+                  }
+                  disabled={saving}
+                  aria-label={
+                    method.enabled
+                      ? `Disable ${method.name}`
+                      : `Enable ${method.name}`
+                  }
+                >
+                  {method.enabled ? (
+                    <ToggleRight size={34} />
+                  ) : (
+                    <ToggleLeft size={34} />
+                  )}
+                </button>
+
+              </div>
+
+              <div className="admin-delivery-card-bottom">
+
+                <div className="admin-delivery-status">
+
+                  <span
+                    className={`admin-delivery-status-dot ${
+                      method.enabled
+                        ? "active"
+                        : "inactive"
+                    }`}
+                  />
+
+                  <span>
+                    {method.enabled
+                      ? "AVAILABLE TO CUSTOMERS"
+                      : "HIDDEN FROM CUSTOMERS"}
+                  </span>
 
                 </div>
 
-                <div className="admin-delivery-enable-section">
-
-                  <div>
-                    <span className="admin-delivery-enable-label">
-                      DELIVERY STATUS
-                    </span>
-
-                    <strong
-                      className={
-                        method.enabled
-                          ? "delivery-status-enabled"
-                          : "delivery-status-disabled"
-                      }
-                    >
-                      {method.enabled
-                        ? "AVAILABLE"
-                        : "UNAVAILABLE"}
-                    </strong>
-                  </div>
-
-                  <button
-                    type="button"
-                    className={`admin-delivery-toggle ${
-                      method.enabled
-                        ? "is-enabled"
-                        : "is-disabled"
-                    }`}
-                    onClick={() =>
-                      handleToggle(
-                        method.id
-                      )
-                    }
-                    disabled={
-                      saving ||
-                      loading
-                    }
-                    aria-label={`${
-                      method.enabled
-                        ? "Disable"
-                        : "Enable"
-                    } ${
-                      method.name
-                    }`}
-                    aria-pressed={
-                      method.enabled
-                    }
-                  >
-                    {method.enabled ? (
-                      <ToggleRight
-                        size={38}
-                      />
-                    ) : (
-                      <ToggleLeft
-                        size={38}
-                      />
-                    )}
-                  </button>
-
-                </div>
-
-                <div className="admin-delivery-price-section">
+                <div className="admin-delivery-price">
 
                   <label
-                    htmlFor={`delivery-${method.id}`}
+                    htmlFor={`delivery-price-${method.id}`}
                   >
                     DELIVERY FEE
                   </label>
 
                   <div className="admin-delivery-price-input">
+
                     <span>₹</span>
 
                     <input
-                      id={`delivery-${method.id}`}
+                      id={`delivery-price-${method.id}`}
                       type="number"
                       min="0"
                       step="1"
-                      value={
-                        method.price
-                      }
-                      disabled={
-                        saving ||
-                        loading
-                      }
-                      onChange={(
-                        event
-                      ) =>
+                      value={method.price}
+                      disabled={saving}
+                      onChange={(event) =>
                         handlePriceChange(
                           method.id,
-                          event.target
-                            .value
+                          event.target.value
                         )
                       }
                     />
+
                   </div>
 
                 </div>
 
-                <div
-                  className={`admin-delivery-preview ${
-                    !method.enabled
-                      ? "preview-disabled"
-                      : ""
-                  }`}
-                >
-                  <span>
-                    CUSTOMER WILL SEE
-                  </span>
-
-                  {method.enabled ? (
-                    <>
-                      <div>
-                        <strong>
-                          {method.name}
-                        </strong>
-
-                        <strong>
-                          ₹
-                          {Number(
-                            method.price ||
-                              0
-                          ).toLocaleString(
-                            "en-IN"
-                          )}
-                        </strong>
-                      </div>
-
-                      <p>
-                        {
-                          method.description
-                        }
-                      </p>
-                    </>
-                  ) : (
-                    <div className="admin-delivery-preview-disabled">
-                      <strong>
-                        NOT SHOWN TO
-                        CUSTOMERS
-                      </strong>
-
-                      <p>
-                        This delivery
-                        method is
-                        currently
-                        disabled.
-                      </p>
-                    </div>
-                  )}
-                </div>
-
               </div>
-            )
-          )
-        )}
 
+            </div>
+          ))}
+
+        </div>
+      )}
+
+      <div className="admin-delivery-note">
+        <strong>DATABASE CONTROL</strong>
+        <p>
+          These settings are loaded from and saved to the
+          database. Customer checkout uses the active
+          delivery methods and prices stored here.
+        </p>
       </div>
-
-      <section className="admin-delivery-summary">
-
-        <div className="admin-delivery-summary-header">
-          <div>
-            <span className="admin-delivery-eyebrow">
-              CURRENT CONFIGURATION
-            </span>
-
-            <h2>
-              Delivery Methods
-            </h2>
-          </div>
-        </div>
-
-        <div className="admin-delivery-summary-list">
-
-          {deliveryMethods.map(
-            (method) => (
-              <div
-                className="admin-delivery-summary-row"
-                key={method.id}
-              >
-
-                <div>
-                  <strong>
-                    {method.name}
-                  </strong>
-
-                  <span>
-                    {method.description}
-                  </span>
-                </div>
-
-                <div className="admin-delivery-summary-right">
-
-                  <span
-                    className={
-                      method.enabled
-                        ? "summary-status-enabled"
-                        : "summary-status-disabled"
-                    }
-                  >
-                    {method.enabled
-                      ? "ENABLED"
-                      : "DISABLED"}
-                  </span>
-
-                  <strong>
-                    ₹
-                    {Number(
-                      method.price ||
-                        0
-                    ).toLocaleString(
-                      "en-IN"
-                    )}
-                  </strong>
-
-                </div>
-
-              </div>
-            )
-          )}
-
-        </div>
-      </section>
 
     </div>
   );
