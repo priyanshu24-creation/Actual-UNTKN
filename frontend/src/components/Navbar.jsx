@@ -55,52 +55,58 @@ const normalizeMessages = (settings) => {
 
 function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [bannerEnabled, setBannerEnabled] = useState(true);
+
+  const [bannerEnabled, setBannerEnabled] =
+    useState(true);
+
   const [bannerMessages, setBannerMessages] =
     useState(DEFAULT_MESSAGES);
 
   const { totalItems } = useCart();
+
   const location = useLocation();
 
-  const loadRunningBanner = useCallback(async () => {
-    try {
-      const response = await api.get(
-        "/settings/running-banner",
-        {
-          params: {
-            _: Date.now(),
-          },
+  const loadRunningBanner =
+    useCallback(async () => {
+      try {
+        const response = await api.get(
+          "/settings/running-banner",
+          {
+            params: {
+              _: Date.now(),
+            },
+          }
+        );
+
+        const data = response?.data;
+
+        if (!data?.success) {
+          return;
         }
-      );
 
-      const data = response?.data;
+        const settings = data?.settings;
 
-      if (!data?.success) {
-        return;
+        if (!settings) {
+          return;
+        }
+
+        const messages =
+          normalizeMessages(settings);
+
+        setBannerEnabled(
+          settings.enabled !== undefined
+            ? Boolean(settings.enabled)
+            : true
+        );
+
+        setBannerMessages(messages);
+      } catch (error) {
+        console.error(
+          "Failed to load running banner:",
+          error
+        );
       }
-
-      const settings = data?.settings;
-
-      if (!settings) {
-        return;
-      }
-
-      const messages = normalizeMessages(settings);
-
-      setBannerEnabled(
-        settings.enabled !== undefined
-          ? Boolean(settings.enabled)
-          : true
-      );
-
-      setBannerMessages(messages);
-    } catch (error) {
-      console.error(
-        "Failed to load running banner:",
-        error
-      );
-    }
-  }, []);
+    }, []);
 
   useEffect(() => {
     setMenuOpen(false);
@@ -130,9 +136,12 @@ function Navbar() {
       handleBannerUpdate
     );
 
-    const interval = window.setInterval(() => {
-      loadRunningBanner();
-    }, 15000);
+    const interval = window.setInterval(
+      () => {
+        loadRunningBanner();
+      },
+      15000
+    );
 
     const handleVisibilityChange = () => {
       if (
@@ -184,7 +193,9 @@ function Navbar() {
     return location.pathname === path;
   };
 
-  const renderBannerMessages = (copyIndex) => {
+  const renderBannerMessages = (
+    copyIndex
+  ) => {
     return bannerMessages.map(
       (message, index) => (
         <span
@@ -200,6 +211,9 @@ function Navbar() {
   return (
     <>
       <header className="site-header">
+
+        {/* ANNOUNCEMENT BAR */}
+
         {bannerEnabled &&
           bannerMessages.length > 0 && (
             <div className="announcement-bar">
@@ -210,10 +224,12 @@ function Navbar() {
             </div>
           )}
 
+        {/* NAVBAR */}
+
         <div className="navbar">
           <div className="navbar-inner">
 
-            {/* MOBILE HAMBURGER */}
+            {/* MOBILE MENU BUTTON */}
 
             <button
               type="button"
@@ -225,15 +241,16 @@ function Navbar() {
                   : "Open navigation menu"
               }
               aria-expanded={menuOpen}
+              aria-controls="mobile-navigation"
             >
               {menuOpen ? (
                 <X
-                  size={21}
+                  size={20}
                   strokeWidth={1.7}
                 />
               ) : (
                 <Menu
-                  size={21}
+                  size={20}
                   strokeWidth={1.7}
                 />
               )}
@@ -312,7 +329,7 @@ function Navbar() {
               </Link>
             </nav>
 
-            {/* DESKTOP ACTIONS */}
+            {/* NAV ACTIONS */}
 
             <div className="nav-actions">
 
@@ -380,134 +397,174 @@ function Navbar() {
               aria-hidden="true"
             />
 
-            <aside
+            <div
+              id="mobile-navigation"
               className="mobile-menu open"
               role="dialog"
               aria-modal="true"
               aria-label="Mobile navigation"
             >
-              <div className="mobile-menu-header">
-                <span className="mobile-menu-title">
-                  UNTKN
-                </span>
 
-                <button
-                  type="button"
-                  className="mobile-menu-close"
-                  onClick={closeMenu}
-                  aria-label="Close navigation menu"
-                >
-                  <X
-                    size={20}
-                    strokeWidth={1.7}
-                  />
-                </button>
+              {/* MOBILE MENU CONTENT */}
+
+              <div className="mobile-menu-inner">
+
+                {/* LABEL */}
+
+                <div className="mobile-menu-label">
+                  NAVIGATION
+                </div>
+
+                {/* NAVIGATION LINKS */}
+
+                <nav className="mobile-nav-links">
+
+                  <Link
+                    to="/shop"
+                    onClick={closeMenu}
+                    className={
+                      isActive("/shop")
+                        ? "active"
+                        : ""
+                    }
+                  >
+                    <span>01</span>
+                    SHOP
+                  </Link>
+
+                  <Link
+                    to="/collections"
+                    onClick={closeMenu}
+                    className={
+                      isActive("/collections")
+                        ? "active"
+                        : ""
+                    }
+                  >
+                    <span>02</span>
+                    COLLECTIONS
+                  </Link>
+
+                  <Link
+                    to="/lookbook"
+                    onClick={closeMenu}
+                    className={
+                      isActive("/lookbook")
+                        ? "active"
+                        : ""
+                    }
+                  >
+                    <span>03</span>
+                    LOOKBOOK
+                  </Link>
+
+                  <Link
+                    to="/about"
+                    onClick={closeMenu}
+                    className={
+                      isActive("/about")
+                        ? "active"
+                        : ""
+                    }
+                  >
+                    <span>04</span>
+                    ABOUT
+                  </Link>
+
+                  <Link
+                    to="/contact"
+                    onClick={closeMenu}
+                    className={
+                      isActive("/contact")
+                        ? "active"
+                        : ""
+                    }
+                  >
+                    <span>05</span>
+                    CONTACT
+                  </Link>
+
+                </nav>
+
+                {/* QUICK ACTIONS */}
+
+                <div className="mobile-menu-actions">
+
+                  <Link
+                    to="/search"
+                    onClick={closeMenu}
+                  >
+                    <Search
+                      size={16}
+                      strokeWidth={1.5}
+                    />
+                    <span>SEARCH</span>
+                  </Link>
+
+                  <Link
+                    to="/wishlist"
+                    onClick={closeMenu}
+                  >
+                    <Heart
+                      size={16}
+                      strokeWidth={1.5}
+                    />
+                    <span>WISHLIST</span>
+                  </Link>
+
+                  <Link
+                    to="/account"
+                    onClick={closeMenu}
+                  >
+                    <User
+                      size={16}
+                      strokeWidth={1.5}
+                    />
+                    <span>ACCOUNT</span>
+                  </Link>
+
+                </div>
+
+                {/* BAG */}
+
+                <div className="mobile-menu-actions">
+
+                  <Link
+                    to="/cart"
+                    onClick={closeMenu}
+                  >
+                    <ShoppingBag
+                      size={16}
+                      strokeWidth={1.5}
+                    />
+
+                    <span>
+                      BAG
+                      {Number(totalItems) > 0
+                        ? ` (${totalItems})`
+                        : ""}
+                    </span>
+                  </Link>
+
+                </div>
+
+                {/* FOOTER */}
+
+                <div className="mobile-menu-footer">
+                  <span>
+                    UNTKN
+                  </span>
+
+                  <span>
+                    EST. 2026
+                  </span>
+                </div>
+
               </div>
-
-              <nav className="mobile-menu-nav">
-
-                <Link
-                  to="/shop"
-                  onClick={closeMenu}
-                  className={
-                    isActive("/shop")
-                      ? "active"
-                      : ""
-                  }
-                >
-                  SHOP
-                </Link>
-
-                <Link
-                  to="/collections"
-                  onClick={closeMenu}
-                  className={
-                    isActive("/collections")
-                      ? "active"
-                      : ""
-                  }
-                >
-                  COLLECTIONS
-                </Link>
-
-                <Link
-                  to="/lookbook"
-                  onClick={closeMenu}
-                  className={
-                    isActive("/lookbook")
-                      ? "active"
-                      : ""
-                  }
-                >
-                  LOOKBOOK
-                </Link>
-
-                <Link
-                  to="/about"
-                  onClick={closeMenu}
-                  className={
-                    isActive("/about")
-                      ? "active"
-                      : ""
-                  }
-                >
-                  ABOUT
-                </Link>
-
-                <Link
-                  to="/contact"
-                  onClick={closeMenu}
-                  className={
-                    isActive("/contact")
-                      ? "active"
-                      : ""
-                  }
-                >
-                  CONTACT
-                </Link>
-
-                <Link
-                  to="/wishlist"
-                  onClick={closeMenu}
-                  className={
-                    isActive("/wishlist")
-                      ? "active"
-                      : ""
-                  }
-                >
-                  WISHLIST
-                </Link>
-
-                <Link
-                  to="/account"
-                  onClick={closeMenu}
-                  className={
-                    isActive("/account")
-                      ? "active"
-                      : ""
-                  }
-                >
-                  ACCOUNT
-                </Link>
-
-                <Link
-                  to="/cart"
-                  onClick={closeMenu}
-                  className={
-                    isActive("/cart")
-                      ? "active"
-                      : ""
-                  }
-                >
-                  BAG
-                  {Number(totalItems) > 0 &&
-                    ` (${totalItems})`}
-                </Link>
-
-              </nav>
-            </aside>
+            </div>
           </>
         )}
+
       </header>
     </>
   );
