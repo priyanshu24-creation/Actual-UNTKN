@@ -243,6 +243,13 @@ const Navbar = () => {
     navigate(path);
   };
 
+  /*
+   * One complete message sequence.
+   *
+   * Example:
+   *
+   * MESSAGE 1 • MESSAGE 2 • MESSAGE 3 •
+   */
   const renderBannerSet = (setIndex) => (
     <div
       className="untkn-running-banner-set"
@@ -270,11 +277,15 @@ const Navbar = () => {
     </div>
   );
 
-  // Exactly 2 copies of the message set is all a seamless marquee
-  // needs: the track scrolls left by 50% (the width of ONE copy) and
-  // then snaps back to 0, which is visually identical to the next
-  // copy already being in place.
-  const bannerSets = [0, 1];
+  /*
+   * Four identical copies make sure the banner
+   * remains filled even on large screens.
+   *
+   * The animation moves exactly one complete set.
+   * Since every set is identical, the restart is
+   * visually seamless.
+   */
+  const bannerSets = [0, 1, 2, 3];
 
   return (
     <>
@@ -309,6 +320,7 @@ const Navbar = () => {
           display: flex;
           align-items: center;
           flex-shrink: 0;
+          width: max-content;
         }
 
         .untkn-running-banner-message {
@@ -341,7 +353,7 @@ const Navbar = () => {
           }
 
           to {
-            transform: translate3d(-50%, 0, 0);
+            transform: translate3d(-25%, 0, 0);
           }
         }
 
@@ -648,9 +660,7 @@ const Navbar = () => {
                     : ""
                 }
                 onClick={() =>
-                  navigateFromMenu(
-                    "/shop"
-                  )
+                  navigateFromMenu("/shop")
                 }
               >
                 SHOP
@@ -659,9 +669,7 @@ const Navbar = () => {
               <button
                 type="button"
                 className={
-                  isActive(
-                    "/collections"
-                  )
+                  isActive("/collections")
                     ? "active"
                     : ""
                 }
@@ -677,9 +685,7 @@ const Navbar = () => {
               <button
                 type="button"
                 className={
-                  isActive(
-                    "/lookbook"
-                  )
+                  isActive("/lookbook")
                     ? "active"
                     : ""
                 }
@@ -695,9 +701,7 @@ const Navbar = () => {
               <button
                 type="button"
                 className={
-                  isActive(
-                    "/wishlist"
-                  )
+                  isActive("/wishlist")
                     ? "active"
                     : ""
                 }
@@ -713,9 +717,7 @@ const Navbar = () => {
               <button
                 type="button"
                 className={
-                  isActive(
-                    "/account"
-                  )
+                  isActive("/account")
                     ? "active"
                     : ""
                 }
@@ -736,9 +738,7 @@ const Navbar = () => {
                     : ""
                 }
                 onClick={() =>
-                  navigateFromMenu(
-                    "/cart"
-                  )
+                  navigateFromMenu("/cart")
                 }
               >
                 BAG
