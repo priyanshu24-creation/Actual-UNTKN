@@ -53,6 +53,10 @@ const testPath = path.resolve(
     "../test"
 );
 
+/* =========================================================
+   CORS CONFIGURATION
+========================================================= */
+
 const allowedOrigins = [
     "http://localhost:5000",
     "http://127.0.0.1:5000",
@@ -67,17 +71,60 @@ const allowedOrigins = [
     "http://127.0.0.1:3000",
 
     "https://untkn.in",
-    "https://www.untkn.in"
+    "https://www.untkn.in",
+
+    "https://bisque-leopard-416747.hostingersite.com"
 ];
+
+const isAllowedOrigin = (origin) => {
+    if (!origin) {
+        return true;
+    }
+
+    if (
+        origin === "null" ||
+        origin.startsWith("file://")
+    ) {
+        return true;
+    }
+
+    if (allowedOrigins.includes(origin)) {
+        return true;
+    }
+
+    /*
+     * Allow Hostinger preview domains such as:
+     *
+     * https://bisque-leopard-416747.hostingersite.com
+     *
+     * and other Hostinger generated preview domains.
+     */
+    if (
+        /^https:\/\/[a-z0-9-]+\.hostingersite\.com$/i.test(
+            origin
+        )
+    ) {
+        return true;
+    }
+
+    return false;
+};
+
+/* =========================================================
+   HELMET
+========================================================= */
 
 app.use(
     helmet({
         contentSecurityPolicy: {
             directives: {
-                defaultSrc: ["'self'"],
+                defaultSrc: [
+                    "'self'"
+                ],
 
                 scriptSrc: [
                     "'self'",
+                    "'unsafe-inline'",
                     "https://checkout.razorpay.com",
                     "https://cdn.razorpay.com"
                 ],
@@ -112,6 +159,8 @@ app.use(
 
                     "https://untkn.in",
                     "https://www.untkn.in",
+
+                    "https://*.hostingersite.com",
 
                     "https://checkout.razorpay.com",
                     "https://api.razorpay.com",
@@ -149,18 +198,14 @@ app.use(
     })
 );
 
+/* =========================================================
+   CORS
+========================================================= */
+
 app.use(
     cors({
         origin: (origin, callback) => {
-            if (!origin) {
-                return callback(null, true);
-            }
-
-            if (
-                allowedOrigins.includes(origin) ||
-                origin.startsWith("file://") ||
-                origin === "null"
-            ) {
+            if (isAllowedOrigin(origin)) {
                 return callback(null, true);
             }
 
@@ -196,6 +241,10 @@ app.use(
     })
 );
 
+/* =========================================================
+   BODY PARSERS
+========================================================= */
+
 app.use(
     express.json({
         limit: "1mb"
@@ -210,6 +259,10 @@ app.use(
 );
 
 app.use(cookieParser());
+
+/* =========================================================
+   API RATE LIMITER
+========================================================= */
 
 const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -232,10 +285,18 @@ app.use(
     apiLimiter
 );
 
+/* =========================================================
+   UPLOADS
+========================================================= */
+
 app.use(
     "/uploads",
     express.static(uploadsPath)
 );
+
+/* =========================================================
+   HEALTH CHECK
+========================================================= */
 
 app.get(
     "/api/health",
@@ -247,6 +308,10 @@ app.get(
         });
     }
 );
+
+/* =========================================================
+   API ROUTES
+========================================================= */
 
 app.use(
     "/api/auth",
@@ -353,6 +418,17 @@ app.use(
     couponRoutes
 );
 
+/*
+ * IMPORTANT:
+ * Delivery methods are controlled by the database.
+ *
+ * DO NOT add a hard-coded:
+ *
+ * app.get("/api/delivery-methods", ...)
+ *
+ * here because it would override the database-driven
+ * delivery-method route.
+ */
 app.use(
     "/api/delivery-methods",
     deliveryMethodRoutes
@@ -362,6 +438,10 @@ app.use(
     "/api/settings/running-banner",
     runningBannerRoutes
 );
+
+/* =========================================================
+   FRONTEND STATIC FILES
+========================================================= */
 
 app.use(
     express.static(frontendPath, {
@@ -394,7 +474,21 @@ app.use(
                 filePath.endsWith(".png") ||
                 filePath.endsWith(".jpg") ||
                 filePath.endsWith(".jpeg") ||
-                filePath.endsWith(".webp")
+                filePath.endsWith(".webp") ||
+                filePath.endsWith(".svg") ||
+                filePath.endsWith(".ico")
+            ) {
+                res.setHeader(
+                    "Cache-Control",
+                    "public, max-age=31536000, immutable"
+                );
+            }
+
+            if (
+                filePath.endsWith(".woff") ||
+                filePath.endsWith(".woff2") ||
+                filePath.endsWith(".ttf") ||
+                filePath.endsWith(".otf")
             ) {
                 res.setHeader(
                     "Cache-Control",
@@ -405,31 +499,55 @@ app.use(
     })
 );
 
+/* =========================================================
+   FRONTEND SPA FALLBACK
+========================================================= */
+
 app.use(
     (req, res, next) => {
         if (req.method !== "GET") {
             return next();
         }
 
+        /*
+         * API requests must never receive
+         * the frontend index.html.
+         */
         if (
+            req.path === "/api" ||
             req.path.startsWith("/api/")
         ) {
             return next();
         }
 
+        /*
+         * Upload requests must never receive
+         * the frontend index.html.
+         */
         if (
+            req.path === "/uploads" ||
             req.path.startsWith("/uploads/")
         ) {
             return next();
         }
 
+        /*
+         * Test files must never receive
+         * the frontend index.html.
+         */
         if (
+            req.path === "/test" ||
             req.path.startsWith("/test/")
         ) {
             return next();
         }
 
+        /*
+         * Never return index.html for missing
+         * Vite assets.
+         */
         if (
+            req.path === "/assets" ||
             req.path.startsWith("/assets/")
         ) {
             return res.status(404).json({
@@ -440,20 +558,42 @@ app.use(
             });
         }
 
+        /*
+         * Requests containing a file extension
+         * should not receive SPA fallback.
+         *
+         * Example:
+         * /favicon.ico
+         * /robots.txt
+         * /sitemap.xml
+         * /manifest.json
+         */
         if (
             req.path.includes(".")
         ) {
             return next();
         }
 
+        /*
+         * React Router SPA fallback.
+         */
         return res.sendFile(
             path.join(
                 frontendPath,
                 "index.html"
-            )
+            ),
+            (error) => {
+                if (error) {
+                    return next(error);
+                }
+            }
         );
     }
 );
+
+/* =========================================================
+   404 HANDLER
+========================================================= */
 
 app.use(
     (req, res) => {
@@ -465,6 +605,10 @@ app.use(
         });
     }
 );
+
+/* =========================================================
+   ERROR HANDLER
+========================================================= */
 
 app.use(errorHandler);
 
