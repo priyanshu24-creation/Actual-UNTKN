@@ -124,10 +124,8 @@ function Account() {
 
         const user = response.data.user;
 
-        if (user.role !== "customer") {
-          window.location.replace("/");
-          return;
-        }
+        // Any authenticated user can access their own account page.
+        // Do not redirect admin users to the admin panel or homepage.
 
         const {
           firstName,
