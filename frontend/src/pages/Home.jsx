@@ -321,10 +321,7 @@ function Home() {
       <section className="editorial-section">
         <div className="editorial-header">
           <div>
-            <p className="eyebrow">
-              EDITORIAL
-            </p>
-
+            
             <h2>
               FLAME
               <br />

@@ -278,16 +278,9 @@ const Navbar = () => {
         bannerSettings.messages.length >
           0 && (
           <div className="untkn-running-banner">
-            <div className="untkn-running-banner-track">
-              <span>
-                {
-                  bannerSettings
-                    .messages[
-                    currentMessage
-                  ]
-                }
-              </span>
-            </div>
+            <marquee behavior="scroll" direction="left" scrollamount="6">
+              {bannerSettings.messages[currentMessage]}
+            </marquee>
           </div>
         )}
 
