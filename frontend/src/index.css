@@ -70,6 +70,14 @@ input {
   transition: opacity 0.25s ease;
 }
 
+
+.logo img {
+  display: block;
+  width: 120px;
+  height: auto;
+  object-fit: contain;
+}
+
 .logo:hover {
   opacity: 0.55;
 }

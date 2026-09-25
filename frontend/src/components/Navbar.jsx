@@ -252,7 +252,7 @@ function Navbar() {
 
             <Link
               to="/"
-              className="navbar-logo"
+              className="logo"
               onClick={closeMenu}
             >
               <img
@@ -261,7 +261,7 @@ function Navbar() {
               />
             </Link>
 
-            <nav className="desktop-nav">
+            <nav className="nav-links">
               <Link
                 to="/shop"
                 className={
@@ -320,11 +320,12 @@ function Navbar() {
               </Link>
             </nav>
 
-            <div className="navbar-actions">
+            <div className="nav-actions">
               <Link
-                to="/search"
-                aria-label="Search"
-              >
+  to="/search"
+  aria-label="Search"
+  className="nav-action-button"
+>
                 <Search
                   size={19}
                   strokeWidth={1.5}
@@ -354,7 +355,7 @@ function Navbar() {
               <Link
                 to="/cart"
                 aria-label="Cart"
-                className="navbar-cart"
+                className="nav-action-button navbar-cart"
               >
                 <ShoppingBag
                   size={19}
