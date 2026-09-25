@@ -203,16 +203,12 @@ function Checkout() {
         setDeliveryMethods(methods);
 
         setDeliveryMethod((current) => {
-          const exists = methods.some(
-            (method) =>
-              String(method.id) ===
-              String(current)
-          );
+  const exists = methods.some(
+    (method) => method.id === current
+  );
 
-          return exists
-            ? current
-            : methods[0]?.id || "";
-        });
+  return exists ? current : "";
+});
       } catch (requestError) {
         console.error(
           "Delivery methods error:",
