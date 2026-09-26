@@ -2,7 +2,8 @@ import express from "express";
 
 import {
     getProductImages,
-    uploadProductImage
+    uploadProductImage,
+    deleteProductImage
 } from "../controllers/productImage.controller.js";
 
 import upload from "../middleware/upload.middleware.js";
@@ -17,6 +18,7 @@ const router = express.Router();
 
 // ==========================================
 // GET PRODUCT IMAGES
+// PUBLIC
 // ==========================================
 
 router.get(
@@ -36,6 +38,19 @@ router.post(
     requireAdmin,
     upload.single("image"),
     uploadProductImage
+);
+
+
+// ==========================================
+// DELETE PRODUCT IMAGE
+// ADMIN ONLY
+// ==========================================
+
+router.delete(
+    "/:productId/images/:imageId",
+    authenticate,
+    requireAdmin,
+    deleteProductImage
 );
 
 

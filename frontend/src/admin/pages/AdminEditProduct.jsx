@@ -1045,26 +1045,152 @@ function AdminEditProduct() {
   // REMOVE IMAGE
   // ==========================================
 
-  const removeImage = (index) => {
-    setImages((current) => {
-      const image = current[index];
+  const removeImage = async (index) => {
+    if (saving) {
+        return;
+    }
 
-      if (
-        image &&
-        !image.existing &&
-        image.preview
-      ) {
-        URL.revokeObjectURL(
-          image.preview
+    const image = images[index];
+
+    if (!image) {
+        return;
+    }
+
+    setError("");
+    setSuccessMessage("");
+
+    // ==========================================
+    // NEW IMAGE - ONLY REMOVE FROM LOCAL STATE
+    // ==========================================
+
+    if (!image.existing) {
+        if (image.preview) {
+            URL.revokeObjectURL(
+                image.preview
+            );
+        }
+
+        setImages((current) =>
+            current.filter(
+                (_, imageIndex) =>
+                    imageIndex !== index
+            )
         );
-      }
 
-      return current.filter(
-        (_, imageIndex) =>
-          imageIndex !== index
-      );
-    });
-  };
+        setSuccessMessage(
+            "New image removed."
+        );
+
+        return;
+    }
+
+    // ==========================================
+    // EXISTING DATABASE IMAGE
+    // ==========================================
+
+    if (!image.id) {
+        setError(
+            "This image does not have a valid database ID."
+        );
+
+        return;
+    }
+
+    const confirmed = window.confirm(
+        "Are you sure you want to permanently delete this image?"
+    );
+
+    if (!confirmed) {
+        return;
+    }
+
+    try {
+        setSaving(true);
+
+        const productId =
+            Number(id);
+
+        const imageId =
+            Number(image.id);
+
+        if (
+            !Number.isInteger(
+                productId
+            ) ||
+            productId <= 0
+        ) {
+            throw new Error(
+                "Invalid product ID."
+            );
+        }
+
+        if (
+            !Number.isInteger(
+                imageId
+            ) ||
+            imageId <= 0
+        ) {
+            throw new Error(
+                "Invalid image ID."
+            );
+        }
+
+        const response =
+            await api.delete(
+                `/products/${productId}/images/${imageId}`
+            );
+
+        if (
+            !response.data?.success
+        ) {
+            throw new Error(
+                response.data?.message ||
+                    "Failed to delete image."
+            );
+        }
+
+        setImages((current) =>
+            current.filter(
+                (_, imageIndex) =>
+                    imageIndex !== index
+            )
+        );
+
+        setProduct((current) =>
+            current
+                ? {
+                      ...current,
+                      images:
+                          current.images?.filter(
+                              (item) =>
+                                  Number(
+                                      item.id
+                                  ) !==
+                                  imageId
+                          ) || []
+                  }
+                : current
+        );
+
+        setSuccessMessage(
+            "Product image deleted successfully."
+        );
+    } catch (requestError) {
+        console.error(
+            "DELETE PRODUCT IMAGE ERROR:",
+            requestError
+        );
+
+        setError(
+            requestError?.response?.data
+                ?.message ||
+                requestError?.message ||
+                "Failed to delete product image."
+        );
+    } finally {
+        setSaving(false);
+    }
+};
 
   // ==========================================
   // SLUG
@@ -1221,6 +1347,56 @@ function AdminEditProduct() {
           }
         );
       }
+
+      // ==========================================
+// REFRESH PRODUCT IMAGES FROM DATABASE
+// ==========================================
+
+const refreshedImagesResponse =
+    await api.get(
+        `/products/${Number(id)}/images`
+    );
+
+if (
+    refreshedImagesResponse.data?.success
+) {
+    const refreshedImages =
+        refreshedImagesResponse.data.images ||
+        [];
+
+    const normalizedImages =
+        refreshedImages
+            .map((image) => ({
+                id:
+                    Number(image.id),
+                preview:
+                    image.image_url ||
+                    "",
+                existing: true,
+                file: null,
+            }))
+            .filter(
+                (image) =>
+                    image.preview &&
+                    !image.preview.includes(
+                        "example.com"
+                    )
+            );
+
+    setImages(
+        normalizedImages
+    );
+
+    setProduct((current) =>
+        current
+            ? {
+                  ...current,
+                  images:
+                      refreshedImages
+              }
+            : current
+    );
+}
 
       // --------------------------------------
       // UPDATE LOCAL PRODUCT
