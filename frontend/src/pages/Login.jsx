@@ -12,7 +12,8 @@ function Login() {
 
   const redirectTo =
     typeof location.state?.redirectTo === "string" &&
-    location.state.redirectTo.startsWith("/")
+    location.state.redirectTo.startsWith("/") &&
+    !location.state.redirectTo.startsWith("/admin")
       ? location.state.redirectTo
       : "/account";
 
@@ -101,6 +102,22 @@ function Login() {
         throw new Error(
           "Login succeeded, but your session could not be verified. Please try again."
         );
+      }
+
+      const authenticatedUser =
+        authResponse.data.user;
+
+      const userRole = String(
+        authenticatedUser?.role || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      if (userRole === "admin") {
+        navigate("/admin", {
+          replace: true,
+        });
+        return;
       }
 
       navigate(redirectTo, {
