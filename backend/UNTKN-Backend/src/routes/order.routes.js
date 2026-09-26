@@ -7,12 +7,16 @@ import {
     cancelOrder,
     getAdminOrders,
     getAdminOrderById,
-    updateAdminOrderStatus
+    updateAdminOrderStatus,
 } from "../controllers/order.controller.js";
 
 import {
+    confirmCodOrder,
+} from "../controllers/cod.controller.js";
+
+import {
     authenticate,
-    requireAdmin
+    requireAdmin,
 } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
@@ -21,6 +25,12 @@ router.post(
     "/",
     authenticate,
     createOrder
+);
+
+router.post(
+    "/:id/confirm-cod",
+    authenticate,
+    confirmCodOrder
 );
 
 router.get(

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+
 import {
   Link,
   useLocation,
@@ -11,6 +12,7 @@ import {
 } from "lucide-react";
 
 import api from "../services/api";
+
 import { useCart } from "../context/CartContext";
 
 function getImageUrl(imageUrl) {
@@ -101,10 +103,12 @@ function Payment() {
         }
 
         if (
-          authError.response?.status === 401
+          authError.response?.status ===
+          401
         ) {
           navigate("/login", {
             replace: true,
+
             state: {
               redirectTo: "/payment",
             },
@@ -119,8 +123,9 @@ function Payment() {
         );
 
         setError(
-          authError.response?.data?.message ||
-            "Unable to verify your account. Please try again."
+          authError.response
+            ?.data?.message ||
+          "Unable to verify your account. Please try again."
         );
 
         setAuthChecking(false);
@@ -185,14 +190,17 @@ function Payment() {
       try {
         setOrderLoading(true);
 
-        const response = await api.get(
-          `/orders/${Number(order.id)}`
-        );
+        const response =
+          await api.get(
+            `/orders/${Number(
+              order.id
+            )}`
+          );
 
         if (!response.data?.success) {
           throw new Error(
             response.data?.message ||
-              "Failed to load order details."
+            "Failed to load order details."
           );
         }
 
@@ -214,126 +222,132 @@ function Payment() {
 
         const itemsWithImages =
           await Promise.all(
-            items.map(async (item) => {
-              let imageUrl =
-                item.image_url ||
-                item.image ||
-                "";
+            items.map(
+              async (item) => {
+                let imageUrl =
+                  item.image_url ||
+                  item.image ||
+                  "";
 
-              if (
-                !imageUrl &&
-                item.product_id
-              ) {
-                try {
-                  const imageResponse =
-                    await api.get(
-                      `/products/${Number(
-                        item.product_id
-                      )}/images`
-                    );
+                if (
+                  !imageUrl &&
+                  item.product_id
+                ) {
+                  try {
+                    const imageResponse =
+                      await api.get(
+                        `/products/${Number(
+                          item.product_id
+                        )}/images`
+                      );
 
-                  const images =
-                    Array.isArray(
-                      imageResponse
-                        .data?.images
-                    )
-                      ? imageResponse.data
-                          .images
-                      : [];
+                    const images =
+                      Array.isArray(
+                        imageResponse
+                          .data?.images
+                      )
+                        ? imageResponse
+                            .data
+                            .images
+                        : [];
 
-                  const validImages =
-                    images.filter(
-                      (image) =>
-                        image?.image_url &&
-                        !String(
-                          image.image_url
-                        )
-                          .toLowerCase()
-                          .includes(
-                            "example.com"
+                    const validImages =
+                      images.filter(
+                        (image) =>
+                          image?.image_url &&
+                          !String(
+                            image.image_url
                           )
-                    );
+                            .toLowerCase()
+                            .includes(
+                              "example.com"
+                            )
+                      );
 
-                  const primaryImage =
-                    validImages.find(
-                      (image) =>
-                        Boolean(
-                          image.is_primary
-                        )
-                    );
+                    const primaryImage =
+                      validImages.find(
+                        (image) =>
+                          Boolean(
+                            image.is_primary
+                          )
+                      );
 
-                  imageUrl =
-                    primaryImage?.image_url ||
-                    validImages[0]
-                      ?.image_url ||
-                    "";
-                } catch (imageError) {
-                  console.error(
-                    `Failed to load image for product ${item.product_id}:`,
+                    imageUrl =
+                      primaryImage?.image_url ||
+                      validImages[0]
+                        ?.image_url ||
+                      "";
+                  } catch (
                     imageError
-                  );
+                  ) {
+                    console.error(
+                      `Failed to load image for product ${item.product_id}:`,
+                      imageError
+                    );
+                  }
                 }
+
+                return {
+                  ...item,
+
+                  id:
+                    item.id ||
+                    item.product_id,
+
+                  product_id:
+                    item.product_id,
+
+                  variant_id:
+                    item.variant_id ??
+                    null,
+
+                  name:
+                    item.product_name ||
+                    item.name ||
+                    "UNTKN Product",
+
+                  product_name:
+                    item.product_name ||
+                    item.name ||
+                    "UNTKN Product",
+
+                  image:
+                    imageUrl,
+
+                  image_url:
+                    imageUrl,
+
+                  size:
+                    item.size_name ||
+                    item.size ||
+                    "",
+
+                  color:
+                    item.color_name ||
+                    item.color ||
+                    "",
+
+                  quantity:
+                    Number(
+                      item.quantity || 1
+                    ),
+
+                  price:
+                    Number(
+                      item.unit_price ??
+                      item.price ??
+                      0
+                    ),
+
+                  unit_price:
+                    Number(
+                      item.unit_price ??
+                      item.price ??
+                      0
+                    ),
+                };
               }
-
-              return {
-                ...item,
-
-                id:
-                  item.id ||
-                  item.product_id,
-
-                product_id:
-                  item.product_id,
-
-                variant_id:
-                  item.variant_id ?? null,
-
-                name:
-                  item.product_name ||
-                  item.name ||
-                  "UNTKN Product",
-
-                product_name:
-                  item.product_name ||
-                  item.name ||
-                  "UNTKN Product",
-
-                image:
-                  imageUrl,
-
-                image_url:
-                  imageUrl,
-
-                size:
-                  item.size_name ||
-                  item.size ||
-                  "",
-
-                color:
-                  item.color_name ||
-                  item.color ||
-                  "",
-
-                quantity:
-                  Number(
-                    item.quantity || 1
-                  ),
-
-                price:
-                  Number(
-                    item.unit_price ??
-                      item.price ??
-                      0
-                  ),
-
-                unit_price:
-                  Number(
-                    item.unit_price ??
-                      item.price ??
-                      0
-                  ),
-              };
-            })
+            )
           );
 
         if (cancelled) {
@@ -357,8 +371,8 @@ function Payment() {
           setError(
             requestError.response
               ?.data?.message ||
-              requestError.message ||
-              "Unable to load order details."
+            requestError.message ||
+            "Unable to load order details."
           );
         }
       } finally {
@@ -410,15 +424,15 @@ function Payment() {
         unit_price:
           Number(
             item.unit_price ??
-              item.price ??
-              0
+            item.price ??
+            0
           ),
 
         price:
           Number(
             item.unit_price ??
-              item.price ??
-              0
+            item.price ??
+            0
           ),
 
         quantity:
@@ -444,7 +458,8 @@ function Payment() {
             item.product_id,
 
           variant_id:
-            item.variant_id ?? null,
+            item.variant_id ??
+            null,
 
           name:
             item.product_name ||
@@ -484,15 +499,15 @@ function Payment() {
           price:
             Number(
               item.unit_price ??
-                item.price ??
-                0
+              item.price ??
+              0
             ),
 
           unit_price:
             Number(
               item.unit_price ??
-                item.price ??
-                0
+              item.price ??
+              0
             ),
         })
       );
@@ -510,8 +525,8 @@ function Payment() {
       const backendSubtotal =
         Number(
           order?.subtotal ||
-            order?.subtotal_amount ||
-            0
+          order?.subtotal_amount ||
+          0
         );
 
       if (
@@ -523,7 +538,7 @@ function Payment() {
       const checkoutSubtotal =
         Number(
           checkoutData?.subtotal ||
-            0
+          0
         );
 
       if (
@@ -548,12 +563,12 @@ function Payment() {
           sum +
           Number(
             item.unit_price ??
-              item.price ??
-              0
+            item.price ??
+            0
           ) *
-            Number(
-              item.quantity || 0
-            ),
+          Number(
+            item.quantity || 0
+          ),
         0
       );
     }, [
@@ -566,16 +581,16 @@ function Payment() {
   const shipping =
     Number(
       order?.shipping_fee ??
-        order?.shipping_amount ??
-        checkoutData?.shippingFee ??
-        100
+      order?.shipping_amount ??
+      checkoutData?.shippingFee ??
+      100
     );
 
   const discount = Number(
     order?.discount_amount ??
-      order?.discount ??
-      checkoutData?.discount ??
-      0
+    order?.discount ??
+    checkoutData?.discount ??
+    0
   );
 
   const couponCode =
@@ -584,17 +599,18 @@ function Payment() {
     checkoutData?.coupon?.code ||
     null;
 
-  const backendTotal = Number(
-    order?.total_amount ||
+  const backendTotal =
+    Number(
+      order?.total_amount ||
       order?.total ||
       0
-  );
+    );
 
   const calculatedTotal =
     Math.max(
       calculatedSubtotal +
-        shipping -
-        discount,
+      shipping -
+      discount,
       0
     );
 
@@ -720,8 +736,10 @@ function Payment() {
       ) {
         navigate("/login", {
           replace: true,
+
           state: {
-            redirectTo: "/payment",
+            redirectTo:
+              "/payment",
           },
         });
 
@@ -731,7 +749,7 @@ function Payment() {
       setError(
         authError.response
           ?.data?.message ||
-          "Unable to verify your account. Please try again."
+        "Unable to verify your account. Please try again."
       );
 
       return;
@@ -745,9 +763,32 @@ function Payment() {
       return;
     }
 
-    if (selectedMethod === "cod") {
+    if (
+      selectedMethod === "cod"
+    ) {
       try {
         setLoading(true);
+
+        const codResponse =
+          await api.post(
+            `/orders/${Number(
+              order.id
+            )}/confirm-cod`
+          );
+
+        console.log(
+          "COD confirmation response:",
+          codResponse.data
+        );
+
+        if (
+          !codResponse.data?.success
+        ) {
+          throw new Error(
+            codResponse.data?.message ||
+            "Failed to confirm COD order."
+          );
+        }
 
         sessionStorage.removeItem(
           "untkn_checkout"
@@ -759,19 +800,28 @@ function Payment() {
             replace: true,
 
             state: {
-              order,
+              order:
+                codResponse
+                  .data?.order ||
+                order,
+
               paymentMethod:
                 "cod",
             },
           }
         );
-      } catch (codError) {
+      } catch (
+        codError
+      ) {
         console.error(
-          "COD error:",
+          "COD order error:",
           codError
         );
 
         setError(
+          codError.response
+            ?.data?.message ||
+          codError.message ||
           "Unable to place COD order."
         );
 
@@ -809,7 +859,7 @@ function Payment() {
       ) {
         throw new Error(
           response.data?.message ||
-            "Failed to create Razorpay order."
+          "Failed to create Razorpay order."
         );
       }
 
@@ -823,11 +873,13 @@ function Payment() {
       }
 
       const razorpayOrderId =
-        paymentData?.razorpay_order_id;
+        paymentData
+          ?.razorpay_order_id;
 
       const razorpayAmount =
         Number(
-          paymentData?.amount || 0
+          paymentData?.amount ||
+          0
         );
 
       const razorpayCurrency =
@@ -835,7 +887,8 @@ function Payment() {
         "INR";
 
       const razorpayKey =
-        paymentData?.razorpay_key_id ||
+        paymentData
+          ?.razorpay_key_id ||
         import.meta.env
           .VITE_RAZORPAY_KEY_ID;
 
@@ -870,7 +923,8 @@ function Payment() {
         }`.trim();
 
       const options = {
-        key: razorpayKey,
+        key:
+          razorpayKey,
 
         amount:
           razorpayAmount,
@@ -878,7 +932,8 @@ function Payment() {
         currency:
           razorpayCurrency,
 
-        name: "UNTKN",
+        name:
+          "UNTKN",
 
         description:
           `Payment for order ${
@@ -910,7 +965,7 @@ function Payment() {
           order_number:
             String(
               order.order_number ||
-                ""
+              ""
             ),
 
           coupon_code:
@@ -919,7 +974,8 @@ function Payment() {
         },
 
         theme: {
-          color: "#000000",
+          color:
+            "#000000",
         },
 
         modal: {
@@ -947,13 +1003,16 @@ function Payment() {
                       ),
 
                     razorpay_order_id:
-                      razorpayResponse.razorpay_order_id,
+                      razorpayResponse
+                        .razorpay_order_id,
 
                     razorpay_payment_id:
-                      razorpayResponse.razorpay_payment_id,
+                      razorpayResponse
+                        .razorpay_payment_id,
 
                     razorpay_signature:
-                      razorpayResponse.razorpay_signature,
+                      razorpayResponse
+                        .razorpay_signature,
                   }
                 );
 
@@ -966,7 +1025,7 @@ function Payment() {
                   verifyResponse
                     .data
                     ?.message ||
-                    "Payment verification failed."
+                  "Payment verification failed."
                 );
               }
 
@@ -1007,8 +1066,8 @@ function Payment() {
               setError(
                 verifyError.response
                   ?.data?.message ||
-                  verifyError.message ||
-                  "Payment verification failed."
+                verifyError.message ||
+                "Payment verification failed."
               );
 
               setLoading(false);
@@ -1030,9 +1089,10 @@ function Payment() {
           );
 
           setError(
-            paymentFailure.error
+            paymentFailure
+              .error
               ?.description ||
-              "Payment failed. Please try again."
+            "Payment failed. Please try again."
           );
 
           setLoading(false);
@@ -1042,7 +1102,9 @@ function Payment() {
       razorpay.open();
 
       setLoading(false);
-    } catch (paymentError) {
+    } catch (
+      paymentError
+    ) {
       console.error(
         "Payment error:",
         paymentError
@@ -1051,8 +1113,8 @@ function Payment() {
       setError(
         paymentError.response
           ?.data?.message ||
-          paymentError.message ||
-          "Unable to start payment."
+        paymentError.message ||
+        "Unable to start payment."
       );
 
       setLoading(false);
@@ -1167,10 +1229,13 @@ function Payment() {
                 style={{
                   padding:
                     "30px 0",
+
                   textAlign:
                     "center",
+
                   fontSize:
                     "12px",
+
                   letterSpacing:
                     "0.08em",
                 }}
@@ -1193,14 +1258,14 @@ function Payment() {
                   const itemPrice =
                     Number(
                       item.unit_price ??
-                        item.price ??
-                        0
+                      item.price ??
+                      0
                     );
 
                   const quantity =
                     Number(
                       item.quantity ||
-                        0
+                      0
                     );
 
                   const itemTotal =
@@ -1230,7 +1295,9 @@ function Payment() {
                                 "none";
 
                               const parent =
-                                event.currentTarget.parentElement;
+                                event
+                                  .currentTarget
+                                  .parentElement;
 
                               if (
                                 parent &&
@@ -1283,16 +1350,22 @@ function Payment() {
                             style={{
                               width:
                                 "100%",
+
                               height:
                                 "100%",
+
                               display:
                                 "flex",
+
                               alignItems:
                                 "center",
+
                               justifyContent:
                                 "center",
+
                               fontSize:
                                 "10px",
+
                               letterSpacing:
                                 "0.08em",
                             }}
@@ -1389,7 +1462,8 @@ function Payment() {
               </span>
 
               <strong>
-                {shipping === 0
+                {shipping ===
+                0
                   ? "FREE"
                   : `₹${formatMoney(
                       shipping
@@ -1419,18 +1493,25 @@ function Payment() {
                 style={{
                   marginTop:
                     "18px",
+
                   padding:
                     "13px 15px",
+
                   border:
                     "1px solid #d7e6da",
+
                   background:
                     "#f5faf6",
+
                   display:
                     "flex",
+
                   justifyContent:
                     "space-between",
+
                   alignItems:
                     "center",
+
                   gap: "15px",
                 }}
               >
@@ -1439,10 +1520,13 @@ function Payment() {
                     style={{
                       display:
                         "block",
+
                       fontSize:
                         "10px",
+
                       letterSpacing:
                         "0.1em",
+
                       fontWeight:
                         600,
                     }}
@@ -1454,15 +1538,20 @@ function Payment() {
                     style={{
                       display:
                         "block",
+
                       marginTop:
                         "5px",
+
                       fontSize:
                         "13px",
+
                       letterSpacing:
                         "0.08em",
                     }}
                   >
-                    {couponCode}
+                    {
+                      couponCode
+                    }
                   </strong>
                 </div>
 
@@ -1470,8 +1559,10 @@ function Payment() {
                   style={{
                     fontSize:
                       "11px",
+
                     color:
                       "#16803c",
+
                     fontWeight:
                       600,
                   }}
@@ -1494,7 +1585,9 @@ function Payment() {
             <button
               type="button"
               className="payment-action-button"
-              onClick={(event) =>
+              onClick={(
+                event
+              ) =>
                 handlePayment(
                   event,
                   "upi"
@@ -1518,7 +1611,9 @@ function Payment() {
             <button
               type="button"
               className="payment-action-button payment-cod-button"
-              onClick={(event) =>
+              onClick={(
+                event
+              ) =>
                 handlePayment(
                   event,
                   "cod"
