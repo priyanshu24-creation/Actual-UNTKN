@@ -1533,16 +1533,32 @@ export const updateAdminOrderStatus =
             const order =
                 orders[0];
 
-            const isPaidOrder =
-                String(order.payment_status || "")
+            const currentPaymentStatus =
+                String(
+                    order.payment_status || ""
+                )
                     .trim()
-                    .toLowerCase() === "paid";
+                    .toLowerCase();
+
+            const currentOrderStatus =
+                String(
+                    order.order_status || ""
+                )
+                    .trim()
+                    .toLowerCase();
+
+            const isPaidOrder =
+                currentPaymentStatus === "paid";
 
             const isCodOrder =
                 !isPaidOrder &&
-                String(order.order_status || "")
-                    .trim()
-                    .toLowerCase() === "confirmed";
+                [
+                    "confirmed",
+                    "processing",
+                    "shipped"
+                ].includes(
+                    currentOrderStatus
+                );
 
             if (
                 orderStatus === "shipped" ||
