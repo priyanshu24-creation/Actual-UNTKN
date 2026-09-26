@@ -451,12 +451,15 @@ function AdminOrderDetails() {
       setError("");
       setSuccess("");
 
-      const response = await api.patch(
+const response = await api.put(
     `/orders/admin/${encodeURIComponent(order.id)}/status`,
     {
-        status: orderStatus
+        order_status: String(orderStatus)
+            .trim()
+            .toLowerCase()
     }
 );
+
       const updatedOrder = getOrderPayload(response);
 
       if (updatedOrder) {
