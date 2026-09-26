@@ -2,7 +2,7 @@ import pool from "../config/database.js";
 import { sendOrderConfirmationEmail } from "../services/order-confirmation.service.js";
 
 export const confirmCodOrder = async (req, res) => {
-    let connection;
+    let connection = null;
     let transactionStarted = false;
 
     try {
@@ -78,7 +78,11 @@ export const confirmCodOrder = async (req, res) => {
             });
         }
 
-        if (!order.shipping_email) {
+        const customerEmail = String(
+            order.shipping_email || ""
+        ).trim();
+
+        if (!customerEmail) {
             await connection.rollback();
             transactionStarted = false;
 
@@ -120,28 +124,54 @@ export const confirmCodOrder = async (req, res) => {
         transactionStarted = false;
 
         let emailSent = false;
+        let emailMessageId = null;
 
         try {
-            await sendOrderConfirmationEmail(orderId);
-            emailSent = true;
-
             console.log(
-                `COD confirmation email sent successfully for order ${orderId} to ${order.shipping_email}`
+                `Starting COD confirmation email for order ${orderId} to ${customerEmail}`
             );
+
+            const emailResult =
+                await sendOrderConfirmationEmail(orderId);
+
+            if (
+                emailResult &&
+                typeof emailResult === "object" &&
+                emailResult.messageId
+            ) {
+                emailSent = true;
+                emailMessageId = emailResult.messageId;
+
+                console.log(
+                    `COD confirmation email sent successfully for order ${orderId} to ${customerEmail}`
+                );
+
+                console.log(
+                    `COD confirmation email Message ID: ${emailMessageId}`
+                );
+            } else {
+                console.error(
+                    `COD confirmation email was not confirmed as sent for order ${orderId}`
+                );
+
+                console.error(
+                    "Email service returned:",
+                    emailResult
+                );
+            }
         } catch (emailError) {
             console.error(
-                `COD confirmation email failed for order ${orderId}:`
+                `COD confirmation email failed for order ${orderId}`
             );
+
             console.error(emailError);
         }
 
         return res.status(200).json({
             success: true,
-            message:
-                order.order_status === "confirmed"
-                    ? "COD order confirmed successfully"
-                    : "COD order confirmed successfully",
+            message: "COD order confirmed successfully",
             email_sent: emailSent,
+            email_message_id: emailMessageId,
             order: {
                 id: order.id,
                 order_number: order.order_number,
