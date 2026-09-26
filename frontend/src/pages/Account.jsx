@@ -124,7 +124,28 @@ function Account() {
 
         const user = response.data.user;
 
-        if (user.role !== "customer") {
+        /*
+         * IMPORTANT:
+         *
+         * Only an authenticated ADMIN should be
+         * redirected to the admin panel.
+         *
+         * Do NOT use:
+         *
+         * user.role !== "customer"
+         *
+         * because that would redirect normal users
+         * if the API does not return the role exactly
+         * as "customer".
+         */
+
+        const userRole = String(
+          user?.role || ""
+        )
+          .trim()
+          .toLowerCase();
+
+        if (userRole === "admin") {
           window.location.replace("/admin");
           return;
         }
@@ -138,6 +159,12 @@ function Account() {
           return;
         }
 
+        /*
+         * If the user has no information saved,
+         * these values remain empty.
+         *
+         * The user can then fill them using EDIT.
+         */
         setPersonalDetails({
           firstName,
           lastName,
@@ -155,6 +182,12 @@ function Account() {
         setAddress(fallbackAddress);
         setSavedAddress(fallbackAddress);
 
+        /*
+         * Load the user's own saved address.
+         *
+         * The backend should use the authenticated
+         * user's ID when handling /addresses.
+         */
         try {
           const addressResponse =
             await api.get("/addresses");
@@ -223,7 +256,8 @@ function Account() {
         }
 
         showError(
-          "We couldn't load your account details. Please try again."
+          requestError.response?.data?.message ||
+            "We couldn't load your account details. Please try again."
         );
       } finally {
         if (!cancelled) {
@@ -315,11 +349,15 @@ function Account() {
         .join(" ");
 
       if (fullName.length < 2) {
-        showError("Please enter your name.");
+        showError(
+          "Please enter your name."
+        );
         return;
       }
 
-      if (!personalDetails.email.trim()) {
+      if (
+        !personalDetails.email.trim()
+      ) {
         showError(
           "Please enter your email address."
         );
