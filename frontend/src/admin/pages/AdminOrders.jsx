@@ -62,27 +62,31 @@ function getOrderStatusLabel(status) {
   }
 }
 
-function getPaymentStatusLabel(status) {
-  switch (normalizeStatus(status)) {
-    case "paid":
-      return "PAID";
+const getPaymentStatusLabel = (status) => {
+    const paymentStatus = String(status || "")
+        .trim()
+        .toLowerCase();
 
-    case "pending":
-      return "PENDING";
+    switch (paymentStatus) {
+        case "paid":
+            return "Paid";
 
-    case "failed":
-      return "FAILED";
+        case "pending":
+            return "Cash on Delivery";
 
-    case "refunded":
-      return "REFUNDED";
+        case "failed":
+            return "Failed";
 
-    case "cancelled":
-      return "CANCELLED";
+        case "refunded":
+            return "Refunded";
 
-    default:
-      return String(status || "PENDING").toUpperCase();
-  }
-}
+        case "cancelled":
+            return "Cancelled";
+
+        default:
+            return "Unknown";
+    }
+};
 
 function AdminOrders() {
   const [orders, setOrders] = useState([]);
