@@ -1,5 +1,5 @@
 import pool from "../config/database.js";
-import { sendOrderConfirmationEmail } from "../services/order-confirmation.service.js";
+import { sendOrderEmails } from "../services/order-confirmation.service.js";
 
 export const confirmCodOrder = async (req, res) => {
     let connection = null;
@@ -124,44 +124,34 @@ export const confirmCodOrder = async (req, res) => {
         transactionStarted = false;
 
         let emailSent = false;
-        let emailMessageId = null;
+        let adminEmailSent = false;
 
         try {
             console.log(
-                `Starting COD confirmation email for order ${orderId} to ${customerEmail}`
+                `Starting COD order email processing for order ${orderId} to ${customerEmail}`
             );
 
-            const emailResult =
-                await sendOrderConfirmationEmail(orderId);
+            const emailResults =
+                await sendOrderEmails(orderId);
 
-            if (
-                emailResult &&
-                typeof emailResult === "object" &&
-                emailResult.messageId
-            ) {
-                emailSent = true;
-                emailMessageId = emailResult.messageId;
+            emailSent = Boolean(
+                emailResults?.customer
+            );
 
-                console.log(
-                    `COD confirmation email sent successfully for order ${orderId} to ${customerEmail}`
-                );
+            adminEmailSent = Boolean(
+                emailResults?.admin
+            );
 
-                console.log(
-                    `COD confirmation email Message ID: ${emailMessageId}`
-                );
-            } else {
-                console.error(
-                    `COD confirmation email was not confirmed as sent for order ${orderId}`
-                );
-
-                console.error(
-                    "Email service returned:",
-                    emailResult
-                );
-            }
+            console.log(
+                `COD order email processing completed for order ${orderId}:`,
+                {
+                    customer: emailSent,
+                    admin: adminEmailSent
+                }
+            );
         } catch (emailError) {
             console.error(
-                `COD confirmation email failed for order ${orderId}`
+                `COD order email processing failed for order ${orderId}`
             );
 
             console.error(emailError);
@@ -171,7 +161,7 @@ export const confirmCodOrder = async (req, res) => {
             success: true,
             message: "COD order confirmed successfully",
             email_sent: emailSent,
-            email_message_id: emailMessageId,
+            admin_email_sent: adminEmailSent,
             order: {
                 id: order.id,
                 order_number: order.order_number,

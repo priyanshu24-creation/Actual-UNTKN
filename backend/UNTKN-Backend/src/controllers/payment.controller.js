@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import pool from "../config/database.js";
 import razorpay from "../config/razorpay.js";
-import { sendOrderConfirmationEmail } from "../services/order-confirmation.service.js";
+import { sendOrderEmails } from "../services/order-confirmation.service.js";
 
 export const createPaymentOrder = async (req, res) => {
     try {
@@ -598,19 +598,33 @@ export const verifyPayment = async (
         transactionStarted = false;
 
         let emailSent = false;
+let adminEmailSent = false;
 
-        try {
-            await sendOrderConfirmationEmail(
-                numericOrderId
-            );
+try {
+    const emailResults =
+        await sendOrderEmails(numericOrderId);
 
-            emailSent = true;
-        } catch (emailError) {
-            console.error(
-                "Order confirmation email error:",
-                emailError
-            );
+    emailSent = Boolean(
+        emailResults?.customer
+    );
+
+    adminEmailSent = Boolean(
+        emailResults?.admin
+    );
+
+    console.log(
+        `Order email processing completed for order ${numericOrderId}:`,
+        {
+            customer: emailSent,
+            admin: adminEmailSent
         }
+    );
+} catch (emailError) {
+    console.error(
+        "Order email processing error:",
+        emailError
+    );
+}
 
         return res.status(200).json({
             success: true,
