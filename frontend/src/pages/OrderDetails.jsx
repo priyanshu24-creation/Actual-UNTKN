@@ -42,7 +42,7 @@ function OrderDetails() {
   const getStatusLabel = (status) => {
     switch (status) {
       case "pending":
-        return "ORDER PLACED";
+        return "ORDER PENDING";
 
       case "confirmed":
         return "ORDER CONFIRMED";
