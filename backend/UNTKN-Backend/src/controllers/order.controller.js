@@ -1533,37 +1533,70 @@ export const updateAdminOrderStatus =
             const order =
                 orders[0];
 
+            const isPaidOrder =
+                String(order.payment_status || "")
+                    .trim()
+                    .toLowerCase() === "paid";
+
+            const isCodOrder =
+                !isPaidOrder &&
+                String(order.order_status || "")
+                    .trim()
+                    .toLowerCase() === "confirmed";
+
             if (
-                orderStatus ===
-                    "shipped" ||
-                orderStatus ===
-                    "delivered"
+                orderStatus === "shipped" ||
+                orderStatus === "delivered"
             ) {
                 if (
-                    order.payment_status !==
-                    "paid"
+                    !isPaidOrder &&
+                    !isCodOrder
                 ) {
                     return res.status(400).json({
                         success: false,
                         message:
-                            "Order must be paid before it can be shipped or delivered"
+                            "Order must be confirmed before it can be shipped or delivered"
                     });
                 }
             }
 
-            await pool.execute(
-                `
-                UPDATE orders
+            if (
+                orderStatus === "delivered" &&
+                isCodOrder
+            ) {
+                await pool.execute(
+                    `
+                    UPDATE orders
 
-                SET order_status = ?
+                    SET
+                        order_status = ?,
+                        payment_status = 'paid',
+                        updated_at = CURRENT_TIMESTAMP
 
-                WHERE id = ?
-                `,
-                [
-                    orderStatus,
-                    orderId
-                ]
-            );
+                    WHERE id = ?
+                    `,
+                    [
+                        orderStatus,
+                        orderId
+                    ]
+                );
+            } else {
+                await pool.execute(
+                    `
+                    UPDATE orders
+
+                    SET
+                        order_status = ?,
+                        updated_at = CURRENT_TIMESTAMP
+
+                    WHERE id = ?
+                    `,
+                    [
+                        orderStatus,
+                        orderId
+                    ]
+                );
+            }
 
             let statusEmailSent =
                 false;

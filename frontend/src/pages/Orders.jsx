@@ -38,7 +38,7 @@ function Orders() {
   const getStatusLabel = (status) => {
     switch (String(status || "").toLowerCase()) {
       case "pending":
-        return "ORDER PLACED";
+        return "ORDER PENDING";
 
       case "confirmed":
         return "ORDER CONFIRMED";
