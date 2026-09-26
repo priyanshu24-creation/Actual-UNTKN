@@ -124,8 +124,10 @@ function Account() {
 
         const user = response.data.user;
 
-        // Any authenticated user can access their own account page.
-        // Do not redirect admin users to the admin panel or homepage.
+        if (user.role !== "customer") {
+          window.location.replace("/admin");
+          return;
+        }
 
         const {
           firstName,
@@ -387,7 +389,8 @@ function Account() {
       );
 
       showError(
-        "We couldn't update your personal details. Please try again."
+        requestError.response?.data?.message ||
+          "We couldn't update your personal details. Please try again."
       );
     } finally {
       setSavingPersonal(false);
@@ -561,7 +564,8 @@ function Account() {
       );
 
       showError(
-        "We couldn't save your delivery address. Please try again."
+        requestError.response?.data?.message ||
+          "We couldn't save your delivery address. Please try again."
       );
     } finally {
       setSavingAddress(false);
@@ -675,7 +679,7 @@ function Account() {
         <div
           className="account-toast account-toast-error"
           role="alert"
-          aria-live="polite"
+          aria-live="assertive"
         >
           <div className="account-toast-icon">
             <X
@@ -1297,7 +1301,9 @@ function Account() {
                 <button
                   type="button"
                   className="account-save-button"
-                  onClick={saveAddress}
+                  onClick={
+                    saveAddress
+                  }
                   disabled={
                     savingAddress
                   }
