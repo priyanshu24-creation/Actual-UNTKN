@@ -578,13 +578,12 @@ function Payment() {
       checkoutItems,
     ]);
 
-  const shipping =
-    Number(
-      order?.shipping_fee ??
-      order?.shipping_amount ??
-      checkoutData?.shippingFee ??
-      100
-    );
+  const shipping = Number(
+    checkoutData?.shippingFee ??
+    order?.shipping_fee ??
+    order?.shipping_amount ??
+    0
+);
 
   const discount = Number(
     order?.discount_amount ??

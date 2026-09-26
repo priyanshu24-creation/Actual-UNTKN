@@ -64,10 +64,8 @@ export const createOrder = async (req, res) => {
             });
         }
 
-        const shippingFee =
-            selectedDeliveryMethod === "express"
-                ? 150
-                : 100;
+const shippingFee = 0;
+
 
         let discount = 0;
         let appliedCoupon = null;
