@@ -404,7 +404,7 @@ function AdminOrders() {
             </option>
 
             <option value="pending">
-              Pending
+              Cash on Delivery
             </option>
 
             <option value="confirmed">
