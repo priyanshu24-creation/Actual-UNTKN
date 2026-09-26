@@ -1,26 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+
 import {
-  ArrowLeft,
-  ArrowRight,
-  Check,
-  ChevronRight,
-  Home,
-  LockKeyhole,
-  Mail,
+  ChevronLeft,
   MapPin,
-  Package,
-  Phone,
   ShieldCheck,
-  ShoppingBag,
-  User,
 } from "lucide-react";
 
 import api from "../services/api";
 import { useCart } from "../context/CartContext";
-
-const formatINR = (value) =>
-  `₹${Number(value || 0).toLocaleString("en-IN")}`;
 
 function Checkout() {
   const navigate = useNavigate();
@@ -31,6 +19,13 @@ function Checkout() {
     loading: cartLoading,
     refreshCart,
   } = useCart();
+
+  const [deliveryMethods, setDeliveryMethods] = useState([]);
+  const [deliveryMethod, setDeliveryMethod] =
+    useState("");
+
+  const [deliveryLoading, setDeliveryLoading] =
+    useState(true);
 
   const [formData, setFormData] = useState({
     firstName: "",
@@ -44,26 +39,17 @@ function Checkout() {
     pincode: "",
   });
 
-  const [authChecking, setAuthChecking] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [authChecking, setAuthChecking] = useState(true);
 
-  const itemCount = useMemo(() => {
-    return cartItems.reduce(
-      (total, item) =>
-        total + Number(item?.quantity || 0),
-      0
-    );
-  }, [cartItems]);
+  const [couponCode, setCouponCode] = useState("");
+  const [couponData, setCouponData] = useState(null);
+  const [couponError, setCouponError] = useState("");
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [availableCoupons, setAvailableCoupons] = useState([]);
+  const [showOffers, setShowOffers] = useState(false);
 
-  const safeSubtotal = Number(subtotal || 0);
-
-  const shippingFee = 0;
-
-  const total = Math.max(
-    0,
-    safeSubtotal + shippingFee
-  );
 
   useEffect(() => {
     let mounted = true;
@@ -80,27 +66,21 @@ function Checkout() {
           return;
         }
 
-        if (authError?.response?.status === 401) {
+        if (authError.response?.status === 401) {
           navigate("/login", {
             replace: true,
             state: {
               redirectTo: "/checkout",
             },
           });
-
           return;
         }
 
-        console.error(
-          "Checkout authentication check failed:",
-          authError
-        );
-
+        console.error("Checkout authentication check failed:", authError);
         setError(
-          authError?.response?.data?.message ||
+          authError.response?.data?.message ||
             "Unable to verify your account. Please try again."
         );
-
         setAuthChecking(false);
       }
     };
@@ -113,81 +93,347 @@ function Checkout() {
   }, [navigate]);
 
   useEffect(() => {
-    if (authChecking || cartLoading) {
-      return;
-    }
+    let mounted = true;
 
-    if (
-      Array.isArray(cartItems) &&
-      cartItems.length === 0
-    ) {
-      return;
-    }
+    const isActiveDeliveryMethod = (method) => {
+      if (!method || !method.id) {
+        return false;
+      }
 
-    const savedCheckout = sessionStorage.getItem(
-      "untkn_checkout"
+      if (Object.prototype.hasOwnProperty.call(method, "isActive")) {
+        return (
+          method.isActive === true ||
+          method.isActive === 1 ||
+          method.isActive === "1" ||
+          method.isActive === "true"
+        );
+      }
+
+      if (Object.prototype.hasOwnProperty.call(method, "is_active")) {
+        return (
+          method.is_active === true ||
+          method.is_active === 1 ||
+          method.is_active === "1" ||
+          method.is_active === "true"
+        );
+      }
+
+      if (Object.prototype.hasOwnProperty.call(method, "enabled")) {
+        return (
+          method.enabled === true ||
+          method.enabled === 1 ||
+          method.enabled === "1" ||
+          method.enabled === "true"
+        );
+      }
+
+      return false;
+    };
+
+    const loadDeliveryMethods = async () => {
+      try {
+        setDeliveryLoading(true);
+
+        setDeliveryMethods([]);
+        setDeliveryMethod("");
+
+        const response = await api.get(
+          "/delivery-methods",
+          {
+            params: {
+              _: Date.now(),
+            },
+            headers: {
+              "Cache-Control": "no-cache",
+              Pragma: "no-cache",
+            },
+          }
+        );
+
+        const rawMethods = Array.isArray(
+          response.data?.deliveryMethods
+        )
+          ? response.data.deliveryMethods
+          : Array.isArray(response.data?.methods)
+          ? response.data.methods
+          : [];
+
+        const methods = rawMethods
+          .filter(isActiveDeliveryMethod)
+          .map((method) => ({
+            id: String(method.id),
+            name: String(method.name || ""),
+            description: method.description || "",
+            price: Number(method.price ?? 0),
+          }))
+          .filter((method) => method.id);
+
+        if (!mounted) {
+          return;
+        }
+
+        setDeliveryMethods(methods);
+
+        setDeliveryMethod((current) => {
+          const exists = methods.some(
+            (method) => String(method.id) === String(current)
+          );
+
+          return exists ? current : methods[0]?.id || "";
+        });
+      } catch (requestError) {
+        console.error(
+          "Delivery methods error:",
+          requestError
+        );
+
+        if (!mounted) {
+          return;
+        }
+
+        setDeliveryMethods([]);
+        setDeliveryMethod("");
+      } finally {
+        if (mounted) {
+          setDeliveryLoading(false);
+        }
+      }
+    };
+
+    loadDeliveryMethods();
+
+    const handleWindowFocus = () => {
+      loadDeliveryMethods();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        loadDeliveryMethods();
+      }
+    };
+
+    window.addEventListener("focus", handleWindowFocus);
+    document.addEventListener(
+      "visibilitychange",
+      handleVisibilityChange
     );
 
-    if (!savedCheckout) {
-      return;
+    return () => {
+      mounted = false;
+      window.removeEventListener(
+        "focus",
+        handleWindowFocus
+      );
+      document.removeEventListener(
+        "visibilitychange",
+        handleVisibilityChange
+      );
+    };
+  }, []);
+
+  useEffect(() => {
+    const savedCode =
+      sessionStorage.getItem(
+        "untkn_coupon_code"
+      );
+
+    const savedData =
+      sessionStorage.getItem(
+        "untkn_coupon_data"
+      );
+
+    if (savedCode) {
+      setCouponCode(
+        savedCode.trim().toUpperCase()
+      );
+    }
+
+    if (savedData) {
+      try {
+        const parsedCoupon =
+          JSON.parse(savedData);
+
+        if (
+          parsedCoupon &&
+          typeof parsedCoupon === "object"
+        ) {
+          const discount = Number(
+            parsedCoupon.discount ??
+            parsedCoupon.discount_amount ??
+            0
+          );
+
+          if (
+            Number.isFinite(discount) &&
+            discount > 0
+          ) {
+            setCouponData({
+              ...parsedCoupon,
+              discount,
+            });
+          }
+        }
+      } catch (restoreError) {
+        console.error(
+          "Failed to restore saved coupon:",
+          restoreError
+        );
+
+        sessionStorage.removeItem(
+          "untkn_coupon_data"
+        );
+      }
+    }
+
+    let mounted = true;
+
+    const loadAvailableCoupons = async () => {
+      try {
+        const response = await api.get("/coupons/active");
+
+        if (!mounted) {
+          return;
+        }
+
+        setAvailableCoupons(
+          Array.isArray(response.data?.coupons)
+            ? response.data.coupons
+            : []
+        );
+      } catch (requestError) {
+        console.error(
+          "Available coupons error:",
+          requestError
+        );
+      }
+    };
+
+    loadAvailableCoupons();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const buildCouponItems = () =>
+    cartItems.map((item) => ({
+      product_id: item.product_id,
+      category_id: item.category_id ?? null,
+      collection_id: item.collection_id ?? null,
+      quantity: Number(item.quantity || 0),
+      unit_price: Number(
+        item.unit_price ?? item.price ?? 0
+      )
+    }));
+
+  const applyCoupon = async (code = couponCode) => {
+    const cleanCode = String(code || "").trim().toUpperCase();
+
+    if (!cleanCode) {
+      setCouponError("Enter a coupon code.");
+      return false;
     }
 
     try {
-      const parsed = JSON.parse(savedCheckout);
+      setCouponLoading(true);
+      setCouponError("");
 
-      const customer = parsed?.customer || {};
-      const shipping = parsed?.shipping || {};
-
-      setFormData((current) => ({
-        ...current,
-        firstName:
-          current.firstName ||
-          customer.firstName ||
-          "",
-        lastName:
-          current.lastName ||
-          customer.lastName ||
-          "",
-        email:
-          current.email ||
-          customer.email ||
-          "",
-        phone:
-          current.phone ||
-          customer.phone ||
-          "",
-        address:
-          current.address ||
-          shipping.address ||
-          "",
-        apartment:
-          current.apartment ||
-          shipping.apartment ||
-          "",
-        city:
-          current.city ||
-          shipping.city ||
-          "",
-        state:
-          current.state ||
-          shipping.state ||
-          "",
-        pincode:
-          current.pincode ||
-          shipping.pincode ||
-          "",
-      }));
-    } catch (storageError) {
-      console.error(
-        "Failed to restore checkout data:",
-        storageError
+      const response = await api.post(
+        "/coupons/validate",
+        {
+          code: cleanCode,
+          subtotal: Number(subtotal || 0),
+          items: buildCouponItems()
+        }
       );
+
+      if (!response.data?.success) {
+        throw new Error(
+          response.data?.message ||
+            "Unable to apply coupon."
+        );
+      }
+
+      const coupon = response.data.coupon;
+
+      setCouponCode(cleanCode);
+      setCouponData(coupon);
+
+      sessionStorage.setItem(
+        "untkn_coupon_code",
+        cleanCode
+      );
+
+      sessionStorage.setItem(
+        "untkn_coupon_data",
+        JSON.stringify(coupon)
+      );
+
+      return true;
+    } catch (requestError) {
+      console.error(
+        "Coupon validation error:",
+        requestError
+      );
+
+      setCouponData(null);
+      sessionStorage.removeItem(
+        "untkn_coupon_code"
+      );
+      sessionStorage.removeItem(
+        "untkn_coupon_data"
+      );
+
+      setCouponError(
+        requestError?.response?.data?.message ||
+          requestError?.message ||
+          "Invalid coupon code."
+      );
+
+      return false;
+    } finally {
+      setCouponLoading(false);
     }
-  }, [
-    authChecking,
-    cartLoading,
-    cartItems,
-  ]);
+  };
+
+  const removeCoupon = () => {
+    setCouponCode("");
+    setCouponData(null);
+    setCouponError("");
+    sessionStorage.removeItem(
+      "untkn_coupon_code"
+    );
+    sessionStorage.removeItem(
+      "untkn_coupon_data"
+    );
+  };
+
+  const selectedDeliveryMethod =
+    deliveryMethods.find(
+      (method) =>
+        method.id === deliveryMethod
+    ) || null;
+
+  const shipping = Number(
+    selectedDeliveryMethod?.price || 0
+  );
+
+  const couponDiscount = Math.min(
+    Number(
+      couponData?.discount ??
+      couponData?.discount_amount ??
+      0
+    ),
+    Number(subtotal || 0)
+  );
+
+  const total =
+    Math.max(
+      0,
+      Number(subtotal || 0) +
+        Number(shipping || 0) -
+        couponDiscount
+    );
 
   const handleChange = (event) => {
     const {
@@ -195,24 +441,26 @@ function Checkout() {
       value,
     } = event.target;
 
-    let nextValue = value;
-
-    if (
-      name === "phone" ||
-      name === "pincode"
-    ) {
-      nextValue = value
-        .replace(/\D/g, "")
-        .slice(
-          0,
-          name === "phone" ? 10 : 6
-        );
-    }
-
     setFormData((current) => ({
       ...current,
-      [name]: nextValue,
+      [name]: value,
     }));
+
+    if (error) {
+      setError("");
+    }
+  };
+
+  const handleDeliveryChange = (methodId) => {
+    const methodExists = deliveryMethods.some(
+      (method) => method.id === methodId
+    );
+
+    if (!methodExists) {
+      return;
+    }
+
+    setDeliveryMethod(methodId);
 
     if (error) {
       setError("");
@@ -266,22 +514,9 @@ function Checkout() {
       !pincode
     ) {
       setError(
-        "Please complete all required fields before continuing."
+        "Please complete all required shipping information."
       );
-      return;
-    }
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setError(
-        "Please enter a valid email address."
-      );
-      return;
-    }
-
-    if (!/^\d{10}$/.test(phone)) {
-      setError(
-        "Please enter a valid 10-digit phone number."
-      );
       return;
     }
 
@@ -289,24 +524,76 @@ function Checkout() {
       setError(
         "Please enter a valid 6-digit pincode."
       );
+
+      return;
+    }
+
+    if (!/^\d{10}$/.test(phone)) {
+      setError(
+        "Please enter a valid 10-digit phone number."
+      );
+
       return;
     }
 
     if (
-      !Array.isArray(cartItems) ||
+      !cartItems ||
       cartItems.length === 0
     ) {
       setError("Your bag is empty.");
+
+      return;
+    }
+
+    if (
+      deliveryLoading ||
+      deliveryMethods.length === 0 ||
+      !deliveryMethod ||
+      !selectedDeliveryMethod
+    ) {
+      setError(
+        "No delivery method is currently available."
+      );
+
       return;
     }
 
     try {
       setSubmitting(true);
 
-      await api.get("/auth/me");
+      try {
+        await api.get("/auth/me");
+      } catch (authError) {
+        if (authError.response?.status === 401) {
+          navigate("/login", {
+            replace: true,
+            state: {
+              redirectTo: "/checkout",
+            },
+          });
+          return;
+        }
+
+        throw authError;
+      }
 
       const shippingName =
         `${firstName} ${lastName}`.trim();
+
+      let finalCouponCode = "";
+
+      if (couponCode.trim()) {
+        const couponApplied = await applyCoupon(
+          couponCode
+        );
+
+        if (!couponApplied) {
+          return;
+        }
+
+        finalCouponCode =
+          couponCode.trim().toUpperCase();
+      }
 
       const orderPayload = {
         shipping_name: shippingName,
@@ -319,8 +606,11 @@ function Checkout() {
         shipping_state: state,
         shipping_postal_code: pincode,
         shipping_country: "India",
-        notes: null,
-        shipping_fee: 0,
+        delivery_method:
+          selectedDeliveryMethod.id,
+        notes: `Delivery method: ${selectedDeliveryMethod.id}`,
+        coupon_code:
+          finalCouponCode || null,
       };
 
       const response = await api.post(
@@ -328,15 +618,15 @@ function Checkout() {
         orderPayload
       );
 
-      if (!response?.data?.success) {
+      if (!response.data?.success) {
         throw new Error(
-          response?.data?.message ||
-            "Failed to create your order."
+          response.data?.message ||
+            "Failed to create order."
         );
       }
 
       const createdOrder =
-        response?.data?.order;
+        response.data?.order;
 
       if (!createdOrder?.id) {
         throw new Error(
@@ -361,11 +651,26 @@ function Checkout() {
           country: "India",
         },
 
-        shippingFee: 0,
+        deliveryMethod:
+          selectedDeliveryMethod.id,
 
-        subtotal: safeSubtotal,
+        deliveryMethodName:
+          selectedDeliveryMethod.name,
 
-        frontendTotal: total,
+        shippingFee:
+          Number(shipping),
+
+        subtotal:
+          Number(subtotal || 0),
+
+        frontendTotal:
+          Number(total),
+
+        couponCode:
+          finalCouponCode || null,
+
+        couponDiscount:
+          Number(couponDiscount || 0),
 
         order: createdOrder,
       };
@@ -396,25 +701,13 @@ function Checkout() {
         requestError
       );
 
-      if (
-        requestError?.response?.status ===
-        401
-      ) {
-        navigate("/login", {
-          replace: true,
-          state: {
-            redirectTo: "/checkout",
-          },
-        });
+      const message =
+        requestError?.response?.data
+          ?.message ||
+        requestError?.message ||
+        "Unable to create your order.";
 
-        return;
-      }
-
-      setError(
-        requestError?.response?.data?.message ||
-          requestError?.message ||
-          "Unable to create your order. Please try again."
-      );
+      setError(message);
     } finally {
       setSubmitting(false);
     }
@@ -422,1661 +715,904 @@ function Checkout() {
 
   if (authChecking) {
     return (
-      <>
-        <style>{checkoutStyles}</style>
-
-        <div className="cz-checkout-state">
-          <div className="cz-state-card">
-            <div className="cz-state-icon">
-              <LockKeyhole size={22} />
-            </div>
-
-            <span>SECURE CHECKOUT</span>
-
-            <h1>
-              VERIFYING
-              <br />
-              YOUR ACCOUNT
-            </h1>
-
-            <div className="cz-loader-line" />
-          </div>
-        </div>
-      </>
-    );
-  }
-
-  if (cartLoading) {
-    return (
-      <>
-        <style>{checkoutStyles}</style>
-
-        <div className="cz-checkout-state">
-          <div className="cz-state-card">
-            <div className="cz-state-icon">
-              <ShoppingBag size={22} />
-            </div>
-
-            <span>YOUR BAG</span>
-
-            <h1>
-              LOADING
-              <br />
-              CHECKOUT
-            </h1>
-
-            <div className="cz-loader-line" />
-          </div>
-        </div>
-      </>
+      <div
+        className="checkout-page"
+        style={{
+          padding: "80px 20px",
+          textAlign: "center",
+        }}
+      >
+        VERIFYING ACCOUNT...
+      </div>
     );
   }
 
   if (
     !cartLoading &&
-    (!Array.isArray(cartItems) ||
-      cartItems.length === 0)
+    cartItems.length === 0
   ) {
     return (
-      <>
-        <style>{checkoutStyles}</style>
+      <div className="checkout-empty">
+        <p className="eyebrow">
+          YOUR BAG IS EMPTY
+        </p>
 
-        <div className="cz-checkout-state">
-          <div className="cz-empty-card">
-            <div className="cz-empty-icon">
-              <ShoppingBag size={28} />
-            </div>
+        <h1>
+          NOTHING
+          <br />
+          TO CHECK OUT.
+        </h1>
 
-            <span>YOUR BAG IS EMPTY</span>
+        <p>
+          Add something to your bag before
+          continuing to checkout.
+        </p>
 
-            <h1>
-              NOTHING
-              <br />
-              TO CHECK OUT.
-            </h1>
+        <Link to="/shop">
+          SHOP PRODUCTS →
+        </Link>
+      </div>
+    );
+  }
 
-            <p>
-              Add something you love to your bag
-              before continuing.
-            </p>
-
-            <Link
-              to="/shop"
-              className="cz-primary-button"
-            >
-              SHOP PRODUCTS
-              <ArrowRight size={16} />
-            </Link>
-          </div>
-        </div>
-      </>
+  if (cartLoading) {
+    return (
+      <div
+        className="checkout-page"
+        style={{
+          padding: "80px 20px",
+          textAlign: "center",
+        }}
+      >
+        LOADING CHECKOUT...
+      </div>
     );
   }
 
   return (
-    <>
-      <style>{checkoutStyles}</style>
+    <div className="checkout-page">
+      <section className="checkout-header">
+        <Link
+          to="/cart"
+          className="checkout-back"
+        >
+          <ChevronLeft
+            size={17}
+            strokeWidth={1.5}
+          />
 
-      <div className="cz-checkout-page">
+          BACK TO BAG
+        </Link>
 
-        <div className="cz-checkout-shell">
+        <div>
+          <p className="eyebrow">
+            SECURE CHECKOUT
+          </p>
 
-          <header className="cz-checkout-header">
+          <h1>
+            CHECKOUT
+          </h1>
+        </div>
+      </section>
 
-            <Link
-              to="/cart"
-              className="cz-back-link"
-            >
-              <ArrowLeft size={16} />
-              BACK TO BAG
-            </Link>
+      {error && (
+        <div
+          style={{
+            marginBottom: "24px",
+            padding: "14px 16px",
+            border: "1px solid #000",
+            background: "#fff",
+            color: "#000",
+            fontSize: "13px",
+            lineHeight: "1.5",
+          }}
+        >
+          {error}
+        </div>
+      )}
 
-            <div className="cz-header-main">
-
-              <div className="cz-header-tag">
-                <span className="cz-header-dot" />
-                SECURE CHECKOUT
-              </div>
-
-              <h1>
-                CHECK
-                <em>OUT.</em>
-              </h1>
-
-              <p>
-                Almost yours. Complete your
-                details and you're good to go.
-              </p>
-
-            </div>
-
-            <div className="cz-header-meta">
-              <ShieldCheck size={17} />
-              <span>ENCRYPTED</span>
-            </div>
-
-          </header>
-
-          {error && (
-            <div className="cz-error">
-              <div className="cz-error-mark">
-                !
-              </div>
-
+      <form
+        className="checkout-layout"
+        onSubmit={handleSubmit}
+      >
+        <main className="checkout-main">
+          <section className="checkout-section">
+            <div className="checkout-section-header">
               <div>
-                <strong>
-                  CHECKOUT ISSUE
-                </strong>
-
-                <p>{error}</p>
-              </div>
-            </div>
-          )}
-
-          <form
-            className="cz-checkout-grid"
-            onSubmit={handleSubmit}
-          >
-
-            <main className="cz-main">
-
-              <section className="cz-section">
-
-                <div className="cz-section-head">
-
-                  <div className="cz-section-number">
-                    01
-                  </div>
-
-                  <div>
-                    <span>
-                      CONTACT
-                    </span>
-
-                    <h2>
-                      YOUR DETAILS
-                    </h2>
-                  </div>
-
-                  <User
-                    className="cz-section-icon"
-                    size={21}
-                  />
-
-                </div>
-
-                <div className="cz-fields">
-
-                  <div className="cz-field">
-                    <label htmlFor="firstName">
-                      FIRST NAME
-                    </label>
-
-                    <div className="cz-input-wrap">
-                      <User size={16} />
-
-                      <input
-                        id="firstName"
-                        name="firstName"
-                        type="text"
-                        value={
-                          formData.firstName
-                        }
-                        onChange={
-                          handleChange
-                        }
-                        placeholder="Priyanshu"
-                        autoComplete="given-name"
-                        disabled={submitting}
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="cz-field">
-                    <label htmlFor="lastName">
-                      LAST NAME
-                    </label>
-
-                    <div className="cz-input-wrap">
-                      <User size={16} />
-
-                      <input
-                        id="lastName"
-                        name="lastName"
-                        type="text"
-                        value={
-                          formData.lastName
-                        }
-                        onChange={
-                          handleChange
-                        }
-                        placeholder="Chatterjee"
-                        autoComplete="family-name"
-                        disabled={submitting}
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="cz-field cz-full">
-                    <label htmlFor="email">
-                      EMAIL ADDRESS
-                    </label>
-
-                    <div className="cz-input-wrap">
-                      <Mail size={16} />
-
-                      <input
-                        id="email"
-                        name="email"
-                        type="email"
-                        value={
-                          formData.email
-                        }
-                        onChange={
-                          handleChange
-                        }
-                        placeholder="you@example.com"
-                        autoComplete="email"
-                        disabled={submitting}
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="cz-field cz-full">
-                    <label htmlFor="phone">
-                      PHONE NUMBER
-                    </label>
-
-                    <div className="cz-input-wrap">
-                      <Phone size={16} />
-
-                      <input
-                        id="phone"
-                        name="phone"
-                        type="tel"
-                        value={
-                          formData.phone
-                        }
-                        onChange={
-                          handleChange
-                        }
-                        placeholder="9876543210"
-                        autoComplete="tel"
-                        inputMode="numeric"
-                        maxLength={10}
-                        disabled={submitting}
-                        required
-                      />
-                    </div>
-                  </div>
-
-                </div>
-
-              </section>
-
-              <section className="cz-section">
-
-                <div className="cz-section-head">
-
-                  <div className="cz-section-number">
-                    02
-                  </div>
-
-                  <div>
-                    <span>
-                      DELIVERY
-                    </span>
-
-                    <h2>
-                      SHIPPING ADDRESS
-                    </h2>
-                  </div>
-
-                  <MapPin
-                    className="cz-section-icon"
-                    size={21}
-                  />
-
-                </div>
-
-                <div className="cz-fields">
-
-                  <div className="cz-field cz-full">
-                    <label htmlFor="address">
-                      ADDRESS
-                    </label>
-
-                    <div className="cz-input-wrap">
-                      <Home size={16} />
-
-                      <input
-                        id="address"
-                        name="address"
-                        type="text"
-                        value={
-                          formData.address
-                        }
-                        onChange={
-                          handleChange
-                        }
-                        placeholder="House / street / area"
-                        autoComplete="street-address"
-                        disabled={submitting}
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="cz-field cz-full">
-                    <label htmlFor="apartment">
-                      APARTMENT / LANDMARK
-                      <small>
-                        OPTIONAL
-                      </small>
-                    </label>
-
-                    <div className="cz-input-wrap">
-                      <MapPin size={16} />
-
-                      <input
-                        id="apartment"
-                        name="apartment"
-                        type="text"
-                        value={
-                          formData.apartment
-                        }
-                        onChange={
-                          handleChange
-                        }
-                        placeholder="Apartment / landmark"
-                        autoComplete="address-line2"
-                        disabled={submitting}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="cz-field">
-                    <label htmlFor="city">
-                      CITY
-                    </label>
-
-                    <div className="cz-input-wrap">
-                      <MapPin size={16} />
-
-                      <input
-                        id="city"
-                        name="city"
-                        type="text"
-                        value={
-                          formData.city
-                        }
-                        onChange={
-                          handleChange
-                        }
-                        placeholder="Kolkata"
-                        autoComplete="address-level2"
-                        disabled={submitting}
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="cz-field">
-                    <label htmlFor="state">
-                      STATE
-                    </label>
-
-                    <div className="cz-input-wrap">
-                      <MapPin size={16} />
-
-                      <input
-                        id="state"
-                        name="state"
-                        type="text"
-                        value={
-                          formData.state
-                        }
-                        onChange={
-                          handleChange
-                        }
-                        placeholder="West Bengal"
-                        autoComplete="address-level1"
-                        disabled={submitting}
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="cz-field">
-                    <label htmlFor="pincode">
-                      PINCODE
-                    </label>
-
-                    <div className="cz-input-wrap">
-                      <MapPin size={16} />
-
-                      <input
-                        id="pincode"
-                        name="pincode"
-                        type="text"
-                        value={
-                          formData.pincode
-                        }
-                        onChange={
-                          handleChange
-                        }
-                        placeholder="700001"
-                        inputMode="numeric"
-                        autoComplete="postal-code"
-                        maxLength={6}
-                        disabled={submitting}
-                        required
-                      />
-                    </div>
-                  </div>
-
-                </div>
-
-              </section>
-
-              <div className="cz-no-delivery-box">
-                <div className="cz-no-delivery-icon">
-                  <Package size={19} />
-                </div>
+                <span>
+                  01
+                </span>
 
                 <div>
-                  <strong>
-                    SHIPPING INCLUDED
-                  </strong>
-
-                  <p>
-                    Your order is processed with
-                    no additional delivery-method
-                    selection or delivery charge.
+                  <p className="eyebrow">
+                    CONTACT
                   </p>
-                </div>
-
-                <Check size={18} />
-              </div>
-
-              <div className="cz-security-strip">
-
-                <div className="cz-security-item">
-                  <div>
-                    <LockKeyhole size={16} />
-                  </div>
-
-                  <span>
-                    SECURE DATA
-                  </span>
-                </div>
-
-                <div className="cz-security-line" />
-
-                <div className="cz-security-item">
-                  <div>
-                    <ShieldCheck size={16} />
-                  </div>
-
-                  <span>
-                    SAFE CHECKOUT
-                  </span>
-                </div>
-
-                <div className="cz-security-line" />
-
-                <div className="cz-security-item">
-                  <div>
-                    <Check size={16} />
-                  </div>
-
-                  <span>
-                    ORDER CONFIRMATION
-                  </span>
-                </div>
-
-              </div>
-
-            </main>
-
-            <aside className="cz-summary">
-
-              <div className="cz-summary-top">
-
-                <div>
-                  <span>
-                    ORDER SUMMARY
-                  </span>
 
                   <h2>
-                    YOUR BAG
+                    YOUR DETAILS
                   </h2>
                 </div>
+              </div>
+            </div>
 
-                <div className="cz-item-count">
-                  {itemCount}
-                  <small>
-                    ITEMS
-                  </small>
-                </div>
+            <div className="checkout-fields">
+              <div className="checkout-field">
+                <label htmlFor="firstName">
+                  FIRST NAME
+                </label>
 
+                <input
+                  id="firstName"
+                  name="firstName"
+                  type="text"
+                  value={
+                    formData.firstName
+                  }
+                  onChange={
+                    handleChange
+                  }
+                  placeholder="Enter your first name"
+                  autoComplete="given-name"
+                  required
+                  disabled={submitting}
+                />
               </div>
 
-              <div className="cz-summary-divider" />
+              <div className="checkout-field">
+                <label htmlFor="lastName">
+                  LAST NAME
+                </label>
 
-              <div className="cz-summary-items">
-
-                {cartItems.map((item) => {
-                  const unitPrice = Number(
-                    item?.unit_price ??
-                      item?.price ??
-                      0
-                  );
-
-                  const quantity = Number(
-                    item?.quantity || 0
-                  );
-
-                  const itemTotal =
-                    unitPrice * quantity;
-
-                  const imageUrl =
-                    item?.image_url ||
-                    item?.image ||
-                    "";
-
-                  const title =
-                    item?.product_name ||
-                    item?.name ||
-                    "UNTKN PRODUCT";
-
-                  return (
-                    <div
-                      className="cz-product"
-                      key={`${item?.cartItemId ?? item?.id ?? "item"}-${item?.product_id ?? ""}-${item?.variant_id ?? ""}`}
-                    >
-
-                      <div className="cz-product-image">
-
-                        {imageUrl &&
-                        !imageUrl.includes(
-                          "example.com"
-                        ) ? (
-                          <img
-                            src={imageUrl}
-                            alt={title}
-                          />
-                        ) : (
-                          <div className="cz-product-fallback">
-                            <ShoppingBag size={18} />
-                          </div>
-                        )}
-
-                        <span>
-                          {quantity}
-                        </span>
-
-                      </div>
-
-                      <div className="cz-product-info">
-
-                        <h3>
-                          {title}
-                        </h3>
-
-                        {item?.color && (
-                          <span>
-                            {item.color}
-                          </span>
-                        )}
-
-                        {item?.size && (
-                          <small>
-                            SIZE {item.size}
-                          </small>
-                        )}
-
-                      </div>
-
-                      <strong>
-                        {formatINR(itemTotal)}
-                      </strong>
-
-                    </div>
-                  );
-                })}
-
+                <input
+                  id="lastName"
+                  name="lastName"
+                  type="text"
+                  value={
+                    formData.lastName
+                  }
+                  onChange={
+                    handleChange
+                  }
+                  placeholder="Enter your last name"
+                  autoComplete="family-name"
+                  required
+                  disabled={submitting}
+                />
               </div>
 
-              <div className="cz-summary-divider" />
+              <div className="checkout-field full">
+                <label htmlFor="email">
+                  EMAIL ADDRESS
+                </label>
 
-              <div className="cz-price-list">
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  value={
+                    formData.email
+                  }
+                  onChange={
+                    handleChange
+                  }
+                  placeholder="Enter your email address"
+                  autoComplete="email"
+                  required
+                  disabled={submitting}
+                />
+              </div>
+
+              <div className="checkout-field full">
+                <label htmlFor="phone">
+                  PHONE NUMBER
+                </label>
+
+                <input
+                  id="phone"
+                  name="phone"
+                  type="tel"
+                  value={
+                    formData.phone
+                  }
+                  onChange={
+                    handleChange
+                  }
+                  placeholder="Enter your 10-digit phone number"
+                  autoComplete="tel"
+                  inputMode="numeric"
+                  maxLength={10}
+                  required
+                  disabled={submitting}
+                />
+              </div>
+            </div>
+          </section>
+
+          <section className="checkout-section">
+            <div className="checkout-section-header">
+              <div>
+                <span>
+                  02
+                </span>
 
                 <div>
-                  <span>
-                    SUBTOTAL
-                  </span>
+                  <p className="eyebrow">
+                    DELIVERY
+                  </p>
+
+                  <h2>
+                    SHIPPING ADDRESS
+                  </h2>
+                </div>
+              </div>
+
+              <MapPin
+                size={20}
+                strokeWidth={1.2}
+              />
+            </div>
+
+            <div className="checkout-fields">
+              <div className="checkout-field full">
+                <label htmlFor="address">
+                  ADDRESS
+                </label>
+
+                <input
+                  id="address"
+                  name="address"
+                  type="text"
+                  value={
+                    formData.address
+                  }
+                  onChange={
+                    handleChange
+                  }
+                  placeholder="House / street / area"
+                  autoComplete="street-address"
+                  required
+                  disabled={submitting}
+                />
+              </div>
+
+              <div className="checkout-field full">
+                <label htmlFor="apartment">
+                  APARTMENT / LANDMARK
+                </label>
+
+                <input
+                  id="apartment"
+                  name="apartment"
+                  type="text"
+                  value={
+                    formData.apartment
+                  }
+                  onChange={
+                    handleChange
+                  }
+                  placeholder="Apartment / landmark (optional)"
+                  autoComplete="address-line2"
+                  disabled={submitting}
+                />
+              </div>
+
+              <div className="checkout-field">
+                <label htmlFor="city">
+                  CITY
+                </label>
+
+                <input
+                  id="city"
+                  name="city"
+                  type="text"
+                  value={
+                    formData.city
+                  }
+                  onChange={
+                    handleChange
+                  }
+                  placeholder="City"
+                  autoComplete="address-level2"
+                  required
+                  disabled={submitting}
+                />
+              </div>
+
+              <div className="checkout-field">
+                <label htmlFor="state">
+                  STATE
+                </label>
+
+                <input
+                  id="state"
+                  name="state"
+                  type="text"
+                  value={
+                    formData.state
+                  }
+                  onChange={
+                    handleChange
+                  }
+                  placeholder="State"
+                  autoComplete="address-level1"
+                  required
+                  disabled={submitting}
+                />
+              </div>
+
+              <div className="checkout-field">
+                <label htmlFor="pincode">
+                  PINCODE
+                </label>
+
+                <input
+                  id="pincode"
+                  name="pincode"
+                  type="text"
+                  inputMode="numeric"
+                  value={
+                    formData.pincode
+                  }
+                  onChange={
+                    handleChange
+                  }
+                  placeholder="6-digit pincode"
+                  autoComplete="postal-code"
+                  maxLength={6}
+                  required
+                  disabled={submitting}
+                />
+              </div>
+            </div>
+
+            <section className="checkout-delivery">
+              <div className="checkout-section-heading">
+                <p className="eyebrow">
+                  DELIVERY
+                </p>
+
+                <h2>
+                  DELIVERY METHOD
+                </h2>
+              </div>
+
+              {deliveryLoading ? (
+                <div
+                  style={{
+                    padding: "20px 0",
+                    fontSize: "13px",
+                  }}
+                >
+                  LOADING DELIVERY OPTIONS...
+                </div>
+              ) : deliveryMethods.length === 0 ? (
+                <div
+                  style={{
+                    padding: "20px 0",
+                    fontSize: "13px",
+                    lineHeight: "1.5",
+                    borderTop: "1px solid #e5e5e5",
+                    borderBottom: "1px solid #e5e5e5",
+                  }}
+                >
+                  NO DELIVERY METHODS ARE CURRENTLY AVAILABLE.
+                  PLEASE TRY AGAIN LATER.
+                </div>
+              ) : (
+                <div className="delivery-methods">
+                  {deliveryMethods.map(
+                    (method) => {
+                      const selected =
+                        deliveryMethod ===
+                        method.id;
+
+                      return (
+                        <button
+                          key={method.id}
+                          type="button"
+                          className={`delivery-method ${
+                            selected
+                              ? "selected"
+                              : ""
+                          }`}
+                          onClick={() =>
+                            handleDeliveryChange(
+                              method.id
+                            )
+                          }
+                          disabled={submitting}
+                        >
+                          <div className="delivery-radio">
+                            {selected && (
+                              <span />
+                            )}
+                          </div>
+
+                          <div className="delivery-info">
+                            <strong>
+                              {method.name}
+                            </strong>
+
+                            <span>
+                              {method.description}
+                            </span>
+                          </div>
+
+                          <strong className="delivery-price">
+                            {Number(
+                              method.price || 0
+                            ) === 0
+                              ? "FREE"
+                              : `₹${Number(
+                                  method.price || 0
+                                ).toLocaleString(
+                                  "en-IN"
+                                )}`}
+                          </strong>
+                        </button>
+                      );
+                    }
+                  )}
+                </div>
+              )}
+            </section>
+          </section>
+
+          <div className="checkout-security">
+            <ShieldCheck
+              size={18}
+              strokeWidth={1.3}
+            />
+
+            <div>
+              <strong>
+                SECURE CHECKOUT
+              </strong>
+
+              <p>
+                Your information is protected
+                and securely processed.
+              </p>
+            </div>
+          </div>
+        </main>
+
+        <aside className="checkout-summary">
+          <div className="checkout-summary-header">
+            <p className="eyebrow">
+              YOUR BAG
+            </p>
+
+            <span>
+              {cartItems.reduce(
+                (count, item) =>
+                  count +
+                  Number(
+                    item.quantity || 0
+                  ),
+                0
+              )}{" "}
+              ITEMS
+            </span>
+          </div>
+
+          <div className="checkout-items">
+            {cartItems.map((item) => {
+              const unitPrice =
+                Number(
+                  item.unit_price ??
+                    item.price ??
+                    0
+                );
+
+              const itemTotal =
+                unitPrice *
+                Number(
+                  item.quantity || 0
+                );
+
+              const imageUrl =
+                item.image_url ||
+                item.image ||
+                "";
+
+              return (
+                <div
+                  className="checkout-item"
+                  key={`${item.cartItemId}-${item.product_id}-${item.variant_id}`}
+                >
+                  <div className="checkout-item-image">
+                    {imageUrl &&
+                    !imageUrl.includes(
+                      "example.com"
+                    ) ? (
+                      <img
+                        src={imageUrl}
+                        alt={
+                          item.product_name ||
+                          item.name ||
+                          "UNTKN Product"
+                        }
+                      />
+                    ) : (
+                      <div
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          display: "flex",
+                          alignItems:
+                            "center",
+                          justifyContent:
+                            "center",
+                          fontSize: "10px",
+                          textAlign:
+                            "center",
+                          padding: "5px",
+                        }}
+                      >
+                        {item.product_name ||
+                          item.name ||
+                          "UNTKN"}
+                      </div>
+                    )}
+
+                    <span>
+                      {item.quantity}
+                    </span>
+                  </div>
+
+                  <div className="checkout-item-info">
+                    <h3>
+                      {item.product_name ||
+                        item.name}
+                    </h3>
+
+                    {item.color && (
+                      <p>
+                        {item.color}
+                      </p>
+                    )}
+
+                    <span>
+                      SIZE{" "}
+                      {item.size || "-"}
+                    </span>
+                  </div>
 
                   <strong>
-                    {formatINR(
-                      safeSubtotal
+                    ₹
+                    {itemTotal.toLocaleString(
+                      "en-IN"
                     )}
                   </strong>
                 </div>
+              );
+            })}
+          </div>
 
-                <div>
-                  <span>
-                    SHIPPING
-                  </span>
-
-                  <strong className="cz-free">
-                    FREE
-                  </strong>
-                </div>
-
-              </div>
-
-              <div className="cz-total-box">
-
-                <div>
-                  <span>
-                    TOTAL
-                  </span>
-
-                  <small>
-                    INR
-                  </small>
-                </div>
-
-                <strong>
-                  {formatINR(total)}
-                </strong>
-
-              </div>
-
-              <button
-                type="submit"
-                className="cz-submit"
-                disabled={submitting}
-              >
-                <span>
-                  {submitting
-                    ? "CREATING ORDER..."
-                    : "CONTINUE TO PAYMENT"}
-                </span>
-
-                {submitting ? (
-                  <span className="cz-button-loader" />
-                ) : (
-                  <ArrowRight size={18} />
-                )}
-              </button>
-
-              <Link
-                to="/cart"
-                className="cz-edit-bag"
-              >
-                <ArrowLeft size={14} />
-                EDIT BAG
-              </Link>
-
-              <div className="cz-trust">
-
-                <div>
-                  <LockKeyhole size={15} />
-                </div>
-
-                <p>
-                  YOUR INFORMATION IS
-                  <strong>
-                    {" "}
-                    PROTECTED
-                  </strong>
-                  {" "}AND SECURELY PROCESSED.
+          <div
+            style={{
+              marginTop: "22px",
+              marginBottom: "18px",
+              border: "1px solid #e5e5e5",
+              background: "#fafafa",
+              padding: "18px",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "12px",
+                marginBottom: "12px",
+              }}
+            >
+              <div>
+                <p
+                  className="eyebrow"
+                  style={{ marginBottom: "5px" }}
+                >
+                  UNTKN OFFERS
                 </p>
-
+                <strong
+                  style={{
+                    fontSize: "14px",
+                    letterSpacing: "0.04em",
+                  }}
+                >
+                  HAVE A COUPON?
+                </strong>
               </div>
 
-            </aside>
-
-          </form>
-
-          <footer className="cz-footer">
-
-            <span>
-              UNTKN / CHECKOUT
-            </span>
-
-            <div>
-              <span>SECURE</span>
-              <ChevronRight size={12} />
-              <span>PRIVATE</span>
-              <ChevronRight size={12} />
-              <span>SIMPLE</span>
+              {availableCoupons.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setShowOffers((current) => !current)
+                  }
+                  style={{
+                    border: "0",
+                    background: "transparent",
+                    textDecoration: "underline",
+                    cursor: "pointer",
+                    fontSize: "11px",
+                    letterSpacing: "0.08em",
+                  }}
+                >
+                  {showOffers
+                    ? "HIDE OFFERS"
+                    : "VIEW OFFERS"}
+                </button>
+              )}
             </div>
 
-          </footer>
+            <div
+              style={{
+                display: "flex",
+                gap: "8px",
+              }}
+            >
+              <input
+                type="text"
+                value={couponCode}
+                onChange={(event) => {
+                  setCouponCode(
+                    event.target.value.toUpperCase()
+                  );
+                  setCouponError("");
+                }}
+                placeholder="ENTER CODE"
+                disabled={
+                  couponLoading ||
+                  submitting
+                }
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  border: "1px solid #d8d8d8",
+                  background: "#fff",
+                  padding: "12px",
+                  fontSize: "12px",
+                  letterSpacing: "0.08em",
+                  outline: "none",
+                }}
+              />
 
-        </div>
+              {couponData ? (
+                <button
+                  type="button"
+                  onClick={removeCoupon}
+                  disabled={
+                    couponLoading ||
+                    submitting
+                  }
+                  style={{
+                    border: "1px solid #111",
+                    background: "#111",
+                    color: "#fff",
+                    padding: "0 15px",
+                    cursor: "pointer",
+                    fontSize: "11px",
+                    letterSpacing: "0.08em",
+                  }}
+                >
+                  REMOVE
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => applyCoupon()}
+                  disabled={
+                    couponLoading ||
+                    submitting ||
+                    !couponCode.trim()
+                  }
+                  style={{
+                    border: "1px solid #111",
+                    background: "#111",
+                    color: "#fff",
+                    padding: "0 17px",
+                    cursor: "pointer",
+                    fontSize: "11px",
+                    letterSpacing: "0.08em",
+                  }}
+                >
+                  {couponLoading
+                    ? "CHECKING..."
+                    : "APPLY"}
+                </button>
+              )}
+            </div>
 
-      </div>
-    </>
+            {couponError && (
+              <p
+                style={{
+                  margin: "10px 0 0",
+                  color: "#a33",
+                  fontSize: "12px",
+                }}
+              >
+                {couponError}
+              </p>
+            )}
+
+            {couponData && (
+              <div
+                style={{
+                  marginTop: "12px",
+                  paddingTop: "12px",
+                  borderTop: "1px solid #e2e2e2",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: "12px",
+                  fontSize: "12px",
+                }}
+              >
+                <span>
+                  {couponData.code} APPLIED
+                </span>
+                <strong>
+                  -₹
+                  {Number(
+                    couponData.discount || 0
+                  ).toLocaleString("en-IN")}
+                </strong>
+              </div>
+            )}
+
+            {showOffers &&
+              availableCoupons.length > 0 && (
+                <div
+                  style={{
+                    display: "grid",
+                    gap: "8px",
+                    marginTop: "14px",
+                  }}
+                >
+                  {availableCoupons
+                    .slice(0, 5)
+                    .map((coupon) => (
+                      <button
+                        key={coupon.id}
+                        type="button"
+                        onClick={() => {
+                          setCouponCode(
+                            coupon.code
+                          );
+                          setShowOffers(false);
+                          applyCoupon(
+                            coupon.code
+                          );
+                        }}
+                        style={{
+                          display: "flex",
+                          justifyContent:
+                            "space-between",
+                          alignItems: "center",
+                          border: "1px dashed #cfcfcf",
+                          background: "#fff",
+                          padding: "10px 12px",
+                          cursor: "pointer",
+                          textAlign: "left",
+                        }}
+                      >
+                        <span>
+                          <strong>
+                            {coupon.code}
+                          </strong>
+                          <small
+                            style={{
+                              display: "block",
+                              marginTop: "3px",
+                              color: "#777",
+                            }}
+                          >
+                            {coupon.discount_type ===
+                            "percentage"
+                              ? `${coupon.discount_value}% OFF`
+                              : `₹${Number(
+                                  coupon.discount_value
+                                ).toLocaleString(
+                                  "en-IN"
+                                )} OFF`}
+                          </small>
+                        </span>
+                        <span>→</span>
+                      </button>
+                    ))}
+                </div>
+              )}
+          </div>
+
+          <div className="checkout-totals">
+            <div>
+              <span>
+                SUBTOTAL
+              </span>
+
+              <strong>
+                ₹
+                {Number(
+                  subtotal || 0
+                ).toLocaleString(
+                  "en-IN"
+                )}
+              </strong>
+            </div>
+
+            <div>
+              <span>
+                SHIPPING
+              </span>
+
+              <strong>
+                {shipping === 0
+                  ? "FREE"
+                  : `₹${shipping.toLocaleString(
+                      "en-IN"
+                    )}`}
+              </strong>
+            </div>
+
+            {couponDiscount > 0 && (
+              <div>
+                <span>
+                  DISCOUNT
+                </span>
+
+                <strong
+                  style={{
+                    color: "#2f6b3f",
+                  }}
+                >
+                  -₹
+                  {couponDiscount.toLocaleString(
+                    "en-IN"
+                  )}
+                </strong>
+              </div>
+            )}
+
+            <div className="checkout-total-divider" />
+
+            <div className="checkout-total">
+              <span>
+                TOTAL
+              </span>
+
+              <strong>
+                ₹
+                {total.toLocaleString(
+                  "en-IN"
+                )}
+              </strong>
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            className="checkout-submit"
+            disabled={
+              submitting ||
+              deliveryLoading ||
+              deliveryMethods.length === 0 ||
+              !selectedDeliveryMethod
+            }
+          >
+            {submitting
+              ? "CREATING ORDER..."
+              : "CONTINUE TO PAYMENT →"}
+          </button>
+
+          <p className="checkout-note">
+            By continuing, you agree to our
+            terms and conditions.
+          </p>
+        </aside>
+      </form>
+    </div>
   );
 }
-
-const checkoutStyles = `
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap');
-
-.cz-checkout-page,
-.cz-checkout-state {
-  min-height: 100vh;
-  background:
-    radial-gradient(
-      circle at 10% 0%,
-      rgba(0,0,0,.045),
-      transparent 28%
-    ),
-    radial-gradient(
-      circle at 100% 100%,
-      rgba(0,0,0,.035),
-      transparent 30%
-    ),
-    #f7f7f5;
-  color: #111;
-  font-family: "DM Sans", sans-serif;
-}
-
-.cz-checkout-shell {
-  width: min(1420px, calc(100% - 48px));
-  margin: 0 auto;
-  padding: 34px 0 30px;
-}
-
-.cz-checkout-header {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: end;
-  gap: 28px;
-  padding: 16px 0 42px;
-  border-bottom: 1px solid rgba(17,17,17,.14);
-}
-
-.cz-back-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  width: fit-content;
-  color: #111;
-  text-decoration: none;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: .16em;
-  transition: transform .2s ease;
-}
-
-.cz-back-link:hover {
-  transform: translateX(-3px);
-}
-
-.cz-header-main {
-  text-align: center;
-}
-
-.cz-header-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: .2em;
-  margin-bottom: 10px;
-  opacity: .68;
-}
-
-.cz-header-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #111;
-}
-
-.cz-header-main h1 {
-  margin: 0;
-  font-family: "Manrope", sans-serif;
-  font-size: clamp(48px, 7vw, 92px);
-  line-height: .88;
-  letter-spacing: -.075em;
-  font-weight: 800;
-}
-
-.cz-header-main h1 em {
-  font-style: normal;
-  -webkit-text-stroke: 1.5px #111;
-  color: transparent;
-  margin-left: 4px;
-}
-
-.cz-header-main p {
-  margin: 16px auto 0;
-  max-width: 500px;
-  font-size: 13px;
-  line-height: 1.65;
-  opacity: .62;
-}
-
-.cz-header-meta {
-  justify-self: end;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 10px;
-  letter-spacing: .16em;
-  font-weight: 700;
-  opacity: .6;
-}
-
-.cz-checkout-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.45fr) minmax(360px, .72fr);
-  gap: 24px;
-  margin-top: 28px;
-}
-
-.cz-main {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-
-.cz-section {
-  background: rgba(255,255,255,.8);
-  border: 1px solid rgba(17,17,17,.1);
-  border-radius: 24px;
-  padding: 28px;
-  box-shadow: 0 16px 45px rgba(17,17,17,.035);
-  backdrop-filter: blur(10px);
-}
-
-.cz-section-head {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 16px;
-  align-items: center;
-  padding-bottom: 23px;
-  border-bottom: 1px solid rgba(17,17,17,.09);
-  margin-bottom: 24px;
-}
-
-.cz-section-number {
-  width: 44px;
-  height: 44px;
-  border-radius: 13px;
-  background: #111;
-  color: white;
-  display: grid;
-  place-items: center;
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: .05em;
-}
-
-.cz-section-head span {
-  display: block;
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: .19em;
-  opacity: .5;
-  margin-bottom: 4px;
-}
-
-.cz-section-head h2 {
-  margin: 0;
-  font-family: "Manrope", sans-serif;
-  font-size: 21px;
-  letter-spacing: -.04em;
-}
-
-.cz-section-icon {
-  opacity: .45;
-}
-
-.cz-fields {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0,1fr));
-  gap: 17px;
-}
-
-.cz-field {
-  min-width: 0;
-}
-
-.cz-field.cz-full {
-  grid-column: 1 / -1;
-}
-
-.cz-field label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: .16em;
-  opacity: .55;
-}
-
-.cz-field label small {
-  font-size: 8px;
-  letter-spacing: .08em;
-  opacity: .7;
-}
-
-.cz-input-wrap {
-  height: 55px;
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  padding: 0 16px;
-  background: #fafaf8;
-  border: 1px solid rgba(17,17,17,.1);
-  border-radius: 14px;
-  transition:
-    border-color .2s ease,
-    background .2s ease,
-    box-shadow .2s ease;
-}
-
-.cz-input-wrap:focus-within {
-  background: #fff;
-  border-color: #111;
-  box-shadow: 0 0 0 4px rgba(17,17,17,.055);
-}
-
-.cz-input-wrap svg {
-  flex: 0 0 auto;
-  opacity: .35;
-}
-
-.cz-input-wrap input {
-  width: 100%;
-  height: 100%;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: #111;
-  font: inherit;
-  font-size: 13px;
-}
-
-.cz-input-wrap input::placeholder {
-  color: #111;
-  opacity: .3;
-}
-
-.cz-input-wrap input:disabled {
-  cursor: not-allowed;
-  opacity: .5;
-}
-
-.cz-no-delivery-box {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 14px;
-  padding: 18px 20px;
-  border-radius: 18px;
-  background: #111;
-  color: #fff;
-}
-
-.cz-no-delivery-icon {
-  width: 38px;
-  height: 38px;
-  border: 1px solid rgba(255,255,255,.16);
-  border-radius: 12px;
-  display: grid;
-  place-items: center;
-}
-
-.cz-no-delivery-box strong {
-  display: block;
-  font-size: 10px;
-  letter-spacing: .15em;
-  margin-bottom: 4px;
-}
-
-.cz-no-delivery-box p {
-  margin: 0;
-  font-size: 11px;
-  line-height: 1.55;
-  opacity: .63;
-}
-
-.cz-no-delivery-box > svg {
-  opacity: .75;
-}
-
-.cz-security-strip {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr auto 1fr;
-  align-items: center;
-  gap: 15px;
-  padding: 17px 18px;
-  border: 1px solid rgba(17,17,17,.08);
-  background: rgba(255,255,255,.55);
-  border-radius: 18px;
-}
-
-.cz-security-item {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
-
-.cz-security-item > div {
-  width: 28px;
-  height: 28px;
-  border-radius: 9px;
-  background: #eee;
-  display: grid;
-  place-items: center;
-}
-
-.cz-security-item span {
-  font-size: 8px;
-  letter-spacing: .12em;
-  font-weight: 800;
-  opacity: .57;
-}
-
-.cz-security-line {
-  height: 28px;
-  width: 1px;
-  background: rgba(17,17,17,.1);
-}
-
-.cz-summary {
-  position: sticky;
-  top: 18px;
-  height: fit-content;
-  background: #111;
-  color: #fff;
-  border-radius: 28px;
-  padding: 28px;
-  box-shadow: 0 28px 80px rgba(17,17,17,.17);
-  overflow: hidden;
-}
-
-.cz-summary::before {
-  content: "";
-  position: absolute;
-  width: 200px;
-  height: 200px;
-  top: -100px;
-  right: -100px;
-  border-radius: 50%;
-  background: rgba(255,255,255,.055);
-}
-
-.cz-summary-top {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-}
-
-.cz-summary-top > div:first-child span {
-  display: block;
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: .18em;
-  opacity: .42;
-  margin-bottom: 5px;
-}
-
-.cz-summary-top h2 {
-  margin: 0;
-  font-family: "Manrope", sans-serif;
-  font-size: 24px;
-  letter-spacing: -.045em;
-}
-
-.cz-item-count {
-  min-width: 52px;
-  height: 52px;
-  border: 1px solid rgba(255,255,255,.12);
-  border-radius: 15px;
-  display: grid;
-  place-items: center;
-  align-content: center;
-  font-size: 14px;
-  font-weight: 800;
-}
-
-.cz-item-count small {
-  font-size: 7px;
-  letter-spacing: .12em;
-  opacity: .42;
-}
-
-.cz-summary-divider {
-  height: 1px;
-  background: rgba(255,255,255,.1);
-  margin: 24px 0;
-}
-
-.cz-summary-items {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.cz-product {
-  display: grid;
-  grid-template-columns: 62px 1fr auto;
-  align-items: center;
-  gap: 12px;
-}
-
-.cz-product-image {
-  position: relative;
-  width: 62px;
-  height: 74px;
-  border-radius: 13px;
-  overflow: hidden;
-  background: #202020;
-}
-
-.cz-product-image img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-.cz-product-fallback {
-  width: 100%;
-  height: 100%;
-  display: grid;
-  place-items: center;
-  opacity: .45;
-}
-
-.cz-product-image > span {
-  position: absolute;
-  right: 5px;
-  bottom: 5px;
-  min-width: 19px;
-  height: 19px;
-  padding: 0 5px;
-  border-radius: 99px;
-  display: grid;
-  place-items: center;
-  background: #fff;
-  color: #111;
-  font-size: 9px;
-  font-weight: 800;
-}
-
-.cz-product-info {
-  min-width: 0;
-}
-
-.cz-product-info h3 {
-  margin: 0 0 5px;
-  font-family: "Manrope", sans-serif;
-  font-size: 11px;
-  line-height: 1.35;
-  letter-spacing: -.01em;
-}
-
-.cz-product-info span,
-.cz-product-info small {
-  display: block;
-  font-size: 9px;
-  opacity: .42;
-  margin-bottom: 3px;
-}
-
-.cz-product-info small {
-  letter-spacing: .1em;
-}
-
-.cz-product > strong {
-  font-size: 11px;
-  white-space: nowrap;
-}
-
-.cz-price-list {
-  display: flex;
-  flex-direction: column;
-  gap: 13px;
-}
-
-.cz-price-list > div {
-  display: flex;
-  justify-content: space-between;
-  gap: 15px;
-  align-items: center;
-}
-
-.cz-price-list span {
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: .14em;
-  opacity: .45;
-}
-
-.cz-price-list strong {
-  font-size: 12px;
-}
-
-.cz-price-list .cz-free {
-  opacity: .72;
-  letter-spacing: .08em;
-}
-
-.cz-total-box {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  gap: 20px;
-  padding: 19px 0 21px;
-  margin-top: 6px;
-  border-top: 1px solid rgba(255,255,255,.11);
-  border-bottom: 1px solid rgba(255,255,255,.11);
-}
-
-.cz-total-box div span {
-  display: block;
-  font-size: 10px;
-  letter-spacing: .16em;
-  font-weight: 800;
-}
-
-.cz-total-box div small {
-  font-size: 7px;
-  letter-spacing: .12em;
-  opacity: .4;
-}
-
-.cz-total-box > strong {
-  font-family: "Manrope", sans-serif;
-  font-size: 28px;
-  line-height: 1;
-  letter-spacing: -.045em;
-}
-
-.cz-submit {
-  width: 100%;
-  height: 58px;
-  margin-top: 18px;
-  border: 0;
-  border-radius: 15px;
-  background: #fff;
-  color: #111;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 15px;
-  padding: 0 18px 0 20px;
-  cursor: pointer;
-  font: inherit;
-  font-size: 10px;
-  font-weight: 900;
-  letter-spacing: .12em;
-  transition:
-    transform .2s ease,
-    box-shadow .2s ease,
-    opacity .2s ease;
-}
-
-.cz-submit:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 28px rgba(255,255,255,.11);
-}
-
-.cz-submit:disabled {
-  cursor: not-allowed;
-  opacity: .52;
-}
-
-.cz-button-loader {
-  width: 17px;
-  height: 17px;
-  border: 2px solid rgba(17,17,17,.2);
-  border-top-color: #111;
-  border-radius: 50%;
-  animation: czSpin .75s linear infinite;
-}
-
-.cz-edit-bag {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  margin-top: 13px;
-  color: #fff;
-  text-decoration: none;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: .13em;
-  opacity: .45;
-  transition: opacity .2s ease;
-}
-
-.cz-edit-bag:hover {
-  opacity: .8;
-}
-
-.cz-trust {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 22px;
-  padding-top: 18px;
-  border-top: 1px solid rgba(255,255,255,.1);
-}
-
-.cz-trust > div {
-  width: 30px;
-  height: 30px;
-  flex: 0 0 auto;
-  border-radius: 9px;
-  background: rgba(255,255,255,.07);
-  display: grid;
-  place-items: center;
-}
-
-.cz-trust p {
-  margin: 0;
-  font-size: 8px;
-  line-height: 1.5;
-  letter-spacing: .08em;
-  opacity: .38;
-}
-
-.cz-trust strong {
-  color: #fff;
-  opacity: 1;
-}
-
-.cz-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 20px;
-  padding-top: 25px;
-  font-size: 8px;
-  letter-spacing: .15em;
-  font-weight: 800;
-  opacity: .34;
-}
-
-.cz-footer > div {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.cz-error {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 15px 17px;
-  margin-top: 20px;
-  border: 1px solid rgba(140,0,0,.16);
-  background: #fff7f7;
-  border-radius: 15px;
-  color: #511;
-}
-
-.cz-error-mark {
-  width: 23px;
-  height: 23px;
-  flex: 0 0 auto;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background: #111;
-  color: #fff;
-  font-size: 11px;
-  font-weight: 900;
-}
-
-.cz-error strong {
-  display: block;
-  font-size: 9px;
-  letter-spacing: .14em;
-  margin-bottom: 3px;
-}
-
-.cz-error p {
-  margin: 0;
-  font-size: 11px;
-  line-height: 1.5;
-}
-
-.cz-checkout-state {
-  display: grid;
-  place-items: center;
-  padding: 30px;
-}
-
-.cz-state-card,
-.cz-empty-card {
-  width: min(560px, 100%);
-  padding: 42px;
-  background: #fff;
-  border: 1px solid rgba(17,17,17,.09);
-  border-radius: 28px;
-  text-align: center;
-  box-shadow: 0 25px 80px rgba(17,17,17,.07);
-}
-
-.cz-state-icon,
-.cz-empty-icon {
-  width: 54px;
-  height: 54px;
-  margin: 0 auto 20px;
-  border-radius: 17px;
-  background: #111;
-  color: #fff;
-  display: grid;
-  place-items: center;
-}
-
-.cz-state-card > span,
-.cz-empty-card > span {
-  display: block;
-  font-size: 9px;
-  letter-spacing: .18em;
-  font-weight: 900;
-  opacity: .46;
-}
-
-.cz-state-card h1,
-.cz-empty-card h1 {
-  margin: 12px 0 18px;
-  font-family: "Manrope", sans-serif;
-  font-size: clamp(36px, 7vw, 65px);
-  line-height: .92;
-  letter-spacing: -.07em;
-}
-
-.cz-empty-card p {
-  margin: 0 auto 25px;
-  max-width: 370px;
-  font-size: 13px;
-  line-height: 1.6;
-  opacity: .56;
-}
-
-.cz-primary-button {
-  width: fit-content;
-  margin: 0 auto;
-  padding: 14px 18px;
-  border-radius: 12px;
-  background: #111;
-  color: #fff;
-  text-decoration: none;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: .13em;
-}
-
-.cz-loader-line {
-  width: 120px;
-  height: 2px;
-  margin: 18px auto 0;
-  overflow: hidden;
-  background: #eee;
-  position: relative;
-}
-
-.cz-loader-line::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  width: 40%;
-  background: #111;
-  animation: czLoading 1.1s ease-in-out infinite;
-}
-
-@keyframes czLoading {
-  0% {
-    transform: translateX(-100%);
-  }
-
-  100% {
-    transform: translateX(350%);
-  }
-}
-
-@keyframes czSpin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@media (max-width: 1100px) {
-  .cz-checkout-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .cz-summary {
-    position: static;
-  }
-
-  .cz-checkout-header {
-    grid-template-columns: auto 1fr auto;
-  }
-}
-
-@media (max-width: 760px) {
-  .cz-checkout-shell {
-    width: min(100% - 24px, 1420px);
-    padding-top: 18px;
-  }
-
-  .cz-checkout-header {
-    grid-template-columns: 1fr auto;
-    align-items: start;
-    padding-bottom: 30px;
-  }
-
-  .cz-header-main {
-    grid-column: 1 / -1;
-    grid-row: 2;
-    text-align: left;
-    margin-top: 8px;
-  }
-
-  .cz-header-main p {
-    margin-left: 0;
-  }
-
-  .cz-header-meta {
-    justify-self: end;
-  }
-
-  .cz-fields {
-    grid-template-columns: 1fr;
-  }
-
-  .cz-field.cz-full {
-    grid-column: auto;
-  }
-
-  .cz-section {
-    padding: 19px;
-    border-radius: 19px;
-  }
-
-  .cz-section-head {
-    margin-bottom: 19px;
-    padding-bottom: 18px;
-  }
-
-  .cz-security-strip {
-    grid-template-columns: 1fr;
-    gap: 10px;
-  }
-
-  .cz-security-line {
-    width: 100%;
-    height: 1px;
-  }
-
-  .cz-security-item {
-    justify-content: flex-start;
-  }
-
-  .cz-summary {
-    padding: 20px;
-    border-radius: 22px;
-  }
-
-  .cz-footer {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-}
-
-@media (max-width: 480px) {
-  .cz-checkout-shell {
-    width: calc(100% - 16px);
-  }
-
-  .cz-header-main h1 {
-    font-size: 54px;
-  }
-
-  .cz-section-head h2 {
-    font-size: 18px;
-  }
-
-  .cz-product {
-    grid-template-columns: 54px 1fr auto;
-  }
-
-  .cz-product-image {
-    width: 54px;
-    height: 66px;
-  }
-
-  .cz-total-box > strong {
-    font-size: 23px;
-  }
-}
-`;
 
 export default Checkout;
