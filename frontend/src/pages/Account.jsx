@@ -127,28 +127,18 @@ function Account() {
         /*
          * IMPORTANT:
          *
-         * Only an authenticated ADMIN should be
-         * redirected to the admin panel.
+         * Do NOT check user.role here.
          *
-         * Do NOT use:
+         * This page belongs to the currently
+         * authenticated user. The /auth/me
+         * endpoint returns that user's details.
          *
-         * user.role !== "customer"
+         * If a customer has no profile information,
+         * the fields remain empty and can be filled.
          *
-         * because that would redirect normal users
-         * if the API does not return the role exactly
-         * as "customer".
+         * Admin authorization is handled separately
+         * by the admin routes/protection.
          */
-
-        const userRole = String(
-          user?.role || ""
-        )
-          .trim()
-          .toLowerCase();
-
-        if (userRole === "admin") {
-          window.location.replace("/admin");
-          return;
-        }
 
         const {
           firstName,
@@ -159,18 +149,15 @@ function Account() {
           return;
         }
 
-        /*
-         * If the user has no information saved,
-         * these values remain empty.
-         *
-         * The user can then fill them using EDIT.
-         */
         setPersonalDetails({
           firstName,
           lastName,
           email: user.email || "",
           phone: user.phone || "",
-          dateOfBirth: "",
+          dateOfBirth:
+            user.date_of_birth ||
+            user.dateOfBirth ||
+            "",
         });
 
         const fallbackAddress = {
@@ -182,12 +169,6 @@ function Account() {
         setAddress(fallbackAddress);
         setSavedAddress(fallbackAddress);
 
-        /*
-         * Load the user's own saved address.
-         *
-         * The backend should use the authenticated
-         * user's ID when handling /addresses.
-         */
         try {
           const addressResponse =
             await api.get("/addresses");
@@ -257,6 +238,7 @@ function Account() {
 
         showError(
           requestError.response?.data?.message ||
+            requestError.message ||
             "We couldn't load your account details. Please try again."
         );
       } finally {
@@ -372,6 +354,9 @@ function Account() {
             personalDetails.email.trim(),
           phone:
             personalDetails.phone.trim(),
+          date_of_birth:
+            personalDetails.dateOfBirth ||
+            null,
         }
       );
 
@@ -401,6 +386,11 @@ function Account() {
           updatedUser.email || "",
         phone:
           updatedUser.phone || "",
+        dateOfBirth:
+          updatedUser.date_of_birth ||
+          updatedUser.dateOfBirth ||
+          previous.dateOfBirth ||
+          "",
       }));
 
       setAddress((previous) => ({
@@ -428,6 +418,7 @@ function Account() {
 
       showError(
         requestError.response?.data?.message ||
+          requestError.message ||
           "We couldn't update your personal details. Please try again."
       );
     } finally {
@@ -603,6 +594,7 @@ function Account() {
 
       showError(
         requestError.response?.data?.message ||
+          requestError.message ||
           "We couldn't save your delivery address. Please try again."
       );
     } finally {
