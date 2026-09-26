@@ -1,469 +1,563 @@
-import {
-    useEffect,
-    useMemo,
-    useState
-} from "react";
-
-import {
-    Link,
-    useSearchParams
-} from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import { Search as SearchIcon } from "lucide-react";
 
 import api from "../services/api";
 
+const getImageUrl = (image) => {
+  if (!image) {
+    return "";
+  }
+
+  if (typeof image === "string") {
+    return image;
+  }
+
+  return (
+    image.image_url ||
+    image.imageUrl ||
+    image.secure_url ||
+    image.secureUrl ||
+    image.url ||
+    ""
+  );
+};
+
+const getProductPrice = (product) => {
+  const basePrice = Number(
+    product?.base_price ??
+      product?.basePrice ??
+      product?.price ??
+      0
+  );
+
+  const salePrice =
+    product?.sale_price !== null &&
+    product?.sale_price !== undefined &&
+    product?.sale_price !== ""
+      ? Number(product.sale_price)
+      : null;
+
+  if (
+    salePrice !== null &&
+    Number.isFinite(salePrice) &&
+    salePrice < basePrice
+  ) {
+    return salePrice;
+  }
+
+  return basePrice;
+};
+
+const getProductName = (product) => {
+  return (
+    product?.name ||
+    product?.product_name ||
+    product?.title ||
+    "UNTKN PRODUCT"
+  );
+};
+
+const getProductCategory = (product) => {
+  return (
+    product?.category_name ||
+    product?.category ||
+    ""
+  );
+};
+
+const getProductCollection = (product) => {
+  return (
+    product?.collection_name ||
+    product?.collection ||
+    ""
+  );
+};
+
+const getProductDescription = (product) => {
+  return (
+    product?.description ||
+    ""
+  );
+};
+
+const normalizeProduct = (product, images = []) => {
+  const numericId = Number(product?.id);
+
+  return {
+    ...product,
+
+    id:
+      Number.isInteger(numericId) && numericId > 0
+        ? numericId
+        : product?.id,
+
+    name: getProductName(product),
+
+    category: getProductCategory(product),
+
+    collection: getProductCollection(product),
+
+    description: getProductDescription(product),
+
+    price: getProductPrice(product),
+
+    images,
+
+    image:
+      images[0] ||
+      getImageUrl(product?.image) ||
+      getImageUrl(product?.image_url) ||
+      getImageUrl(product?.imageUrl) ||
+      "",
+  };
+};
+
 function Search() {
-    const [
-        searchParams,
-        setSearchParams
-    ] = useSearchParams();
+  const [searchParams, setSearchParams] =
+    useSearchParams();
 
-    const query =
-        searchParams.get("q") ||
+  const initialQuery =
+    searchParams.get("q") ||
+    searchParams.get("search") ||
+    searchParams.get("query") ||
+    "";
+
+  const [search, setSearch] =
+    useState(initialQuery);
+
+  const [products, setProducts] =
+    useState([]);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [error, setError] =
+    useState("");
+
+  useEffect(() => {
+    setSearch(
+      searchParams.get("q") ||
         searchParams.get("search") ||
-        "";
+        searchParams.get("query") ||
+        ""
+    );
+  }, [searchParams]);
 
-    const [
-        products,
-        setProducts
-    ] = useState([]);
+  useEffect(() => {
+    let cancelled = false;
 
-    const [
-        loading,
-        setLoading
-    ] = useState(true);
+    const loadProducts = async () => {
+      try {
+        setLoading(true);
+        setError("");
 
-    const [
-        error,
-        setError
-    ] = useState("");
+        const response =
+          await api.get("/products");
 
-    useEffect(() => {
-        let cancelled = false;
+        if (!response.data?.success) {
+          throw new Error(
+            response.data?.message ||
+              "Failed to load products."
+          );
+        }
 
-        const loadProducts =
-            async () => {
-                try {
-                    setLoading(true);
-                    setError("");
+        const productList =
+          response.data.products ||
+          response.data.data ||
+          [];
 
-                    const response =
-                        await api.get(
-                            "/products"
-                        );
+        if (!Array.isArray(productList)) {
+          throw new Error(
+            "Invalid products response from server."
+          );
+        }
+
+        const productsWithImages =
+          await Promise.all(
+            productList.map(
+              async (product) => {
+                let images = [];
+
+                if (
+                  Array.isArray(
+                    product?.images
+                  )
+                ) {
+                  images =
+                    product.images
+                      .map(getImageUrl)
+                      .filter(
+                        (url) =>
+                          url &&
+                          !url.includes(
+                            "example.com"
+                          )
+                      );
+                }
+
+                const directImage =
+                  getImageUrl(
+                    product?.image
+                  ) ||
+                  getImageUrl(
+                    product?.image_url
+                  ) ||
+                  getImageUrl(
+                    product?.imageUrl
+                  );
+
+                if (
+                  directImage &&
+                  !images.includes(
+                    directImage
+                  )
+                ) {
+                  images.unshift(
+                    directImage
+                  );
+                }
+
+                const numericId =
+                  Number(product?.id);
+
+                if (
+                  images.length === 0 &&
+                  Number.isInteger(
+                    numericId
+                  ) &&
+                  numericId > 0
+                ) {
+                  try {
+                    const imageResponse =
+                      await api.get(
+                        `/products/${numericId}/images`
+                      );
 
                     if (
-                        !response.data?.success
+                      imageResponse.data
+                        ?.success
                     ) {
-                        throw new Error(
-                            response.data
-                                ?.message ||
-                            "Failed to load products."
-                        );
-                    }
-
-                    const apiProducts =
-                        response.data
-                            ?.products ||
-                        response.data
-                            ?.data ||
+                      const apiImages =
+                        imageResponse
+                          .data
+                          .images ||
+                        imageResponse
+                          .data
+                          .data ||
                         [];
 
-                    if (
-                        !Array.isArray(
-                            apiProducts
-                        )
-                    ) {
-                        throw new Error(
-                            "Invalid products response."
-                        );
+                      images =
+                        apiImages
+                          .map(
+                            getImageUrl
+                          )
+                          .filter(
+                            (url) =>
+                              url &&
+                              !url.includes(
+                                "example.com"
+                              )
+                          );
                     }
-
-                    if (
-                        cancelled
-                    ) {
-                        return;
-                    }
-
-                    setProducts(
-                        apiProducts
+                  } catch (imageError) {
+                    console.warn(
+                      `Images could not be loaded for product ${numericId}:`,
+                      imageError
                     );
-
-                } catch (
-                    requestError
-                ) {
-                    console.error(
-                        "Search products error:",
-                        requestError
-                    );
-
-                    if (
-                        !cancelled
-                    ) {
-                        setProducts([]);
-
-                        setError(
-                            requestError
-                                ?.response
-                                ?.data
-                                ?.message ||
-                            requestError
-                                ?.message ||
-                            "Unable to load products."
-                        );
-                    }
-                } finally {
-                    if (
-                        !cancelled
-                    ) {
-                        setLoading(false);
-                    }
+                  }
                 }
-            };
 
-        loadProducts();
-
-        return () => {
-            cancelled = true;
-        };
-    }, []);
-
-    const normalizedQuery =
-        query
-            .trim()
-            .toLowerCase();
-
-    const filteredProducts =
-        useMemo(() => {
-            if (
-                !normalizedQuery
-            ) {
-                return products;
-            }
-
-            return products.filter(
-                (product) => {
-                    const name =
-                        String(
-                            product.name ||
-                            product.product_name ||
-                            ""
-                        ).toLowerCase();
-
-                    const category =
-                        String(
-                            product.category_name ||
-                            product.category ||
-                            ""
-                        ).toLowerCase();
-
-                    const collection =
-                        String(
-                            product.collection_name ||
-                            product.collection ||
-                            ""
-                        ).toLowerCase();
-
-                    const description =
-                        String(
-                            product.description ||
-                            ""
-                        ).toLowerCase();
-
-                    return (
-                        name.includes(
-                            normalizedQuery
-                        ) ||
-                        category.includes(
-                            normalizedQuery
-                        ) ||
-                        collection.includes(
-                            normalizedQuery
-                        ) ||
-                        description.includes(
-                            normalizedQuery
-                        )
-                    );
-                }
-            );
-        }, [
-            products,
-            normalizedQuery
-        ]);
-
-    const getProductId =
-        (product) => {
-            return (
-                product.id ||
-                product.product_id
-            );
-        };
-
-    const getProductSlug =
-        (product) => {
-            return (
-                product.slug ||
-                product.product_slug ||
-                getProductId(
-                    product
-                )
-            );
-        };
-
-    const getProductName =
-        (product) => {
-            return (
-                product.name ||
-                product.product_name ||
-                "UNTKN PRODUCT"
-            );
-        };
-
-    const getProductPrice =
-        (product) => {
-            const price =
-                product.sale_price ??
-                product.price ??
-                product.base_price ??
-                product.unit_price ??
-                product.current_price ??
-                0;
-
-            const numericPrice =
-                Number(price);
-
-            return Number.isFinite(
-                numericPrice
+                return normalizeProduct(
+                  product,
+                  images
+                );
+              }
             )
-                ? numericPrice
-                : 0;
-        };
+          );
 
-    const getProductImage =
+        if (!cancelled) {
+          setProducts(
+            productsWithImages
+          );
+        }
+      } catch (loadError) {
+        console.error(
+          "Failed to load search products:",
+          loadError
+        );
+
+        if (!cancelled) {
+          setProducts([]);
+
+          setError(
+            loadError?.response?.data
+              ?.message ||
+              loadError?.message ||
+              "Unable to load products."
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadProducts();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const filteredProducts =
+    useMemo(() => {
+      const query =
+        String(search || "")
+          .trim()
+          .toLowerCase();
+
+      if (!query) {
+        return products;
+      }
+
+      return products.filter(
         (product) => {
-            return (
-                product.image_url ||
-                product.primary_image ||
-                product.image ||
-                product.thumbnail ||
-                ""
-            );
-        };
+          const searchableText =
+            [
+              product?.name,
+              product?.product_name,
+              product?.title,
+              product?.category,
+              product?.category_name,
+              product?.collection,
+              product?.collection_name,
+              product?.description,
+            ]
+              .filter(Boolean)
+              .join(" ")
+              .toLowerCase();
 
-    const formatPrice =
-        (value) => {
-            return `₹${Number(
-                value || 0
-            ).toLocaleString(
-                "en-IN"
-            )}`;
-        };
+          return searchableText.includes(
+            query
+          );
+        }
+      );
+    }, [products, search]);
 
-    const getCategory =
-        (product) => {
-            return (
-                product.category_name ||
-                product.category ||
-                "PRODUCT"
-            );
-        };
+  const handleSearchSubmit = (
+    event
+  ) => {
+    event.preventDefault();
 
-    const handleSearch =
-        (event) => {
-            event.preventDefault();
+    const query =
+      String(search || "").trim();
 
-            const form =
-                event.currentTarget;
+    if (query) {
+      setSearchParams({
+        q: query,
+      });
+    } else {
+      setSearchParams({});
+    }
+  };
 
-            const input =
-                form.elements.search;
+  const formatPrice = (price) => {
+    return Number(
+      price || 0
+    ).toLocaleString("en-IN");
+  };
 
-            const value =
-                String(
-                    input?.value ||
-                    ""
-                ).trim();
+  return (
+    <main className="search-page">
+      <section className="search-header">
+        <div className="search-header-inner">
+          <p className="eyebrow">
+            SEARCH
+          </p>
 
-            if (value) {
-                setSearchParams({
-                    q: value
-                });
-            } else {
-                setSearchParams({});
+          <h1>
+            FIND YOUR PIECE
+          </h1>
+
+          <form
+            className="search-form"
+            onSubmit={
+              handleSearchSubmit
             }
-        };
+          >
+            <div className="search-input-wrapper">
+              <SearchIcon
+                size={20}
+                strokeWidth={1.5}
+              />
 
-    return (
-        <main
-            className="search-page"
-        >
-            <section
-                className="search-header"
-            >
-                <form
-                    onSubmit={
-                        handleSearch
-                    }
-                    className="search-form"
+              <input
+                type="search"
+                value={search}
+                onChange={(event) =>
+                  setSearch(
+                    event.target.value
+                  )
+                }
+                placeholder="Search products..."
+                aria-label="Search products"
+              />
+
+              {search && (
+                <button
+                  type="button"
+                  className="search-clear"
+                  onClick={() => {
+                    setSearch("");
+                    setSearchParams({});
+                  }}
+                  aria-label="Clear search"
                 >
-                    <input
-                        name="search"
-                        type="search"
-                        defaultValue={
-                            query
-                        }
-                        placeholder="SEARCH PRODUCTS..."
-                        autoComplete="off"
-                        aria-label="Search products"
-                    />
+                  ×
+                </button>
+              )}
+            </div>
 
-                    <button
-                        type="submit"
-                    >
-                        SEARCH →
-                    </button>
-                </form>
-            </section>
-
-            <section
-                className="search-results"
+            <button
+              type="submit"
+              className="search-submit"
             >
-                {loading ? (
-                    <div
-                        className="search-state"
+              SEARCH
+            </button>
+          </form>
+        </div>
+      </section>
+
+      <section className="search-results">
+        <div className="search-results-header">
+          <div>
+            <p className="eyebrow">
+              {search
+                ? `RESULTS FOR "${search}"`
+                : "ALL PRODUCTS"}
+            </p>
+
+            <h2>
+              {loading
+                ? "LOADING..."
+                : `${filteredProducts.length} PRODUCTS`}
+            </h2>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="search-state">
+            <p>
+              Fetching the latest
+              products...
+            </p>
+          </div>
+        ) : error ? (
+          <div className="search-state search-error">
+            <h3>
+              Unable to load products
+            </h3>
+
+            <p>
+              {error}
+            </p>
+
+            <button
+              type="button"
+              onClick={() =>
+                window.location.reload()
+              }
+            >
+              TRY AGAIN
+            </button>
+          </div>
+        ) : filteredProducts.length ===
+          0 ? (
+          <div className="search-state">
+            <h3>
+              NO PRODUCTS FOUND
+            </h3>
+
+            <p>
+              {search
+                ? `No products matched "${search}".`
+                : "No products are available right now."}
+            </p>
+          </div>
+        ) : (
+          <div className="product-grid">
+            {filteredProducts.map(
+              (product) => {
+                const productId =
+                  Number(product?.id);
+
+                const validProductId =
+                  Number.isInteger(
+                    productId
+                  ) &&
+                  productId > 0;
+
+                if (!validProductId) {
+                  return null;
+                }
+
+                return (
+                  <article
+                    className="product-card"
+                    key={productId}
+                  >
+                    <Link
+                      to={`/product/${productId}`}
+                      className="product-image"
                     >
-                        LOADING PRODUCTS...
-                    </div>
-                ) : error ? (
-                    <div
-                        className="search-state"
-                    >
-                        {error}
-                    </div>
-                ) : (
-                    <>
-                        <div
-                            className="search-results-header"
-                        >
-                            <span>
-                                {
-                                    filteredProducts.length
-                                }{" "}
-                                PRODUCTS
-                            </span>
+                      {product.image ? (
+                        <img
+                          src={
+                            product.image
+                          }
+                          alt={
+                            product.name
+                          }
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="product-image-placeholder">
+                          UNTKN
                         </div>
+                      )}
+                    </Link>
 
-                        {filteredProducts.length ===
-                        0 ? (
-                            <div
-                                className="search-state"
-                            >
-                                {normalizedQuery
-                                    ? `NO PRODUCTS FOUND FOR "${query}"`
-                                    : "NO PRODUCTS AVAILABLE"}
-                            </div>
-                        ) : (
-                            <div
-                                className="search-products-grid"
-                            >
-                                {filteredProducts.map(
-                                    (
-                                        product
-                                    ) => {
-                                        const id =
-                                            getProductId(
-                                                product
-                                            );
+                    <div className="product-info">
+                      <div>
+                        <h3>
+                          {product.name}
+                        </h3>
 
-                                        const slug =
-                                            getProductSlug(
-                                                product
-                                            );
+                        <p>
+                          {product.category ||
+                            product.collection ||
+                            "UNTKN"}
+                        </p>
+                      </div>
 
-                                        const name =
-                                            getProductName(
-                                                product
-                                            );
-
-                                        const price =
-                                            getProductPrice(
-                                                product
-                                            );
-
-                                        const image =
-                                            getProductImage(
-                                                product
-                                            );
-
-                                        return (
-                                            <Link
-                                                key={
-                                                    id ||
-                                                    slug ||
-                                                    name
-                                                }
-                                                to={`/product/${encodeURIComponent(
-                                                    slug
-                                                )}`}
-                                                className="search-product-card"
-                                            >
-                                                <div
-                                                    className="search-product-image"
-                                                >
-                                                    {image ? (
-                                                        <img
-                                                            src={
-                                                                image
-                                                            }
-                                                            alt={
-                                                                name
-                                                            }
-                                                            loading="lazy"
-                                                        />
-                                                    ) : (
-                                                        <div
-                                                            className="search-product-placeholder"
-                                                        >
-                                                            UNTKN
-                                                        </div>
-                                                    )}
-                                                </div>
-
-                                                <div
-                                                    className="search-product-info"
-                                                >
-                                                    <div>
-                                                        <h3>
-                                                            {
-                                                                name
-                                                            }
-                                                        </h3>
-
-                                                        <p>
-                                                            {
-                                                                getCategory(
-                                                                    product
-                                                                )
-                                                            }
-                                                        </p>
-                                                    </div>
-
-                                                    <strong>
-                                                        {formatPrice(
-                                                            price
-                                                        )}
-                                                    </strong>
-                                                </div>
-                                            </Link>
-                                        );
-                                    }
-                                )}
-                            </div>
+                      <span>
+                        ₹
+                        {formatPrice(
+                          product.price
                         )}
-                    </>
-                )}
-            </section>
-        </main>
-    );
+                      </span>
+                    </div>
+                  </article>
+                );
+              }
+            )}
+          </div>
+        )}
+      </section>
+    </main>
+  );
 }
 
 export default Search;
