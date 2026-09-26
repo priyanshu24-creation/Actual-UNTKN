@@ -6,9 +6,7 @@ const getSmtpConfig = () => {
         "smtp.hostinger.com";
 
     const port =
-        Number(
-            process.env.SMTP_PORT || 465
-        );
+        Number(process.env.SMTP_PORT || 465);
 
     const user =
         process.env.SMTP_USER;
@@ -26,19 +24,19 @@ const getSmtpConfig = () => {
 
     if (!user) {
         throw new Error(
-            "SMTP_USER environment variable is missing"
+            "SMTP_USER is not configured."
         );
     }
 
     if (!password) {
         throw new Error(
-            "SMTP_PASSWORD environment variable is missing"
+            "SMTP_PASSWORD is not configured."
         );
     }
 
     if (!fromEmail) {
         throw new Error(
-            "SMTP_FROM_EMAIL could not be determined"
+            "SMTP_FROM_EMAIL is not configured."
         );
     }
 
@@ -58,22 +56,36 @@ const createTransporter = () => {
         getSmtpConfig();
 
     return nodemailer.createTransport({
-        host: config.host,
+        host:
+            config.host,
 
-        port: config.port,
+        port:
+            config.port,
 
-        secure: config.secure,
+        secure:
+            config.secure,
 
         auth: {
-            user: config.user,
-            pass: config.password
+            user:
+                config.user,
+
+            pass:
+                config.password
         },
 
-        connectionTimeout: 15000,
+        tls: {
+            minVersion:
+                "TLSv1.2"
+        },
 
-        greetingTimeout: 15000,
+        connectionTimeout:
+            30000,
 
-        socketTimeout: 20000
+        greetingTimeout:
+            30000,
+
+        socketTimeout:
+            30000
     });
 };
 
@@ -83,20 +95,31 @@ export const sendEmail = async ({
     text,
     html
 }) => {
-    if (!to) {
-        throw new Error(
-            "Recipient email is required"
-        );
-    }
-
-    if (!subject) {
-        throw new Error(
-            "Email subject is required"
-        );
-    }
-
     const config =
         getSmtpConfig();
+
+    if (!to) {
+        throw new Error(
+            "Customer email address is missing."
+        );
+    }
+
+    const recipient =
+        String(to).trim();
+
+    if (!recipient) {
+        throw new Error(
+            "Customer email address is empty."
+        );
+    }
+
+    console.log(
+        "Preparing customer email:",
+        {
+            to: recipient,
+            subject
+        }
+    );
 
     const transporter =
         createTransporter();
@@ -105,15 +128,28 @@ export const sendEmail = async ({
         from:
             `"${config.fromName}" <${config.fromEmail}>`,
 
-        to,
+        to:
+            recipient,
 
-        subject,
+        envelope: {
+            from:
+                config.fromEmail,
+
+            to:
+                recipient
+        },
+
+        replyTo:
+            config.fromEmail,
+
+        subject:
+            subject || "UNTKN",
 
         text:
-            text || undefined,
+            text || "",
 
         html:
-            html || undefined
+            html || text || ""
     };
 
     const info =
@@ -122,18 +158,24 @@ export const sendEmail = async ({
         );
 
     console.log(
-        "Email sent successfully:",
+        "Customer email accepted by SMTP:",
         {
-            messageId:
-                info.messageId,
-
-            accepted:
-                info.accepted,
-
-            rejected:
-                info.rejected
+            to: recipient,
+            messageId: info.messageId,
+            response: info.response,
+            accepted: info.accepted,
+            rejected: info.rejected
         }
     );
+
+    if (
+        !info.accepted ||
+        info.accepted.length === 0
+    ) {
+        throw new Error(
+            `SMTP did not accept customer email for ${recipient}`
+        );
+    }
 
     return info;
 };
@@ -146,7 +188,7 @@ export const verifyEmailConnection =
         await transporter.verify();
 
         console.log(
-            "SMTP connection verified successfully"
+            "SMTP connection verified successfully."
         );
 
         return true;
