@@ -4,6 +4,7 @@ import { sendOrderStatusEmail } from "../services/order-confirmation.service.js"
 
 const generateOrderNumber = () => {
     const timestamp = Date.now().toString();
+
     const random = Math.floor(
         1000 + Math.random() * 9000
     );
@@ -11,11 +12,16 @@ const generateOrderNumber = () => {
     return `UNTKN-${timestamp.slice(-8)}-${random}`;
 };
 
-export const createOrder = async (req, res) => {
-    const connection = await pool.getConnection();
+export const createOrder = async (
+    req,
+    res
+) => {
+    const connection =
+        await pool.getConnection();
 
     try {
-        const userId = req.user.id;
+        const userId =
+            req.user.id;
 
         const {
             shipping_name,
@@ -42,12 +48,14 @@ export const createOrder = async (req, res) => {
         ) {
             return res.status(400).json({
                 success: false,
-                message: "Required shipping information is missing"
+                message:
+                    "Required shipping information is missing"
             });
         }
 
         const selectedDeliveryMethod =
-            delivery_method || "standard";
+            delivery_method ||
+            "standard";
 
         const allowedDeliveryMethods = [
             "standard",
@@ -61,89 +69,98 @@ export const createOrder = async (req, res) => {
         ) {
             return res.status(400).json({
                 success: false,
-                message: "Invalid delivery method"
+                message:
+                    "Invalid delivery method"
             });
         }
 
-const shippingFee = 0;
-
+        const shippingFee = 0;
 
         let discount = 0;
         let appliedCoupon = null;
 
         await connection.beginTransaction();
 
-        const [carts] =
-            await connection.execute(
-                `
-                SELECT id
-                FROM carts
-                WHERE user_id = ?
-                LIMIT 1
-                `,
-                [userId]
-            );
+        const [
+            carts
+        ] = await connection.execute(
+            `
+            SELECT id
+            FROM carts
+            WHERE user_id = ?
+            LIMIT 1
+            `,
+            [userId]
+        );
 
-        if (carts.length === 0) {
+        if (
+            carts.length === 0
+        ) {
             await connection.rollback();
 
             return res.status(400).json({
                 success: false,
-                message: "Cart is empty"
+                message:
+                    "Cart is empty"
             });
         }
 
-        const cartId = carts[0].id;
+        const cartId =
+            carts[0].id;
 
-        const [items] =
-            await connection.execute(
-                `
-                SELECT
-                    ci.id AS cart_item_id,
-                    ci.product_id,
-                    ci.variant_id,
-                    ci.quantity,
+        const [
+            items
+        ] = await connection.execute(
+            `
+            SELECT
+                ci.id AS cart_item_id,
+                ci.product_id,
+                ci.variant_id,
+                ci.quantity,
 
-                    p.name AS product_name,
-                    p.published,
-                    p.base_price,
-                    p.sale_price,
-                    p.category_id,
-                    p.collection_id,
+                p.name AS product_name,
+                p.published,
+                p.base_price,
+                p.sale_price,
+                p.category_id,
+                p.collection_id,
 
-                    pv.sku,
-                    pv.price AS variant_price,
-                    pv.stock_quantity,
-                    pv.active AS variant_active,
+                pv.sku,
+                pv.price AS variant_price,
+                pv.stock_quantity,
+                pv.active AS variant_active,
 
-                    s.name AS size_name,
-                    c.name AS color_name
+                s.name AS size_name,
+                c.name AS color_name
 
-                FROM cart_items ci
+            FROM cart_items ci
 
-                INNER JOIN products p
-                    ON ci.product_id = p.id
+            INNER JOIN products p
+                ON ci.product_id = p.id
 
-                LEFT JOIN product_variants pv
-                    ON ci.variant_id = pv.id
+            LEFT JOIN product_variants pv
+                ON ci.variant_id = pv.id
 
-                LEFT JOIN sizes s
-                    ON pv.size_id = s.id
+            LEFT JOIN sizes s
+                ON pv.size_id = s.id
 
-                LEFT JOIN colors c
-                    ON pv.color_id = c.id
+            LEFT JOIN colors c
+                ON pv.color_id = c.id
 
-                WHERE ci.cart_id = ?
-                `,
-                [cartId]
-            );
+            WHERE ci.cart_id = ?
+            `,
+            [cartId]
+        );
 
-        if (items.length === 0) {
+        if (
+            items.length === 0
+        ) {
             await connection.rollback();
 
             return res.status(400).json({
                 success: false,
-                message: "Cart is empty"
+                message:
+                    "Cart is empty"
             });
         }
 
@@ -151,8 +168,12 @@ const shippingFee = 0;
 
         const orderItems = [];
 
-        for (const item of items) {
-            if (!item.published) {
+        for (
+            const item of items
+        ) {
+            if (
+                !item.published
+            ) {
                 await connection.rollback();
 
                 return res.status(400).json({
@@ -162,8 +183,12 @@ const shippingFee = 0;
                 });
             }
 
-            if (item.variant_id) {
-                if (!item.variant_active) {
+            if (
+                item.variant_id
+            ) {
+                if (
+                    !item.variant_active
+                ) {
                     await connection.rollback();
 
                     return res.status(400).json({
@@ -174,8 +199,12 @@ const shippingFee = 0;
                 }
 
                 if (
-                    Number(item.stock_quantity) <
-                    Number(item.quantity)
+                    Number(
+                        item.stock_quantity
+                    ) <
+                    Number(
+                        item.quantity
+                    )
                 ) {
                     await connection.rollback();
 
@@ -190,24 +219,36 @@ const shippingFee = 0;
             let unitPrice;
 
             if (
-                item.variant_price !== null &&
-                item.variant_price !== undefined
+                item.variant_price !==
+                    null &&
+                item.variant_price !==
+                    undefined
             ) {
                 unitPrice =
-                    Number(item.variant_price);
+                    Number(
+                        item.variant_price
+                    );
             } else if (
-                item.sale_price !== null &&
-                item.sale_price !== undefined
+                item.sale_price !==
+                    null &&
+                item.sale_price !==
+                    undefined
             ) {
                 unitPrice =
-                    Number(item.sale_price);
+                    Number(
+                        item.sale_price
+                    );
             } else {
                 unitPrice =
-                    Number(item.base_price);
+                    Number(
+                        item.base_price
+                    );
             }
 
             if (
-                !Number.isFinite(unitPrice) ||
+                !Number.isFinite(
+                    unitPrice
+                ) ||
                 unitPrice < 0
             ) {
                 await connection.rollback();
@@ -221,9 +262,12 @@ const shippingFee = 0;
 
             const totalPrice =
                 unitPrice *
-                Number(item.quantity);
+                Number(
+                    item.quantity
+                );
 
-            subtotal += totalPrice;
+            subtotal +=
+                totalPrice;
 
             orderItems.push({
                 product_id:
@@ -245,7 +289,9 @@ const shippingFee = 0;
                     item.color_name,
 
                 quantity:
-                    Number(item.quantity),
+                    Number(
+                        item.quantity
+                    ),
 
                 unit_price:
                     unitPrice,
@@ -262,40 +308,50 @@ const shippingFee = 0;
         }
 
         subtotal =
-            Number(subtotal.toFixed(2));
+            Number(
+                subtotal.toFixed(2)
+            );
 
-        if (coupon_code) {
+        if (
+            coupon_code
+        ) {
             const couponItems =
-                orderItems.map((item) => ({
-                    product_id:
-                        item.product_id,
+                orderItems.map(
+                    (item) => ({
+                        product_id:
+                            item.product_id,
 
-                    category_id:
-                        item.category_id,
+                        category_id:
+                            item.category_id,
 
-                    collection_id:
-                        item.collection_id,
+                        collection_id:
+                            item.collection_id,
 
-                    quantity:
-                        item.quantity,
+                        quantity:
+                            item.quantity,
 
-                    unit_price:
-                        item.unit_price
-                }));
+                        unit_price:
+                            item.unit_price
+                    })
+                );
 
             const couponResult =
                 await validateCoupon({
                     connection,
-                    code: coupon_code,
+                    code:
+                        coupon_code,
                     userId,
                     subtotal,
-                    items: couponItems,
-                    forOrder: true
+                    items:
+                        couponItems,
+                    forOrder:
+                        true
                 });
 
             discount =
                 Number(
-                    couponResult.discount || 0
+                    couponResult.discount ||
+                        0
                 );
 
             appliedCoupon =
@@ -311,110 +367,122 @@ const shippingFee = 0;
                 ).toFixed(2)
             );
 
-        if (totalAmount < 0) {
+        if (
+            totalAmount < 0
+        ) {
             await connection.rollback();
 
             return res.status(400).json({
                 success: false,
-                message: "Invalid order total"
+                message:
+                    "Invalid order total"
             });
         }
 
         const orderNumber =
             generateOrderNumber();
 
-        const [orderResult] =
-            await connection.execute(
-                `
-                INSERT INTO orders (
-                    user_id,
-                    order_number,
+        const [
+            orderResult
+        ] = await connection.execute(
+            `
+            INSERT INTO orders (
+                user_id,
+                order_number,
 
-                    subtotal,
-                    shipping_fee,
-                    discount,
-                    total_amount,
-                    coupon_code,
+                subtotal,
+                shipping_fee,
+                discount,
+                total_amount,
+                coupon_code,
 
-                    currency,
-                    payment_status,
-                    order_status,
+                currency,
+                payment_status,
+                order_status,
 
-                    shipping_name,
-                    shipping_phone,
-                    shipping_email,
+                shipping_name,
+                shipping_phone,
+                shipping_email,
 
-                    shipping_address_line1,
-                    shipping_address_line2,
+                shipping_address_line1,
+                shipping_address_line2,
 
-                    shipping_city,
-                    shipping_state,
-                    shipping_postal_code,
-                    shipping_country,
+                shipping_city,
+                shipping_state,
+                shipping_postal_code,
+                shipping_country,
 
-                    notes
-                )
+                notes
+            )
 
-                VALUES (
-                    ?, ?, ?, ?, ?, ?, ?, ?,
-                    'pending',
-                    'pending',
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
-                )
-                `,
-                [
-                    userId,
+            VALUES (
+                ?, ?, ?, ?, ?, ?, ?, ?,
+                'pending',
+                'pending',
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+            )
+            `,
+            [
+                userId,
 
-                    orderNumber,
+                orderNumber,
 
-                    subtotal,
-                    shippingFee,
-                    discount,
-                    totalAmount,
-                    appliedCoupon?.code || null,
+                subtotal,
+                shippingFee,
+                discount,
+                totalAmount,
+                appliedCoupon?.code ||
+                    null,
 
-                    "INR",
+                "INR",
 
-                    shipping_name.trim(),
+                shipping_name.trim(),
 
-                    shipping_phone.trim(),
+                shipping_phone.trim(),
 
-                    shipping_email?.trim() ||
-                        null,
+                shipping_email?.trim() ||
+                    null,
 
-                    shipping_address_line1.trim(),
+                shipping_address_line1.trim(),
 
-                    shipping_address_line2?.trim() ||
-                        null,
+                shipping_address_line2?.trim() ||
+                    null,
 
-                    shipping_city.trim(),
+                shipping_city.trim(),
 
-                    shipping_state.trim(),
+                shipping_state.trim(),
 
-                    shipping_postal_code.trim(),
+                shipping_postal_code.trim(),
 
-                    shipping_country?.trim() ||
-                        "India",
+                shipping_country?.trim() ||
+                    "India",
 
-                    notes?.trim() ||
-                        `Delivery method: ${selectedDeliveryMethod}`
-                ]
-            );
+                notes?.trim() ||
+                    `Delivery method: ${selectedDeliveryMethod}`
+            ]
+        );
 
         const orderId =
             orderResult.insertId;
 
-        if (appliedCoupon) {
-            const [usageUpdate] =
+        if (
+            appliedCoupon
+        ) {
+            const [
+                usageUpdate
+            ] =
                 await connection.execute(
                     `
                     UPDATE coupons
                     SET usage_count =
                         usage_count + 1
+
                     WHERE id = ?
+
                     AND (
                         usage_limit IS NULL
-                        OR usage_count < usage_limit
+                        OR usage_count <
+                            usage_limit
                     )
                     `,
                     [
@@ -425,7 +493,8 @@ const shippingFee = 0;
                 );
 
             if (
-                usageUpdate.affectedRows !== 1
+                usageUpdate.affectedRows !==
+                1
             ) {
                 throw new Error(
                     "This coupon is no longer available. Please try another coupon."
@@ -444,15 +513,22 @@ const shippingFee = 0;
                 VALUES (?, ?, ?, ?)
                 `,
                 [
-                    appliedCoupon.coupon.id,
+                    appliedCoupon
+                        .coupon
+                        .id,
+
                     userId,
+
                     orderId,
+
                     discount
                 ]
             );
         }
 
-        for (const item of orderItems) {
+        for (
+            const item of orderItems
+        ) {
             await connection.execute(
                 `
                 INSERT INTO order_items (
@@ -587,43 +663,141 @@ export const getOrders = async (
 ) => {
     try {
         const userId =
-            req.user.id;
-
-        const [orders] =
-            await pool.execute(
-                `
-                SELECT
-                    id,
-                    order_number,
-
-                    subtotal,
-                    shipping_fee,
-                    discount,
-                    total_amount,
-                    coupon_code,
-
-                    currency,
-
-                    payment_status,
-                    order_status,
-
-                    shipping_name,
-                    shipping_city,
-                    shipping_state,
-                    shipping_postal_code,
-
-                    created_at,
-                    updated_at
-
-                FROM orders
-
-                WHERE user_id = ?
-
-                ORDER BY created_at DESC
-                `,
-                [userId]
+            Number(
+                req.user?.id
             );
-            
+
+        if (
+            !Number.isInteger(
+                userId
+            ) ||
+            userId <= 0
+        ) {
+            return res.status(401).json({
+                success: false,
+                message:
+                    "Authentication required"
+            });
+        }
+
+        const [
+            users
+        ] = await pool.execute(
+            `
+            SELECT
+                id,
+                email
+
+            FROM users
+
+            WHERE id = ?
+
+            LIMIT 1
+            `,
+            [userId]
+        );
+
+        if (
+            users.length === 0
+        ) {
+            return res.status(401).json({
+                success: false,
+                message:
+                    "Authenticated user not found"
+            });
+        }
+
+        const userEmail =
+            String(
+                users[0].email || ""
+            )
+                .trim()
+                .toLowerCase();
+
+        let [
+            orders
+        ] = await pool.execute(
+            `
+            SELECT
+                id,
+                order_number,
+
+                subtotal,
+                shipping_fee,
+                discount,
+                total_amount,
+                coupon_code,
+
+                currency,
+
+                payment_status,
+                order_status,
+
+                shipping_name,
+                shipping_email,
+                shipping_city,
+                shipping_state,
+                shipping_postal_code,
+
+                created_at,
+                updated_at
+
+            FROM orders
+
+            WHERE user_id = ?
+
+            ORDER BY created_at DESC
+            `,
+            [userId]
+        );
+
+        if (
+            orders.length === 0 &&
+            userEmail
+        ) {
+            [
+                orders
+            ] =
+                await pool.execute(
+                    `
+                    SELECT
+                        id,
+                        order_number,
+
+                        subtotal,
+                        shipping_fee,
+                        discount,
+                        total_amount,
+                        coupon_code,
+
+                        currency,
+
+                        payment_status,
+                        order_status,
+
+                        shipping_name,
+                        shipping_email,
+                        shipping_city,
+                        shipping_state,
+                        shipping_postal_code,
+
+                        created_at,
+                        updated_at
+
+                    FROM orders
+
+                    WHERE LOWER(
+                        TRIM(
+                            shipping_email
+                        )
+                    ) = ?
+
+                    ORDER BY
+                        created_at DESC
+                    `,
+                    [userEmail]
+                );
+        }
 
         return res.status(200).json({
             success: true,
@@ -638,22 +812,26 @@ export const getOrders = async (
 
                         subtotal:
                             Number(
-                                order.subtotal
+                                order.subtotal ||
+                                    0
                             ),
 
                         shipping_fee:
                             Number(
-                                order.shipping_fee
+                                order.shipping_fee ||
+                                    0
                             ),
 
                         discount:
                             Number(
-                                order.discount
+                                order.discount ||
+                                    0
                             ),
 
                         total_amount:
                             Number(
-                                order.total_amount
+                                order.total_amount ||
+                                    0
                             )
                     })
                 )
@@ -679,7 +857,9 @@ export const getOrderById = async (
 ) => {
     try {
         const userId =
-            req.user.id;
+            Number(
+                req.user?.id
+            );
 
         const orderId =
             Number(
@@ -687,7 +867,22 @@ export const getOrderById = async (
             );
 
         if (
-            !Number.isInteger(orderId) ||
+            !Number.isInteger(
+                userId
+            ) ||
+            userId <= 0
+        ) {
+            return res.status(401).json({
+                success: false,
+                message:
+                    "Authentication required"
+            });
+        }
+
+        if (
+            !Number.isInteger(
+                orderId
+            ) ||
             orderId <= 0
         ) {
             return res.status(400).json({
@@ -697,22 +892,93 @@ export const getOrderById = async (
             });
         }
 
-        const [orders] =
-            await pool.execute(
-                `
-                SELECT *
-                FROM orders
-                WHERE id = ?
-                AND user_id = ?
-                LIMIT 1
-                `,
-                [
-                    orderId,
-                    userId
-                ]
-            );
+        const [
+            users
+        ] = await pool.execute(
+            `
+            SELECT
+                id,
+                email
 
-        if (orders.length === 0) {
+            FROM users
+
+            WHERE id = ?
+
+            LIMIT 1
+            `,
+            [userId]
+        );
+
+        if (
+            users.length === 0
+        ) {
+            return res.status(401).json({
+                success: false,
+                message:
+                    "Authenticated user not found"
+            });
+        }
+
+        const userEmail =
+            String(
+                users[0].email || ""
+            )
+                .trim()
+                .toLowerCase();
+
+        let [
+            orders
+        ] = await pool.execute(
+            `
+            SELECT *
+
+            FROM orders
+
+            WHERE id = ?
+
+            AND user_id = ?
+
+            LIMIT 1
+            `,
+            [
+                orderId,
+                userId
+            ]
+        );
+
+        if (
+            orders.length === 0 &&
+            userEmail
+        ) {
+            [
+                orders
+            ] =
+                await pool.execute(
+                    `
+                    SELECT *
+
+                    FROM orders
+
+                    WHERE id = ?
+
+                    AND LOWER(
+                        TRIM(
+                            shipping_email
+                        )
+                    ) = ?
+
+                    LIMIT 1
+                    `,
+                    [
+                        orderId,
+                        userEmail
+                    ]
+                );
+        }
+
+        if (
+            orders.length === 0
+        ) {
             return res.status(404).json({
                 success: false,
                 message:
@@ -723,35 +989,37 @@ export const getOrderById = async (
         const order =
             orders[0];
 
-        const [items] =
-            await pool.execute(
-                `
-                SELECT
-                    id,
-                    product_id,
-                    variant_id,
+        const [
+            items
+        ] = await pool.execute(
+            `
+            SELECT
+                id,
+                order_id,
+                product_id,
+                variant_id,
 
-                    product_name,
-                    sku,
+                product_name,
+                sku,
 
-                    size_name,
-                    color_name,
+                size_name,
+                color_name,
 
-                    quantity,
+                quantity,
 
-                    unit_price,
-                    total_price,
+                unit_price,
+                total_price,
 
-                    created_at
+                created_at
 
-                FROM order_items
+            FROM order_items
 
-                WHERE order_id = ?
+            WHERE order_id = ?
 
-                ORDER BY id ASC
-                `,
-                [orderId]
-            );
+            ORDER BY id ASC
+            `,
+            [orderId]
+        );
 
         return res.status(200).json({
             success: true,
@@ -761,22 +1029,26 @@ export const getOrderById = async (
 
                 subtotal:
                     Number(
-                        order.subtotal
+                        order.subtotal ||
+                            0
                     ),
 
                 shipping_fee:
                     Number(
-                        order.shipping_fee
+                        order.shipping_fee ||
+                            0
                     ),
 
                 discount:
                     Number(
-                        order.discount
+                        order.discount ||
+                            0
                     ),
 
                 total_amount:
                     Number(
-                        order.total_amount
+                        order.total_amount ||
+                            0
                     ),
 
                 items
@@ -811,7 +1083,9 @@ export const cancelOrder = async (
             );
 
         if (
-            !Number.isInteger(orderId) ||
+            !Number.isInteger(
+                orderId
+            ) ||
             orderId <= 0
         ) {
             return res.status(400).json({
@@ -821,28 +1095,32 @@ export const cancelOrder = async (
             });
         }
 
-        const [orders] =
-            await pool.execute(
-                `
-                SELECT
-                    id,
-                    order_status,
-                    payment_status
+        const [
+            orders
+        ] = await pool.execute(
+            `
+            SELECT
+                id,
+                order_status,
+                payment_status
 
-                FROM orders
+            FROM orders
 
-                WHERE id = ?
-                AND user_id = ?
+            WHERE id = ?
 
-                LIMIT 1
-                `,
-                [
-                    orderId,
-                    userId
-                ]
-            );
+            AND user_id = ?
 
-        if (orders.length === 0) {
+            LIMIT 1
+            `,
+            [
+                orderId,
+                userId
+            ]
+        );
+
+        if (
+            orders.length === 0
+        ) {
             return res.status(404).json({
                 success: false,
                 message:
@@ -881,9 +1159,11 @@ export const cancelOrder = async (
             `
             UPDATE orders
 
-            SET order_status = 'cancelled'
+            SET order_status =
+                'cancelled'
 
             WHERE id = ?
+
             AND user_id = ?
             `,
             [
@@ -894,35 +1174,41 @@ export const cancelOrder = async (
 
         let emailSent = false;
 
-try {
-    const emailResult =
-        await sendOrderStatusEmail(
-            orderId,
-            "cancelled"
-        );
+        try {
+            const emailResult =
+                await sendOrderStatusEmail(
+                    orderId,
+                    "cancelled"
+                );
 
-    emailSent = Boolean(
-        emailResult?.messageId
-    );
+            emailSent =
+                Boolean(
+                    emailResult?.messageId
+                );
 
-    console.log(
-        `Cancellation email processing completed for order ${orderId}: ${emailSent}`
-    );
-} catch (emailError) {
-    console.error(
-        `Cancellation email failed for order ${orderId}`
-    );
+            console.log(
+                `Cancellation email processing completed for order ${orderId}: ${emailSent}`
+            );
 
-    console.error(emailError);
-}
+        } catch (emailError) {
+            console.error(
+                `Cancellation email failed for order ${orderId}`
+            );
+
+            console.error(
+                emailError
+            );
+        }
 
         return res.status(200).json({
-    success: true,
-    message:
-        "Order cancelled successfully",
-    email_sent:
-        emailSent
-});
+            success: true,
+
+            message:
+                "Order cancelled successfully",
+
+            email_sent:
+                emailSent
+        });
 
     } catch (error) {
         console.error(
@@ -997,7 +1283,9 @@ export const getAdminOrderById = async (
             );
 
         if (
-            !Number.isInteger(orderId) ||
+            !Number.isInteger(
+                orderId
+            ) ||
             orderId <= 0
         ) {
             return res.status(400).json({
@@ -1029,7 +1317,9 @@ export const getAdminOrderById = async (
             [orderId]
         );
 
-        if (orders.length === 0) {
+        if (
+            orders.length === 0
+        ) {
             return res.status(404).json({
                 success: false,
                 message:
@@ -1077,6 +1367,7 @@ export const getAdminOrderById = async (
 
             order: {
                 ...order,
+
                 items
             }
         });
@@ -1106,14 +1397,17 @@ export const updateAdminOrderStatus =
                     req.params.id
                 );
 
-           const requestedStatus =
-    req.body?.order_status ??
-    req.body?.status;
+            const requestedStatus =
+                req.body?.order_status ??
+                req.body?.status;
 
-const orderStatus =
-    typeof requestedStatus === "string"
-        ? requestedStatus.trim().toLowerCase()
-        : "";
+            const orderStatus =
+                typeof requestedStatus ===
+                "string"
+                    ? requestedStatus
+                        .trim()
+                        .toLowerCase()
+                    : "";
 
             const allowedStatuses = [
                 "pending",
@@ -1212,39 +1506,48 @@ const orderStatus =
                 ]
             );
 
-            let statusEmailSent = false;
+            let statusEmailSent =
+                false;
 
-if (
-    orderStatus === "cancelled" ||
-    orderStatus === "delivered"
-) {
-    try {
-        const emailResult =
-            await sendOrderStatusEmail(
-                orderId,
-                orderStatus
-            );
+            if (
+                orderStatus ===
+                    "cancelled" ||
+                orderStatus ===
+                    "delivered"
+            ) {
+                try {
+                    const emailResult =
+                        await sendOrderStatusEmail(
+                            orderId,
+                            orderStatus
+                        );
 
-        statusEmailSent = Boolean(
-            emailResult?.messageId
-        );
+                    statusEmailSent =
+                        Boolean(
+                            emailResult?.messageId
+                        );
 
-        console.log(
-            `Order status email processing completed for order ${orderId}:`,
-            {
-                status: orderStatus,
-                email_sent:
-                    statusEmailSent
+                    console.log(
+                        `Order status email processing completed for order ${orderId}:`,
+                        {
+                            status:
+                                orderStatus,
+
+                            email_sent:
+                                statusEmailSent
+                        }
+                    );
+
+                } catch (emailError) {
+                    console.error(
+                        `Order status email failed for order ${orderId}`
+                    );
+
+                    console.error(
+                        emailError
+                    );
+                }
             }
-        );
-    } catch (emailError) {
-        console.error(
-            `Order status email failed for order ${orderId}`
-        );
-
-        console.error(emailError);
-    }
-}
 
             const [
                 updatedOrders
@@ -1274,17 +1577,17 @@ if (
                 );
 
             return res.status(200).json({
-    success: true,
+                success: true,
 
-    message:
-        "Order status updated successfully",
+                message:
+                    "Order status updated successfully",
 
-    email_sent:
-        statusEmailSent,
+                email_sent:
+                    statusEmailSent,
 
-    order:
-        updatedOrders[0]
-});
+                order:
+                    updatedOrders[0]
+            });
 
         } catch (error) {
             console.error(
