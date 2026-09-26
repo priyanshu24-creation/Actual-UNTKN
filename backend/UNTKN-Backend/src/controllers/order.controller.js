@@ -1106,10 +1106,14 @@ export const updateAdminOrderStatus =
                     req.params.id
                 );
 
-            const {
-                order_status:
-                    orderStatus
-            } = req.body;
+           const requestedStatus =
+    req.body?.order_status ??
+    req.body?.status;
+
+const orderStatus =
+    typeof requestedStatus === "string"
+        ? requestedStatus.trim().toLowerCase()
+        : "";
 
             const allowedStatuses = [
                 "pending",
