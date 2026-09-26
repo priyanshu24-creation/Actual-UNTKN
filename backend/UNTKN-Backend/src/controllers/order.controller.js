@@ -1,5 +1,6 @@
 import pool from "../config/database.js";
 import { validateCoupon } from "../services/coupon.service.js";
+import { sendOrderStatusEmail } from "../services/order-confirmation.service.js";
 
 const generateOrderNumber = () => {
     const timestamp = Date.now().toString();
@@ -622,6 +623,7 @@ export const getOrders = async (
                 `,
                 [userId]
             );
+            
 
         return res.status(200).json({
             success: true,
@@ -890,11 +892,37 @@ export const cancelOrder = async (
             ]
         );
 
+        let emailSent = false;
+
+try {
+    const emailResult =
+        await sendOrderStatusEmail(
+            orderId,
+            "cancelled"
+        );
+
+    emailSent = Boolean(
+        emailResult?.messageId
+    );
+
+    console.log(
+        `Cancellation email processing completed for order ${orderId}: ${emailSent}`
+    );
+} catch (emailError) {
+    console.error(
+        `Cancellation email failed for order ${orderId}`
+    );
+
+    console.error(emailError);
+}
+
         return res.status(200).json({
-            success: true,
-            message:
-                "Order cancelled successfully"
-        });
+    success: true,
+    message:
+        "Order cancelled successfully",
+    email_sent:
+        emailSent
+});
 
     } catch (error) {
         console.error(
@@ -1180,6 +1208,40 @@ export const updateAdminOrderStatus =
                 ]
             );
 
+            let statusEmailSent = false;
+
+if (
+    orderStatus === "cancelled" ||
+    orderStatus === "delivered"
+) {
+    try {
+        const emailResult =
+            await sendOrderStatusEmail(
+                orderId,
+                orderStatus
+            );
+
+        statusEmailSent = Boolean(
+            emailResult?.messageId
+        );
+
+        console.log(
+            `Order status email processing completed for order ${orderId}:`,
+            {
+                status: orderStatus,
+                email_sent:
+                    statusEmailSent
+            }
+        );
+    } catch (emailError) {
+        console.error(
+            `Order status email failed for order ${orderId}`
+        );
+
+        console.error(emailError);
+    }
+}
+
             const [
                 updatedOrders
             ] =
@@ -1208,14 +1270,17 @@ export const updateAdminOrderStatus =
                 );
 
             return res.status(200).json({
-                success: true,
+    success: true,
 
-                message:
-                    "Order status updated successfully",
+    message:
+        "Order status updated successfully",
 
-                order:
-                    updatedOrders[0]
-            });
+    email_sent:
+        statusEmailSent,
+
+    order:
+        updatedOrders[0]
+});
 
         } catch (error) {
             console.error(

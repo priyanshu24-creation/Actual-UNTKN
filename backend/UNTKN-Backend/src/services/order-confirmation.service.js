@@ -785,3 +785,234 @@ export const sendOrderEmails = async (orderId) => {
     };
 };
 
+export const sendOrderStatusEmail = async (
+    orderId,
+    newStatus
+) => {
+    try {
+        const status = String(
+            newStatus || ""
+        )
+            .trim()
+            .toLowerCase();
+
+        if (
+            status !== "cancelled" &&
+            status !== "delivered"
+        ) {
+            return null;
+        }
+
+        const { order, items } =
+            await getOrderData(orderId);
+
+        const customerEmail =
+            String(
+                order.shipping_email || ""
+            ).trim();
+
+        if (!customerEmail) {
+            throw new Error(
+                `Customer email is missing for order ${orderId}`
+            );
+        }
+
+        const orderNumber =
+            order.order_number ||
+            `#${order.id}`;
+
+        let subject;
+        let heading;
+        let message;
+
+        if (status === "cancelled") {
+            subject =
+                `Order Cancelled - ${orderNumber} | UNTKN`;
+
+            heading =
+                "Your Order Has Been Cancelled";
+
+            message =
+                "Your order has been cancelled successfully. If you have any questions, please contact UNTKN support.";
+        } else {
+            subject =
+                `Order Delivered - ${orderNumber} | UNTKN`;
+
+            heading =
+                "Your Order Has Been Delivered";
+
+            message =
+                "Your order has been delivered successfully. We hope you enjoy your purchase. Thank you for shopping with UNTKN.";
+        }
+
+        const itemsText =
+            buildItemsText(items);
+
+        const text = `
+${heading}
+
+Order Number: ${orderNumber}
+
+${message}
+
+Order Total: ${formatCurrency(
+            order.total_amount
+        )}
+
+Items:
+${itemsText}
+
+Regards,
+UNTKN
+        `.trim();
+
+        const html = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>${escapeHtml(subject)}</title>
+</head>
+
+<body style="
+    margin:0;
+    padding:0;
+    background:#f5f5f5;
+    font-family:Arial,Helvetica,sans-serif;
+    color:#222;
+">
+
+<div style="
+    max-width:650px;
+    margin:30px auto;
+    background:#ffffff;
+    border:1px solid #e5e5e5;
+">
+
+    <div style="
+        background:#111111;
+        color:#ffffff;
+        padding:25px;
+        text-align:center;
+    ">
+        <h1 style="
+            margin:0;
+            font-size:24px;
+            letter-spacing:2px;
+        ">
+            UNTKN
+        </h1>
+    </div>
+
+    <div style="
+        padding:35px;
+    ">
+
+        <h2 style="
+            margin-top:0;
+            font-size:24px;
+        ">
+            ${escapeHtml(heading)}
+        </h2>
+
+        <p style="
+            font-size:15px;
+            line-height:1.7;
+        ">
+            ${escapeHtml(message)}
+        </p>
+
+        <div style="
+            margin-top:25px;
+            padding:20px;
+            background:#f7f7f7;
+        ">
+
+            <p>
+                <strong>Order Number:</strong>
+                ${escapeHtml(orderNumber)}
+            </p>
+
+            <p>
+                <strong>Order Status:</strong>
+                ${escapeHtml(status)}
+            </p>
+
+            <p>
+                <strong>Total:</strong>
+                ${formatCurrency(
+                    order.total_amount
+                )}
+            </p>
+
+        </div>
+
+        <h3 style="
+            margin-top:30px;
+        ">
+            Order Items
+        </h3>
+
+        <pre style="
+            font-family:Arial,Helvetica,sans-serif;
+            white-space:pre-wrap;
+            line-height:1.6;
+        ">${escapeHtml(itemsText)}</pre>
+
+        <p style="
+            margin-top:30px;
+        ">
+            Regards,<br>
+            <strong>UNTKN</strong>
+        </p>
+
+    </div>
+
+    <div style="
+        background:#111111;
+        color:#aaaaaa;
+        padding:20px;
+        text-align:center;
+        font-size:12px;
+    ">
+        This is an automated email from UNTKN.
+    </div>
+
+</div>
+
+</body>
+</html>
+        `.trim();
+
+        const result = await sendEmail({
+            to: customerEmail,
+            subject,
+            text,
+            html
+        });
+
+        if (
+            !result ||
+            !result.messageId
+        ) {
+            throw new Error(
+                `SMTP did not return a message ID for ${status} order ${orderId}`
+            );
+        }
+
+        console.log(
+            `Order ${status} email sent successfully for order ${orderId} to ${customerEmail}. Message ID: ${result.messageId}`
+        );
+
+        return result;
+
+    } catch (error) {
+        console.error(
+            `Order ${newStatus} email failed for order ${orderId}`
+        );
+
+        console.error(error);
+
+        return null;
+    }
+};
