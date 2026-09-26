@@ -2,15 +2,28 @@ import pool from "../config/database.js";
 import { validateCoupon } from "../services/coupon.service.js";
 import { sendOrderStatusEmail } from "../services/order-confirmation.service.js";
 
-const generateOrderNumber = () => {
-    const timestamp = Date.now().toString();
 
-    const random = Math.floor(
-        1000 + Math.random() * 9000
-    );
+// ==========================================
+// GENERATE ORDER NUMBER
+// ==========================================
+
+const generateOrderNumber = () => {
+    const timestamp =
+        Date.now().toString();
+
+    const random =
+        Math.floor(
+            1000 +
+            Math.random() * 9000
+        );
 
     return `UNTKN-${timestamp.slice(-8)}-${random}`;
 };
+
+
+// ==========================================
+// CREATE ORDER
+// ==========================================
 
 export const createOrder = async (
     req,
@@ -351,7 +364,7 @@ export const createOrder = async (
             discount =
                 Number(
                     couponResult.discount ||
-                        0
+                    0
                 );
 
             appliedCoupon =
@@ -657,6 +670,11 @@ export const createOrder = async (
     }
 };
 
+
+// ==========================================
+// GET CUSTOMER ORDERS
+// ==========================================
+
 export const getOrders = async (
     req,
     res
@@ -813,25 +831,25 @@ export const getOrders = async (
                         subtotal:
                             Number(
                                 order.subtotal ||
-                                    0
+                                0
                             ),
 
                         shipping_fee:
                             Number(
                                 order.shipping_fee ||
-                                    0
+                                0
                             ),
 
                         discount:
                             Number(
                                 order.discount ||
-                                    0
+                                0
                             ),
 
                         total_amount:
                             Number(
                                 order.total_amount ||
-                                    0
+                                0
                             )
                     })
                 )
@@ -850,6 +868,11 @@ export const getOrders = async (
         });
     }
 };
+
+
+// ==========================================
+// GET CUSTOMER ORDER BY ID
+// ==========================================
 
 export const getOrderById = async (
     req,
@@ -1030,25 +1053,25 @@ export const getOrderById = async (
                 subtotal:
                     Number(
                         order.subtotal ||
-                            0
+                        0
                     ),
 
                 shipping_fee:
                     Number(
                         order.shipping_fee ||
-                            0
+                        0
                     ),
 
                 discount:
                     Number(
                         order.discount ||
-                            0
+                        0
                     ),
 
                 total_amount:
                     Number(
                         order.total_amount ||
-                            0
+                        0
                     ),
 
                 items
@@ -1068,6 +1091,11 @@ export const getOrderById = async (
         });
     }
 };
+
+
+// ==========================================
+// CANCEL CUSTOMER ORDER
+// ==========================================
 
 export const cancelOrder = async (
     req,
@@ -1224,6 +1252,12 @@ export const cancelOrder = async (
     }
 };
 
+
+// ==========================================
+// GET ADMIN ORDERS
+// ONLY NON-PENDING ORDERS
+// ==========================================
+
 export const getAdminOrders = async (
     req,
     res
@@ -1241,8 +1275,20 @@ export const getAdminOrders = async (
 
             FROM orders o
 
-            LEFT JOIN users u
+            INNER JOIN users u
                 ON o.user_id = u.id
+
+            WHERE LOWER(
+                TRIM(
+                    o.order_status
+                )
+            ) IN (
+                'confirmed',
+                'processing',
+                'shipped',
+                'delivered',
+                'cancelled'
+            )
 
             ORDER BY
                 o.created_at DESC
@@ -1260,7 +1306,10 @@ export const getAdminOrders = async (
 
     } catch (error) {
         console.error(
-            "Get admin orders error:",
+            "Get admin orders error:"
+        );
+
+        console.error(
             error
         );
 
@@ -1271,6 +1320,11 @@ export const getAdminOrders = async (
         });
     }
 };
+
+
+// ==========================================
+// GET ADMIN ORDER BY ID
+// ==========================================
 
 export const getAdminOrderById = async (
     req,
@@ -1385,6 +1439,11 @@ export const getAdminOrderById = async (
         });
     }
 };
+
+
+// ==========================================
+// UPDATE ADMIN ORDER STATUS
+// ==========================================
 
 export const updateAdminOrderStatus =
     async (
