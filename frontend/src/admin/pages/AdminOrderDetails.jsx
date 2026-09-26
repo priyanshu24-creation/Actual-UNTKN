@@ -451,7 +451,7 @@ function AdminOrderDetails() {
       setError("");
       setSuccess("");
 
-const response = await api.put(
+const response = await api.patch(
     `/orders/admin/${encodeURIComponent(order.id)}/status`,
     {
         order_status: String(orderStatus)
