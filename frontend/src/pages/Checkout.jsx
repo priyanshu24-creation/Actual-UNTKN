@@ -20,13 +20,6 @@ function Checkout() {
     refreshCart,
   } = useCart();
 
-  const [deliveryMethods, setDeliveryMethods] = useState([]);
-  const [deliveryMethod, setDeliveryMethod] =
-    useState("");
-
-  const [deliveryLoading, setDeliveryLoading] =
-    useState(true);
-
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -91,145 +84,6 @@ function Checkout() {
       mounted = false;
     };
   }, [navigate]);
-
-  useEffect(() => {
-    let mounted = true;
-
-    const isActiveDeliveryMethod = (method) => {
-      if (!method || !method.id) {
-        return false;
-      }
-
-      if (Object.prototype.hasOwnProperty.call(method, "isActive")) {
-        return (
-          method.isActive === true ||
-          method.isActive === 1 ||
-          method.isActive === "1" ||
-          method.isActive === "true"
-        );
-      }
-
-      if (Object.prototype.hasOwnProperty.call(method, "is_active")) {
-        return (
-          method.is_active === true ||
-          method.is_active === 1 ||
-          method.is_active === "1" ||
-          method.is_active === "true"
-        );
-      }
-
-      if (Object.prototype.hasOwnProperty.call(method, "enabled")) {
-        return (
-          method.enabled === true ||
-          method.enabled === 1 ||
-          method.enabled === "1" ||
-          method.enabled === "true"
-        );
-      }
-
-      return false;
-    };
-
-    const loadDeliveryMethods = async () => {
-      try {
-        setDeliveryLoading(true);
-
-        setDeliveryMethods([]);
-        setDeliveryMethod("");
-
-        const response = await api.get(
-          "/delivery-methods",
-          {
-            params: {
-              _: Date.now(),
-            },
-            headers: {
-              "Cache-Control": "no-cache",
-              Pragma: "no-cache",
-            },
-          }
-        );
-
-        const rawMethods = Array.isArray(
-          response.data?.deliveryMethods
-        )
-          ? response.data.deliveryMethods
-          : Array.isArray(response.data?.methods)
-          ? response.data.methods
-          : [];
-
-        const methods = rawMethods
-          .filter(isActiveDeliveryMethod)
-          .map((method) => ({
-            id: String(method.id),
-            name: String(method.name || ""),
-            description: method.description || "",
-            price: Number(method.price ?? 0),
-          }))
-          .filter((method) => method.id);
-
-        if (!mounted) {
-          return;
-        }
-
-        setDeliveryMethods(methods);
-
-        setDeliveryMethod((current) => {
-          const exists = methods.some(
-            (method) => String(method.id) === String(current)
-          );
-
-          return exists ? current : methods[0]?.id || "";
-        });
-      } catch (requestError) {
-        console.error(
-          "Delivery methods error:",
-          requestError
-        );
-
-        if (!mounted) {
-          return;
-        }
-
-        setDeliveryMethods([]);
-        setDeliveryMethod("");
-      } finally {
-        if (mounted) {
-          setDeliveryLoading(false);
-        }
-      }
-    };
-
-    loadDeliveryMethods();
-
-    const handleWindowFocus = () => {
-      loadDeliveryMethods();
-    };
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        loadDeliveryMethods();
-      }
-    };
-
-    window.addEventListener("focus", handleWindowFocus);
-    document.addEventListener(
-      "visibilitychange",
-      handleVisibilityChange
-    );
-
-    return () => {
-      mounted = false;
-      window.removeEventListener(
-        "focus",
-        handleWindowFocus
-      );
-      document.removeEventListener(
-        "visibilitychange",
-        handleVisibilityChange
-      );
-    };
-  }, []);
 
   useEffect(() => {
     const savedCode =
@@ -396,6 +250,25 @@ function Checkout() {
     }
   };
 
+  useEffect(() => {
+    const savedCode =
+      sessionStorage.getItem(
+        "untkn_coupon_code"
+      );
+
+    const savedData =
+      sessionStorage.getItem(
+        "untkn_coupon_data"
+      );
+
+    if (
+      savedCode &&
+      (!savedData || !couponData)
+    ) {
+      applyCoupon(savedCode);
+    }
+  }, [cartItems.length, subtotal]);
+
   const removeCoupon = () => {
     setCouponCode("");
     setCouponData(null);
@@ -408,15 +281,7 @@ function Checkout() {
     );
   };
 
-  const selectedDeliveryMethod =
-    deliveryMethods.find(
-      (method) =>
-        method.id === deliveryMethod
-    ) || null;
-
-  const shipping = Number(
-    selectedDeliveryMethod?.price || 0
-  );
+  const shipping = 0;
 
   const couponDiscount = Math.min(
     Number(
@@ -445,22 +310,6 @@ function Checkout() {
       ...current,
       [name]: value,
     }));
-
-    if (error) {
-      setError("");
-    }
-  };
-
-  const handleDeliveryChange = (methodId) => {
-    const methodExists = deliveryMethods.some(
-      (method) => method.id === methodId
-    );
-
-    if (!methodExists) {
-      return;
-    }
-
-    setDeliveryMethod(methodId);
 
     if (error) {
       setError("");
@@ -545,19 +394,6 @@ function Checkout() {
       return;
     }
 
-    if (
-      deliveryLoading ||
-      deliveryMethods.length === 0 ||
-      !deliveryMethod ||
-      !selectedDeliveryMethod
-    ) {
-      setError(
-        "No delivery method is currently available."
-      );
-
-      return;
-    }
-
     try {
       setSubmitting(true);
 
@@ -606,9 +442,8 @@ function Checkout() {
         shipping_state: state,
         shipping_postal_code: pincode,
         shipping_country: "India",
-        delivery_method:
-          selectedDeliveryMethod.id,
-        notes: `Delivery method: ${selectedDeliveryMethod.id}`,
+        notes: null,
+        shipping_fee: 0,
         coupon_code:
           finalCouponCode || null,
       };
@@ -651,20 +486,19 @@ function Checkout() {
           country: "India",
         },
 
-        deliveryMethod:
-          selectedDeliveryMethod.id,
-
-        deliveryMethodName:
-          selectedDeliveryMethod.name,
-
-        shippingFee:
-          Number(shipping),
+        shippingFee: 0,
 
         subtotal:
           Number(subtotal || 0),
 
+        discount:
+          Number(couponDiscount || 0),
+
         frontendTotal:
-          Number(total),
+          Number(
+            createdOrder?.total_amount ??
+            total
+          ),
 
         couponCode:
           finalCouponCode || null,
@@ -1065,97 +899,58 @@ function Checkout() {
               </div>
             </div>
 
-            <section className="checkout-delivery">
-              <div className="checkout-section-heading">
-                <p className="eyebrow">
+            <div
+              style={{
+                marginTop: "26px",
+                padding: "18px",
+                border: "1px solid #e5e5e5",
+                background: "#fafafa",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "18px",
+              }}
+            >
+              <div>
+                <p
+                  className="eyebrow"
+                  style={{ marginBottom: "6px" }}
+                >
                   DELIVERY
                 </p>
 
-                <h2>
-                  DELIVERY METHOD
-                </h2>
+                <strong
+                  style={{
+                    display: "block",
+                    fontSize: "14px",
+                    letterSpacing: "0.04em",
+                  }}
+                >
+                  SHIPPING INCLUDED
+                </strong>
+
+                <p
+                  style={{
+                    margin: "6px 0 0",
+                    color: "#666",
+                    fontSize: "12px",
+                    lineHeight: "1.5",
+                  }}
+                >
+                  Your order is processed with no additional
+                  delivery-method selection or delivery charge.
+                </p>
               </div>
 
-              {deliveryLoading ? (
-                <div
-                  style={{
-                    padding: "20px 0",
-                    fontSize: "13px",
-                  }}
-                >
-                  LOADING DELIVERY OPTIONS...
-                </div>
-              ) : deliveryMethods.length === 0 ? (
-                <div
-                  style={{
-                    padding: "20px 0",
-                    fontSize: "13px",
-                    lineHeight: "1.5",
-                    borderTop: "1px solid #e5e5e5",
-                    borderBottom: "1px solid #e5e5e5",
-                  }}
-                >
-                  NO DELIVERY METHODS ARE CURRENTLY AVAILABLE.
-                  PLEASE TRY AGAIN LATER.
-                </div>
-              ) : (
-                <div className="delivery-methods">
-                  {deliveryMethods.map(
-                    (method) => {
-                      const selected =
-                        deliveryMethod ===
-                        method.id;
-
-                      return (
-                        <button
-                          key={method.id}
-                          type="button"
-                          className={`delivery-method ${
-                            selected
-                              ? "selected"
-                              : ""
-                          }`}
-                          onClick={() =>
-                            handleDeliveryChange(
-                              method.id
-                            )
-                          }
-                          disabled={submitting}
-                        >
-                          <div className="delivery-radio">
-                            {selected && (
-                              <span />
-                            )}
-                          </div>
-
-                          <div className="delivery-info">
-                            <strong>
-                              {method.name}
-                            </strong>
-
-                            <span>
-                              {method.description}
-                            </span>
-                          </div>
-
-                          <strong className="delivery-price">
-                            {Number(
-                              method.price || 0
-                            ) === 0
-                              ? "FREE"
-                              : `₹${Number(
-                                  method.price || 0
-                                ).toLocaleString(
-                                  "en-IN"
-                                )}`}
-                          </strong>
-                        </button>
-                      );
-                    }
-                  )}
-                </div>
-              )}
-            </section>
+              <strong
+                style={{
+                  fontSize: "12px",
+                  letterSpacing: "0.08em",
+                }}
+              >
+                FREE
+              </strong>
+            </div>
           </section>
 
           <div className="checkout-security">
@@ -1593,12 +1388,7 @@ function Checkout() {
           <button
             type="submit"
             className="checkout-submit"
-            disabled={
-              submitting ||
-              deliveryLoading ||
-              deliveryMethods.length === 0 ||
-              !selectedDeliveryMethod
-            }
+            disabled={submitting}
           >
             {submitting
               ? "CREATING ORDER..."
