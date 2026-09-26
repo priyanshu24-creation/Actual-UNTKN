@@ -16,12 +16,45 @@ function Home() {
 
   const [products, setProducts] = useState([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
 
   const handleWishlist = (event, product) => {
     event.preventDefault();
     event.stopPropagation();
     toggleWishlist(product);
   };
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadSettings = async () => {
+      try {
+        const response = await api.get("/settings/public");
+
+        const settings =
+          response.data?.settings ||
+          response.data?.data?.settings ||
+          response.data?.data ||
+          {};
+
+        if (mounted) {
+          setMaintenanceMode(Boolean(settings.maintenanceMode));
+        }
+      } catch (error) {
+        console.error("Failed to load store settings:", error);
+
+        if (mounted) {
+          setMaintenanceMode(false);
+        }
+      }
+    };
+
+    loadSettings();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -149,6 +182,98 @@ function Home() {
 
   return (
     <div className="home">
+      {maintenanceMode && (
+        <div
+          style={{
+            width: "100%",
+            background: "#111",
+            color: "#fff",
+            borderBottom: "1px solid rgba(255, 255, 255, 0.15)",
+            padding: "18px 20px",
+            boxSizing: "border-box",
+          }}
+        >
+          <div
+            style={{
+              maxWidth: "1100px",
+              margin: "0 auto",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: "20px",
+              flexWrap: "wrap",
+            }}
+          >
+            <div
+              style={{
+                flex: "1 1 500px",
+                minWidth: 0,
+              }}
+            >
+              <p
+                style={{
+                  margin: "0 0 7px",
+                  fontSize: "11px",
+                  lineHeight: 1.3,
+                  letterSpacing: "0.18em",
+                  textTransform: "uppercase",
+                  opacity: 0.6,
+                }}
+              >
+                UNTKN • MAINTENANCE MODE
+              </p>
+
+              <h3
+                style={{
+                  margin: "0 0 6px",
+                  fontSize: "18px",
+                  lineHeight: 1.3,
+                  fontWeight: 600,
+                  letterSpacing: "-0.01em",
+                }}
+              >
+                We’re currently making some improvements.
+              </h3>
+
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: "13px",
+                  lineHeight: 1.6,
+                  opacity: 0.75,
+                }}
+              >
+                Our store is still open. You can continue
+                browsing our clothes, collections and latest
+                drops.
+              </p>
+            </div>
+
+            <Link
+              to="/shop"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                minHeight: "42px",
+                padding: "0 20px",
+                border: "1px solid rgba(255, 255, 255, 0.45)",
+                color: "#fff",
+                textDecoration: "none",
+                fontSize: "11px",
+                fontWeight: 600,
+                letterSpacing: "0.12em",
+                textTransform: "uppercase",
+                transition: "all 0.2s ease",
+                flexShrink: 0,
+              }}
+            >
+              SHOP NOW →
+            </Link>
+          </div>
+        </div>
+      )}
+
       <section
         className="hero"
         style={{
@@ -279,9 +404,9 @@ function Home() {
 
                     <span>
                       ₹
-                      {Number(product.price || 0).toLocaleString(
-                        "en-IN"
-                      )}
+                      {Number(
+                        product.price || 0
+                      ).toLocaleString("en-IN")}
                     </span>
                   </div>
                 </article>
@@ -321,7 +446,6 @@ function Home() {
       <section className="editorial-section">
         <div className="editorial-header">
           <div>
-            
             <h2>
               FLAME
               <br />

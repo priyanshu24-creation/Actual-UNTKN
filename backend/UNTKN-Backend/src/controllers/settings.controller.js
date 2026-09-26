@@ -43,25 +43,27 @@ const mapPublicSettings = (row) => ({
     website: row.website,
     contactEnabled: Boolean(row.contact_enabled),
     newsletterEnabled: Boolean(row.newsletter_enabled),
+    maintenanceMode: Boolean(row.maintenance_mode),
 });
 
 export const getPublicSettings = async (req, res) => {
     try {
         const [rows] = await pool.execute(`
             SELECT
-                store_name,
-                tagline,
-                email,
-                phone,
-                whatsapp,
-                address,
-                instagram,
-                facebook,
-                youtube,
-                website,
-                contact_enabled,
-                newsletter_enabled
-            FROM store_settings
+    store_name,
+    tagline,
+    email,
+    phone,
+    whatsapp,
+    address,
+    instagram,
+    facebook,
+    youtube,
+    website,
+    contact_enabled,
+    newsletter_enabled,
+    maintenance_mode
+FROM store_settings
             ORDER BY id ASC
             LIMIT 1
         `);
