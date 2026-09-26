@@ -1,5 +1,8 @@
 import pool from "../database.js";
-import { sendEmail, getAdminEmail } from "./email.service.js";
+import {
+    sendEmail,
+    getAdminEmail
+} from "./email.service.js";
 
 const escapeHtml = (value) => {
     return String(value ?? "")
@@ -21,16 +24,21 @@ const formatMoney = (value) => {
 };
 
 const getDeliveryDetails = (notes) => {
-    const value = String(notes || "").toLowerCase();
+    const value =
+        String(notes || "").toLowerCase();
+
     if (value.includes("express")) {
         return {
             name: "EXPRESS DELIVERY",
-            description: "2–3 BUSINESS DAYS"
+            description:
+                "2–3 BUSINESS DAYS"
         };
     }
+
     return {
         name: "STANDARD DELIVERY",
-        description: "5–7 BUSINESS DAYS"
+        description:
+            "5–7 BUSINESS DAYS"
     };
 };
 
@@ -66,7 +74,7 @@ const getOrderData = async (orderId) => {
             [orderId]
         );
 
-    if (orders.length === 0) {
+    if (!orders.length) {
         throw new Error(
             `Order ${orderId} was not found`
         );
@@ -74,7 +82,12 @@ const getOrderData = async (orderId) => {
 
     const order = orders[0];
 
-    if (!order.shipping_email) {
+    const customerEmail =
+        String(
+            order.shipping_email || ""
+        ).trim();
+
+    if (!customerEmail) {
         throw new Error(
             `Order ${orderId} does not contain a customer email`
         );
@@ -99,15 +112,35 @@ const getOrderData = async (orderId) => {
         );
 
     return {
-        order,
+        order: {
+            ...order,
+            shipping_email:
+                customerEmail
+        },
         items,
-        delivery: getDeliveryDetails(
-            order.notes
-        )
+        delivery:
+            getDeliveryDetails(order.notes)
     };
 };
 
 const createItemRows = (items) => {
+    if (!items.length) {
+        return `
+            <tr>
+                <td
+                    colspan="3"
+                    style="
+                        padding:20px 0;
+                        color:#666;
+                        text-align:center;
+                    "
+                >
+                    No order items found.
+                </td>
+            </tr>
+        `;
+    }
+
     return items
         .map((item) => {
             const options = [
@@ -116,6 +149,7 @@ const createItemRows = (items) => {
                           item.size_name
                       )}`
                     : "",
+
                 item.color_name
                     ? `Color: ${escapeHtml(
                           item.color_name
@@ -127,17 +161,30 @@ const createItemRows = (items) => {
 
             return `
                 <tr>
-                    <td style="padding:18px 0;border-bottom:1px solid #e8e8e8;">
-                        <div style="font-size:15px;font-weight:600;color:#111;">
+                    <td
+                        style="
+                            padding:16px 0;
+                            border-bottom:1px solid #e8e8e8;
+                            font-size:14px;
+                            color:#111;
+                        "
+                    >
+                        <strong>
                             ${escapeHtml(
                                 item.product_name
                             )}
-                        </div>
+                        </strong>
 
                         ${
                             options
                                 ? `
-                                    <div style="margin-top:6px;font-size:12px;color:#777;">
+                                    <div
+                                        style="
+                                            margin-top:5px;
+                                            font-size:12px;
+                                            color:#777;
+                                        "
+                                    >
                                         ${options}
                                     </div>
                                 `
@@ -147,8 +194,15 @@ const createItemRows = (items) => {
                         ${
                             item.sku
                                 ? `
-                                    <div style="margin-top:5px;font-size:11px;color:#999;">
-                                        SKU: ${escapeHtml(
+                                    <div
+                                        style="
+                                            margin-top:4px;
+                                            font-size:11px;
+                                            color:#999;
+                                        "
+                                    >
+                                        SKU:
+                                        ${escapeHtml(
                                             item.sku
                                         )}
                                     </div>
@@ -157,13 +211,30 @@ const createItemRows = (items) => {
                         }
                     </td>
 
-                    <td style="padding:18px 0;border-bottom:1px solid #e8e8e8;text-align:center;color:#555;">
+                    <td
+                        style="
+                            padding:16px 8px;
+                            border-bottom:1px solid #e8e8e8;
+                            text-align:center;
+                            font-size:14px;
+                            color:#555;
+                        "
+                    >
                         ${Number(
                             item.quantity || 0
                         )}
                     </td>
 
-                    <td style="padding:18px 0;border-bottom:1px solid #e8e8e8;text-align:right;font-weight:600;color:#111;">
+                    <td
+                        style="
+                            padding:16px 0;
+                            border-bottom:1px solid #e8e8e8;
+                            text-align:right;
+                            font-size:14px;
+                            font-weight:600;
+                            color:#111;
+                        "
+                    >
                         ₹${formatMoney(
                             item.total_price
                         )}
@@ -176,15 +247,26 @@ const createItemRows = (items) => {
 
 export const sendOrderConfirmationEmail =
     async (orderId) => {
+        console.log(
+            `Starting customer confirmation email for order ${orderId}`
+        );
+
         const {
             order,
             items,
             delivery
-        } = await getOrderData(orderId);
+        } =
+            await getOrderData(orderId);
 
         const customerName =
-            order.shipping_name?.trim() ||
-            "there";
+            String(
+                order.shipping_name || ""
+            ).trim() || "there";
+
+        const customerEmail =
+            String(
+                order.shipping_email || ""
+            ).trim();
 
         const itemRows =
             createItemRows(items);
@@ -204,7 +286,18 @@ export const sendOrderConfirmationEmail =
             .join("<br>");
 
         const subject =
-            `Your UNTKN order #${order.order_number} is confirmed`;
+            `UNTKN Order Confirmation #${order.order_number}`;
+
+        const itemText = items.length
+            ? items
+                  .map(
+                      (item) =>
+                          `${item.product_name} x ${item.quantity} - ₹${formatMoney(
+                              item.total_price
+                          )}`
+                  )
+                  .join("\n")
+            : "No order items found.";
 
         const text = `
 Hi ${customerName},
@@ -213,230 +306,638 @@ Thank you for shopping with UNTKN.
 
 Your order has been successfully confirmed.
 
-Order: #${order.order_number}
+ORDER DETAILS
+-------------
+Order Number: #${order.order_number}
+Payment Status: ${order.payment_status}
+Order Status: ${order.order_status}
 
-${items
-    .map(
-        (item) =>
-            `${item.product_name} × ${item.quantity} — ₹${formatMoney(
-                item.total_price
-            )}`
-    )
-    .join("\n")}
+ITEMS
+-----
+${itemText}
 
-Subtotal: ₹${formatMoney(order.subtotal)}
-Shipping: ₹${formatMoney(order.shipping_fee)}
-Discount: ₹${formatMoney(order.discount)}
-Total: ₹${formatMoney(order.total_amount)}
+Subtotal: ₹${formatMoney(
+            order.subtotal
+        )}
+Shipping: ₹${formatMoney(
+            order.shipping_fee
+        )}
+Discount: ₹${formatMoney(
+            order.discount
+        )}
+Total: ₹${formatMoney(
+            order.total_amount
+        )}
 
-Delivery: ${delivery.name}
-Estimated delivery: ${delivery.description}
+DELIVERY
+--------
+${delivery.name}
+${delivery.description}
 
-Shipping address:
-${order.shipping_address_line1}
+SHIPPING ADDRESS
+----------------
+${order.shipping_address_line1 || ""}
 ${order.shipping_address_line2 || ""}
-${order.shipping_city}, ${order.shipping_state}
-${order.shipping_postal_code}
-${order.shipping_country}
+${order.shipping_city || ""}, ${
+            order.shipping_state || ""
+        }
+${order.shipping_postal_code || ""}
+${order.shipping_country || ""}
 
 Thank you for choosing UNTKN.
 
 With love,
 UNTKN
-`;
+`.trim();
 
         const html = `
 <!DOCTYPE html>
-<html>
+<html lang="en">
+
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1.0">
-    <title>UNTKN Order Confirmation</title>
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>
+        UNTKN Order Confirmation
+    </title>
 </head>
 
-<body style="margin:0;padding:0;background:#f5f5f3;font-family:Arial,Helvetica,sans-serif;color:#111;">
+<body
+    style="
+        margin:0;
+        padding:0;
+        background:#f4f4f2;
+        font-family:Arial,Helvetica,sans-serif;
+        color:#111111;
+    "
+>
 
-<div style="width:100%;padding:40px 16px;box-sizing:border-box;">
+    <table
+        width="100%"
+        cellpadding="0"
+        cellspacing="0"
+        border="0"
+        style="
+            width:100%;
+            background:#f4f4f2;
+            margin:0;
+            padding:0;
+        "
+    >
+        <tr>
+            <td
+                align="center"
+                style="
+                    padding:30px 15px;
+                "
+            >
 
-<div style="max-width:680px;margin:0 auto;background:#ffffff;">
+                <table
+                    width="680"
+                    cellpadding="0"
+                    cellspacing="0"
+                    border="0"
+                    style="
+                        width:100%;
+                        max-width:680px;
+                        background:#ffffff;
+                        border-collapse:collapse;
+                    "
+                >
 
-<div style="padding:38px 40px;border-bottom:1px solid #eeeeee;text-align:center;">
-    <div style="font-size:28px;letter-spacing:8px;font-weight:700;">
-        UNTKN
-    </div>
+                    <tr>
+                        <td
+                            align="center"
+                            style="
+                                padding:35px 25px;
+                                border-bottom:1px solid #eeeeee;
+                            "
+                        >
 
-    <div style="margin-top:10px;font-size:10px;letter-spacing:3px;color:#888;">
-        ORDER CONFIRMATION
-    </div>
-</div>
+                            <div
+                                style="
+                                    font-size:28px;
+                                    line-height:32px;
+                                    font-weight:700;
+                                    letter-spacing:7px;
+                                "
+                            >
+                                UNTKN
+                            </div>
 
-<div style="padding:45px 40px;">
+                            <div
+                                style="
+                                    margin-top:10px;
+                                    font-size:10px;
+                                    line-height:14px;
+                                    letter-spacing:3px;
+                                    color:#888888;
+                                "
+                            >
+                                ORDER CONFIRMATION
+                            </div>
 
-<div style="text-align:center;">
+                        </td>
+                    </tr>
 
-    <div style="display:inline-block;width:54px;height:54px;line-height:54px;border-radius:50%;background:#111;color:#fff;font-size:25px;">
-        ✓
-    </div>
+                    <tr>
+                        <td
+                            style="
+                                padding:40px 30px;
+                            "
+                        >
 
-    <h1 style="margin:24px 0 10px;font-size:28px;font-weight:500;">
-        Thank you, ${escapeHtml(
-            customerName
-        )}.
-    </h1>
+                            <div
+                                style="
+                                    text-align:center;
+                                "
+                            >
 
-    <p style="margin:0;color:#666;font-size:15px;line-height:1.7;">
-        Your order has been successfully confirmed.
-    </p>
+                                <div
+                                    style="
+                                        display:inline-block;
+                                        width:50px;
+                                        height:50px;
+                                        line-height:50px;
+                                        border-radius:50%;
+                                        background:#111111;
+                                        color:#ffffff;
+                                        font-size:24px;
+                                        font-weight:bold;
+                                    "
+                                >
+                                    ✓
+                                </div>
 
-</div>
+                                <h1
+                                    style="
+                                        margin:22px 0 10px;
+                                        font-size:25px;
+                                        line-height:32px;
+                                        font-weight:500;
+                                        color:#111111;
+                                    "
+                                >
+                                    Thank you,
+                                    ${escapeHtml(
+                                        customerName
+                                    )}.
+                                </h1>
 
-<div style="margin:38px 0;padding:22px;background:#f7f7f5;text-align:center;">
+                                <p
+                                    style="
+                                        margin:0;
+                                        font-size:14px;
+                                        line-height:22px;
+                                        color:#666666;
+                                    "
+                                >
+                                    Your order has been successfully confirmed.
+                                </p>
 
-    <div style="font-size:11px;letter-spacing:2px;color:#888;">
-        ORDER NUMBER
-    </div>
+                            </div>
 
-    <div style="margin-top:8px;font-size:19px;font-weight:600;">
-        #${escapeHtml(
-            order.order_number
-        )}
-    </div>
+                            <table
+                                width="100%"
+                                cellpadding="0"
+                                cellspacing="0"
+                                border="0"
+                                style="
+                                    margin-top:30px;
+                                    background:#f7f7f5;
+                                    border-collapse:collapse;
+                                "
+                            >
+                                <tr>
+                                    <td
+                                        align="center"
+                                        style="
+                                            padding:20px;
+                                        "
+                                    >
 
-</div>
+                                        <div
+                                            style="
+                                                font-size:10px;
+                                                line-height:14px;
+                                                letter-spacing:2px;
+                                                color:#888888;
+                                            "
+                                        >
+                                            ORDER NUMBER
+                                        </div>
 
-<h2 style="margin:0 0 18px;font-size:14px;letter-spacing:2px;font-weight:600;">
-    YOUR ORDER
-</h2>
+                                        <div
+                                            style="
+                                                margin-top:7px;
+                                                font-size:18px;
+                                                line-height:25px;
+                                                font-weight:700;
+                                                color:#111111;
+                                            "
+                                        >
+                                            #${escapeHtml(
+                                                order.order_number
+                                            )}
+                                        </div>
 
-<table style="width:100%;border-collapse:collapse;">
+                                    </td>
+                                </tr>
+                            </table>
 
-<thead>
+                            <h2
+                                style="
+                                    margin:35px 0 15px;
+                                    font-size:13px;
+                                    line-height:18px;
+                                    letter-spacing:2px;
+                                    font-weight:700;
+                                    color:#111111;
+                                "
+                            >
+                                YOUR ORDER
+                            </h2>
 
-<tr>
+                            <table
+                                width="100%"
+                                cellpadding="0"
+                                cellspacing="0"
+                                border="0"
+                                style="
+                                    width:100%;
+                                    border-collapse:collapse;
+                                "
+                            >
 
-<th style="padding:0 0 12px;text-align:left;font-size:10px;letter-spacing:1.5px;color:#999;">
-    ITEM
-</th>
+                                <tr>
+                                    <th
+                                        align="left"
+                                        style="
+                                            padding:0 0 10px;
+                                            font-size:10px;
+                                            color:#999999;
+                                            letter-spacing:1px;
+                                        "
+                                    >
+                                        ITEM
+                                    </th>
 
-<th style="padding:0 0 12px;text-align:center;font-size:10px;letter-spacing:1.5px;color:#999;">
-    QTY
-</th>
+                                    <th
+                                        align="center"
+                                        style="
+                                            padding:0 5px 10px;
+                                            font-size:10px;
+                                            color:#999999;
+                                            letter-spacing:1px;
+                                        "
+                                    >
+                                        QTY
+                                    </th>
 
-<th style="padding:0 0 12px;text-align:right;font-size:10px;letter-spacing:1.5px;color:#999;">
-    PRICE
-</th>
+                                    <th
+                                        align="right"
+                                        style="
+                                            padding:0 0 10px;
+                                            font-size:10px;
+                                            color:#999999;
+                                            letter-spacing:1px;
+                                        "
+                                    >
+                                        PRICE
+                                    </th>
+                                </tr>
 
-</tr>
+                                ${itemRows}
 
-</thead>
+                            </table>
 
-<tbody>
-${itemRows}
-</tbody>
+                            <table
+                                width="100%"
+                                cellpadding="0"
+                                cellspacing="0"
+                                border="0"
+                                style="
+                                    margin-top:20px;
+                                    border-collapse:collapse;
+                                "
+                            >
 
-</table>
+                                <tr>
+                                    <td
+                                        style="
+                                            padding:6px 0;
+                                            font-size:14px;
+                                            color:#666666;
+                                        "
+                                    >
+                                        Subtotal
+                                    </td>
 
-<div style="margin-top:25px;">
+                                    <td
+                                        align="right"
+                                        style="
+                                            padding:6px 0;
+                                            font-size:14px;
+                                            color:#666666;
+                                        "
+                                    >
+                                        ₹${formatMoney(
+                                            order.subtotal
+                                        )}
+                                    </td>
+                                </tr>
 
-<div style="display:flex;justify-content:space-between;padding:7px 0;font-size:14px;color:#666;">
-    <span>Subtotal</span>
-    <span>₹${formatMoney(
-        order.subtotal
-    )}</span>
-</div>
+                                <tr>
+                                    <td
+                                        style="
+                                            padding:6px 0;
+                                            font-size:14px;
+                                            color:#666666;
+                                        "
+                                    >
+                                        Shipping
+                                    </td>
 
-<div style="display:flex;justify-content:space-between;padding:7px 0;font-size:14px;color:#666;">
-    <span>Shipping</span>
-    <span>₹${formatMoney(
-        order.shipping_fee
-    )}</span>
-</div>
+                                    <td
+                                        align="right"
+                                        style="
+                                            padding:6px 0;
+                                            font-size:14px;
+                                            color:#666666;
+                                        "
+                                    >
+                                        ₹${formatMoney(
+                                            order.shipping_fee
+                                        )}
+                                    </td>
+                                </tr>
 
-<div style="margin-top:10px;padding-top:18px;border-top:1px solid #111;display:flex;justify-content:space-between;font-size:17px;font-weight:700;">
-    <span>Total</span>
-    <span>₹${formatMoney(
-        order.total_amount
-    )}</span>
-</div>
+                                <tr>
+                                    <td
+                                        style="
+                                            padding:6px 0;
+                                            font-size:14px;
+                                            color:#666666;
+                                        "
+                                    >
+                                        Discount
+                                    </td>
 
-</div>
+                                    <td
+                                        align="right"
+                                        style="
+                                            padding:6px 0;
+                                            font-size:14px;
+                                            color:#666666;
+                                        "
+                                    >
+                                        ₹${formatMoney(
+                                            order.discount
+                                        )}
+                                    </td>
+                                </tr>
 
-<div style="margin-top:42px;padding-top:30px;border-top:1px solid #eeeeee;">
+                                <tr>
+                                    <td
+                                        style="
+                                            padding:15px 0 5px;
+                                            border-top:1px solid #111111;
+                                            font-size:16px;
+                                            font-weight:700;
+                                        "
+                                    >
+                                        Total
+                                    </td>
 
-<h2 style="margin:0 0 16px;font-size:14px;letter-spacing:2px;font-weight:600;">
-    DELIVERY
-</h2>
+                                    <td
+                                        align="right"
+                                        style="
+                                            padding:15px 0 5px;
+                                            border-top:1px solid #111111;
+                                            font-size:16px;
+                                            font-weight:700;
+                                        "
+                                    >
+                                        ₹${formatMoney(
+                                            order.total_amount
+                                        )}
+                                    </td>
+                                </tr>
 
-<div style="font-size:14px;color:#333;line-height:1.8;">
-    <strong>${escapeHtml(
-        delivery.name
-    )}</strong>
-    <br>
-    ${escapeHtml(
-        delivery.description
-    )}
-</div>
+                            </table>
 
-</div>
+                            <table
+                                width="100%"
+                                cellpadding="0"
+                                cellspacing="0"
+                                border="0"
+                                style="
+                                    margin-top:35px;
+                                    border-collapse:collapse;
+                                "
+                            >
+                                <tr>
+                                    <td
+                                        style="
+                                            padding:20px;
+                                            background:#f7f7f5;
+                                        "
+                                    >
 
-<div style="margin-top:32px;padding:25px;background:#f7f7f5;">
+                                        <div
+                                            style="
+                                                font-size:13px;
+                                                line-height:18px;
+                                                font-weight:700;
+                                                letter-spacing:1px;
+                                            "
+                                        >
+                                            DELIVERY
+                                        </div>
 
-<h2 style="margin:0 0 15px;font-size:14px;letter-spacing:2px;font-weight:600;">
-    SHIPPING ADDRESS
-</h2>
+                                        <div
+                                            style="
+                                                margin-top:10px;
+                                                font-size:14px;
+                                                line-height:22px;
+                                                color:#555555;
+                                            "
+                                        >
+                                            <strong>
+                                                ${escapeHtml(
+                                                    delivery.name
+                                                )}
+                                            </strong>
 
-<div style="font-size:14px;line-height:1.8;color:#555;">
-    ${addressLines}
-</div>
+                                            <br>
 
-</div>
+                                            ${escapeHtml(
+                                                delivery.description
+                                            )}
+                                        </div>
 
-<div style="margin-top:42px;text-align:center;">
+                                    </td>
+                                </tr>
+                            </table>
 
-<p style="margin:0;color:#555;font-size:14px;line-height:1.8;">
-    Thank you for choosing UNTKN.
-</p>
+                            <table
+                                width="100%"
+                                cellpadding="0"
+                                cellspacing="0"
+                                border="0"
+                                style="
+                                    margin-top:20px;
+                                    border-collapse:collapse;
+                                "
+                            >
+                                <tr>
+                                    <td
+                                        style="
+                                            padding:20px;
+                                            background:#f7f7f5;
+                                        "
+                                    >
 
-<p style="margin:7px 0 0;color:#555;font-size:14px;line-height:1.8;">
-    We hope you love your order.
-</p>
+                                        <div
+                                            style="
+                                                font-size:13px;
+                                                line-height:18px;
+                                                font-weight:700;
+                                                letter-spacing:1px;
+                                            "
+                                        >
+                                            SHIPPING ADDRESS
+                                        </div>
 
-<p style="margin:22px 0 0;font-size:14px;font-weight:600;">
-    With love,<br>
-    UNTKN
-</p>
+                                        <div
+                                            style="
+                                                margin-top:10px;
+                                                font-size:14px;
+                                                line-height:23px;
+                                                color:#555555;
+                                            "
+                                        >
+                                            ${addressLines}
+                                        </div>
 
-</div>
+                                    </td>
+                                </tr>
+                            </table>
 
-</div>
+                            <div
+                                style="
+                                    margin-top:35px;
+                                    text-align:center;
+                                "
+                            >
 
-<div style="padding:25px 40px;background:#111;text-align:center;">
+                                <p
+                                    style="
+                                        margin:0;
+                                        font-size:14px;
+                                        line-height:22px;
+                                        color:#555555;
+                                    "
+                                >
+                                    Thank you for choosing UNTKN.
+                                </p>
 
-<div style="font-size:17px;letter-spacing:5px;color:#fff;font-weight:700;">
-    UNTKN
-</div>
+                                <p
+                                    style="
+                                        margin:8px 0 0;
+                                        font-size:14px;
+                                        line-height:22px;
+                                        color:#555555;
+                                    "
+                                >
+                                    We hope you love your order.
+                                </p>
 
-<div style="margin-top:9px;font-size:10px;letter-spacing:2px;color:#999;">
-    THANK YOU FOR SHOPPING WITH US
-</div>
+                                <p
+                                    style="
+                                        margin:20px 0 0;
+                                        font-size:14px;
+                                        line-height:22px;
+                                        font-weight:700;
+                                    "
+                                >
+                                    With love,<br>
+                                    UNTKN
+                                </p>
 
-</div>
+                            </div>
 
-</div>
+                        </td>
+                    </tr>
 
-</div>
+                    <tr>
+                        <td
+                            align="center"
+                            style="
+                                padding:25px;
+                                background:#111111;
+                            "
+                        >
+
+                            <div
+                                style="
+                                    font-size:17px;
+                                    line-height:22px;
+                                    letter-spacing:5px;
+                                    font-weight:700;
+                                    color:#ffffff;
+                                "
+                            >
+                                UNTKN
+                            </div>
+
+                            <div
+                                style="
+                                    margin-top:8px;
+                                    font-size:9px;
+                                    line-height:14px;
+                                    letter-spacing:2px;
+                                    color:#999999;
+                                "
+                            >
+                                THANK YOU FOR SHOPPING WITH US
+                            </div>
+
+                        </td>
+                    </tr>
+
+                </table>
+
+            </td>
+        </tr>
+    </table>
 
 </body>
 </html>
-`;
+`.trim();
 
-        return sendEmail({
-            to: order.shipping_email,
-            subject,
-            text,
-            html,
-            replyTo: "support@untkn.in"
-        });
+        console.log(
+            `Sending customer order confirmation to ${customerEmail} for order ${order.order_number}`
+        );
+
+        const result =
+            await sendEmail({
+                to: customerEmail,
+                subject,
+                text,
+                html
+            });
+
+        console.log(
+            `Customer order confirmation completed for ${customerEmail}. Message ID: ${result.messageId}`
+        );
+
+        return result;
     };
 
 export const sendAdminOrderNotificationEmail =
@@ -445,38 +946,57 @@ export const sendAdminOrderNotificationEmail =
             order,
             items,
             delivery
-        } = await getOrderData(orderId);
+        } =
+            await getOrderData(orderId);
 
         const adminEmail =
             getAdminEmail();
 
         const itemRows = items
             .map(
-                (item) =>
-                    `
+                (item) => `
                     <tr>
-                        <td style="padding:10px;border-bottom:1px solid #eee;">
+                        <td
+                            style="
+                                padding:10px;
+                                border-bottom:1px solid #eee;
+                            "
+                        >
                             ${escapeHtml(
                                 item.product_name
                             )}
                         </td>
-                        <td style="padding:10px;border-bottom:1px solid #eee;text-align:center;">
+
+                        <td
+                            style="
+                                padding:10px;
+                                border-bottom:1px solid #eee;
+                                text-align:center;
+                            "
+                        >
                             ${Number(
-                                item.quantity
+                                item.quantity || 0
                             )}
                         </td>
-                        <td style="padding:10px;border-bottom:1px solid #eee;text-align:right;">
+
+                        <td
+                            style="
+                                padding:10px;
+                                border-bottom:1px solid #eee;
+                                text-align:right;
+                            "
+                        >
                             ₹${formatMoney(
                                 item.total_price
                             )}
                         </td>
                     </tr>
-                    `
+                `
             )
             .join("");
 
         const subject =
-            `New UNTKN order #${order.order_number}`;
+            `New UNTKN Order #${order.order_number}`;
 
         const text = `
 New UNTKN order received.
@@ -484,222 +1004,348 @@ New UNTKN order received.
 Order: #${order.order_number}
 
 Customer:
-${order.shipping_name}
-${order.shipping_email}
-${order.shipping_phone}
+${order.shipping_name || ""}
+${order.shipping_email || ""}
+${order.shipping_phone || ""}
 
 Delivery:
 ${delivery.name}
 ${delivery.description}
 
-Shipping address:
-${order.shipping_address_line1}
+Shipping Address:
+${order.shipping_address_line1 || ""}
 ${order.shipping_address_line2 || ""}
-${order.shipping_city}, ${order.shipping_state}
-${order.shipping_postal_code}
-${order.shipping_country}
+${order.shipping_city || ""}, ${
+            order.shipping_state || ""
+        }
+${order.shipping_postal_code || ""}
+${order.shipping_country || ""}
 
 Items:
 ${items
     .map(
         (item) =>
-            `${item.product_name} × ${item.quantity} — ₹${formatMoney(
+            `${item.product_name} x ${item.quantity} - ₹${formatMoney(
                 item.total_price
             )}`
     )
     .join("\n")}
 
-Subtotal: ₹${formatMoney(order.subtotal)}
-Shipping: ₹${formatMoney(order.shipping_fee)}
-Total: ₹${formatMoney(order.total_amount)}
+Subtotal: ₹${formatMoney(
+            order.subtotal
+        )}
+
+Shipping: ₹${formatMoney(
+            order.shipping_fee
+        )}
+
+Discount: ₹${formatMoney(
+            order.discount
+        )}
+
+Total: ₹${formatMoney(
+            order.total_amount
+        )}
 
 Payment status: ${order.payment_status}
 Order status: ${order.order_status}
-`;
+`.trim();
 
         const html = `
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+    <title>New UNTKN Order</title>
 </head>
 
-<body style="margin:0;padding:30px;background:#f5f5f3;font-family:Arial,Helvetica,sans-serif;color:#111;">
+<body
+    style="
+        margin:0;
+        padding:30px;
+        background:#f5f5f3;
+        font-family:Arial,Helvetica,sans-serif;
+        color:#111;
+    "
+>
 
-<div style="max-width:700px;margin:0 auto;background:#fff;padding:40px;">
+<table
+    width="100%"
+    cellpadding="0"
+    cellspacing="0"
+    border="0"
+>
+<tr>
+<td align="center">
 
-<div style="text-align:center;border-bottom:1px solid #eee;padding-bottom:25px;">
-
-<div style="font-size:28px;letter-spacing:7px;font-weight:700;">
-UNTKN
-</div>
-
-<div style="margin-top:10px;font-size:11px;letter-spacing:2px;color:#888;">
-NEW ORDER RECEIVED
-</div>
-
-</div>
-
-<div style="margin-top:35px;">
-
-<h1 style="font-size:24px;">
-New Order #${escapeHtml(
-    order.order_number
-)}
-</h1>
-
-<p style="color:#666;">
-A new order has been placed on UNTKN.
-</p>
-
-</div>
-
-<div style="margin-top:30px;padding:20px;background:#f7f7f5;">
-
-<h2 style="font-size:14px;letter-spacing:2px;">
-CUSTOMER
-</h2>
-
-<p style="line-height:1.8;color:#555;">
-<strong>${escapeHtml(
-    order.shipping_name
-)}</strong>
-<br>
-${escapeHtml(
-    order.shipping_email
-)}
-<br>
-${escapeHtml(
-    order.shipping_phone
-)}
-</p>
-
-</div>
-
-<div style="margin-top:25px;padding:20px;background:#f7f7f5;">
-
-<h2 style="font-size:14px;letter-spacing:2px;">
-DELIVERY
-</h2>
-
-<p style="line-height:1.8;color:#555;">
-<strong>${escapeHtml(
-    delivery.name
-)}</strong>
-<br>
-${escapeHtml(
-    delivery.description
-)}
-</p>
-
-</div>
-
-<div style="margin-top:25px;padding:20px;background:#f7f7f5;">
-
-<h2 style="font-size:14px;letter-spacing:2px;">
-SHIPPING ADDRESS
-</h2>
-
-<p style="line-height:1.8;color:#555;">
-${escapeHtml(
-    order.shipping_address_line1
-)}
-<br>
-${order.shipping_address_line2
-    ? `${escapeHtml(
-          order.shipping_address_line2
-      )}<br>`
-    : ""}
-${escapeHtml(
-    order.shipping_city
-)}, ${escapeHtml(
-    order.shipping_state
-)}
-<br>
-${escapeHtml(
-    order.shipping_postal_code
-)}
-<br>
-${escapeHtml(
-    order.shipping_country
-)}
-</p>
-
-</div>
-
-<div style="margin-top:30px;">
-
-<h2 style="font-size:14px;letter-spacing:2px;">
-ORDER ITEMS
-</h2>
-
-<table style="width:100%;border-collapse:collapse;">
-
-<thead>
+<table
+    width="700"
+    cellpadding="0"
+    cellspacing="0"
+    border="0"
+    style="
+        width:100%;
+        max-width:700px;
+        background:#ffffff;
+    "
+>
 
 <tr>
+<td
+    align="center"
+    style="
+        padding:30px;
+        border-bottom:1px solid #eee;
+    "
+>
+    <div
+        style="
+            font-size:28px;
+            font-weight:700;
+            letter-spacing:7px;
+        "
+    >
+        UNTKN
+    </div>
 
-<th style="padding:10px;text-align:left;">
-PRODUCT
-</th>
-
-<th style="padding:10px;text-align:center;">
-QTY
-</th>
-
-<th style="padding:10px;text-align:right;">
-TOTAL
-</th>
-
+    <div
+        style="
+            margin-top:8px;
+            font-size:10px;
+            letter-spacing:2px;
+            color:#888;
+        "
+    >
+        NEW ORDER RECEIVED
+    </div>
+</td>
 </tr>
 
-</thead>
+<tr>
+<td style="padding:30px;">
 
-<tbody>
-${itemRows}
-</tbody>
+    <h1
+        style="
+            margin:0 0 10px;
+            font-size:24px;
+        "
+    >
+        New Order #${escapeHtml(
+            order.order_number
+        )}
+    </h1>
+
+    <p
+        style="
+            color:#666;
+            line-height:1.7;
+        "
+    >
+        A new order has been placed on UNTKN.
+    </p>
+
+    <h2
+        style="
+            margin-top:30px;
+            font-size:14px;
+            letter-spacing:2px;
+        "
+    >
+        CUSTOMER
+    </h2>
+
+    <div
+        style="
+            padding:20px;
+            background:#f7f7f5;
+            line-height:1.8;
+        "
+    >
+        <strong>
+            ${escapeHtml(
+                order.shipping_name
+            )}
+        </strong>
+
+        <br>
+
+        ${escapeHtml(
+            order.shipping_email
+        )}
+
+        <br>
+
+        ${escapeHtml(
+            order.shipping_phone
+        )}
+    </div>
+
+    <h2
+        style="
+            margin-top:30px;
+            font-size:14px;
+            letter-spacing:2px;
+        "
+    >
+        DELIVERY
+    </h2>
+
+    <div
+        style="
+            padding:20px;
+            background:#f7f7f5;
+            line-height:1.8;
+        "
+    >
+        <strong>
+            ${escapeHtml(
+                delivery.name
+            )}
+        </strong>
+
+        <br>
+
+        ${escapeHtml(
+            delivery.description
+        )}
+    </div>
+
+    <h2
+        style="
+            margin-top:30px;
+            font-size:14px;
+            letter-spacing:2px;
+        "
+    >
+        SHIPPING ADDRESS
+    </h2>
+
+    <div
+        style="
+            padding:20px;
+            background:#f7f7f5;
+            line-height:1.8;
+        "
+    >
+        ${escapeHtml(
+            order.shipping_address_line1
+        )}
+
+        <br>
+
+        ${
+            order.shipping_address_line2
+                ? `${escapeHtml(
+                      order.shipping_address_line2
+                  )}<br>`
+                : ""
+        }
+
+        ${escapeHtml(
+            order.shipping_city
+        )},
+        ${escapeHtml(
+            order.shipping_state
+        )}
+
+        <br>
+
+        ${escapeHtml(
+            order.shipping_postal_code
+        )}
+
+        <br>
+
+        ${escapeHtml(
+            order.shipping_country
+        )}
+    </div>
+
+    <h2
+        style="
+            margin-top:30px;
+            font-size:14px;
+            letter-spacing:2px;
+        "
+    >
+        ORDER ITEMS
+    </h2>
+
+    <table
+        width="100%"
+        cellpadding="0"
+        cellspacing="0"
+        border="0"
+        style="
+            width:100%;
+            border-collapse:collapse;
+        "
+    >
+
+        <tr>
+            <th
+                align="left"
+                style="padding:10px;"
+            >
+                PRODUCT
+            </th>
+
+            <th
+                align="center"
+                style="padding:10px;"
+            >
+                QTY
+            </th>
+
+            <th
+                align="right"
+                style="padding:10px;"
+            >
+                TOTAL
+            </th>
+        </tr>
+
+        ${itemRows}
+
+    </table>
+
+    <div
+        style="
+            margin-top:25px;
+            border-top:1px solid #111;
+            padding-top:20px;
+            font-size:16px;
+            font-weight:700;
+        "
+    >
+        Total:
+        ₹${formatMoney(
+            order.total_amount
+        )}
+    </div>
+
+</td>
+</tr>
 
 </table>
 
-</div>
-
-<div style="margin-top:25px;border-top:1px solid #111;padding-top:20px;">
-
-<div style="display:flex;justify-content:space-between;padding:6px 0;">
-<span>Subtotal</span>
-<span>₹${formatMoney(
-    order.subtotal
-)}</span>
-</div>
-
-<div style="display:flex;justify-content:space-between;padding:6px 0;">
-<span>Shipping</span>
-<span>₹${formatMoney(
-    order.shipping_fee
-)}</span>
-</div>
-
-<div style="display:flex;justify-content:space-between;padding:10px 0;font-size:18px;font-weight:700;">
-<span>Total</span>
-<span>₹${formatMoney(
-    order.total_amount
-)}</span>
-</div>
-
-</div>
-
-</div>
+</td>
+</tr>
+</table>
 
 </body>
 </html>
-`;
+`.trim();
 
         return sendEmail({
             to: adminEmail,
             subject,
             text,
-            html,
-            replyTo: "support@untkn.in"
+            html
         });
     };
 
@@ -714,6 +1360,7 @@ export const sendOrderEmails =
                 sendOrderConfirmationEmail(
                     orderId
                 ),
+
                 sendAdminOrderNotificationEmail(
                     orderId
                 )
