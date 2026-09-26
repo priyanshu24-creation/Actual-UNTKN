@@ -6,7 +6,10 @@ const getSmtpConfig = () => {
         "smtp.hostinger.com";
 
     const port =
-        Number(process.env.SMTP_PORT || 465);
+        Number(
+            process.env.SMTP_PORT ||
+            465
+        );
 
     const user =
         process.env.SMTP_USER;
@@ -21,24 +24,6 @@ const getSmtpConfig = () => {
     const fromName =
         process.env.SMTP_FROM_NAME ||
         "UNTKN";
-
-    if (!user) {
-        throw new Error(
-            "SMTP_USER is not configured."
-        );
-    }
-
-    if (!password) {
-        throw new Error(
-            "SMTP_PASSWORD is not configured."
-        );
-    }
-
-    if (!fromEmail) {
-        throw new Error(
-            "SMTP_FROM_EMAIL is not configured."
-        );
-    }
 
     return {
         host,
@@ -55,37 +40,26 @@ const createTransporter = () => {
     const config =
         getSmtpConfig();
 
+    if (!config.user) {
+        throw new Error(
+            "SMTP_USER is missing"
+        );
+    }
+
+    if (!config.password) {
+        throw new Error(
+            "SMTP_PASSWORD is missing"
+        );
+    }
+
     return nodemailer.createTransport({
-        host:
-            config.host,
-
-        port:
-            config.port,
-
-        secure:
-            config.secure,
-
+        host: config.host,
+        port: config.port,
+        secure: config.secure,
         auth: {
-            user:
-                config.user,
-
-            pass:
-                config.password
-        },
-
-        tls: {
-            minVersion:
-                "TLSv1.2"
-        },
-
-        connectionTimeout:
-            30000,
-
-        greetingTimeout:
-            30000,
-
-        socketTimeout:
-            30000
+            user: config.user,
+            pass: config.password
+        }
     });
 };
 
@@ -93,33 +67,35 @@ export const sendEmail = async ({
     to,
     subject,
     text,
-    html
+    html,
+    cc,
+    bcc,
+    replyTo
 }) => {
-    const config =
-        getSmtpConfig();
-
-    if (!to) {
-        throw new Error(
-            "Customer email address is missing."
-        );
-    }
-
     const recipient =
-        String(to).trim();
+        String(to || "")
+            .trim();
 
     if (!recipient) {
         throw new Error(
-            "Customer email address is empty."
+            "Email recipient is missing"
         );
     }
 
-    console.log(
-        "Preparing customer email:",
-        {
-            to: recipient,
-            subject
-        }
-    );
+    if (!subject) {
+        throw new Error(
+            "Email subject is missing"
+        );
+    }
+
+    if (!text && !html) {
+        throw new Error(
+            "Email content is missing"
+        );
+    }
+
+    const config =
+        getSmtpConfig();
 
     const transporter =
         createTransporter();
@@ -127,30 +103,28 @@ export const sendEmail = async ({
     const mail = {
         from:
             `"${config.fromName}" <${config.fromEmail}>`,
-
-        to:
-            recipient,
-
-        envelope: {
-            from:
-                config.fromEmail,
-
-            to:
-                recipient
-        },
-
-        replyTo:
-            config.fromEmail,
-
-        subject:
-            subject || "UNTKN",
-
+        to: recipient,
+        subject,
         text:
-            text || "",
-
+            text || undefined,
         html:
-            html || text || ""
+            html || undefined,
+        cc:
+            cc || undefined,
+        bcc:
+            bcc || undefined,
+        replyTo:
+            replyTo || undefined
     };
+
+    console.log(
+        "[UNTKN EMAIL] Sending:",
+        {
+            from: config.fromEmail,
+            to: recipient,
+            subject
+        }
+    );
 
     const info =
         await transporter.sendMail(
@@ -158,24 +132,24 @@ export const sendEmail = async ({
         );
 
     console.log(
-        "Customer email accepted by SMTP:",
-        {
-            to: recipient,
-            messageId: info.messageId,
-            response: info.response,
-            accepted: info.accepted,
-            rejected: info.rejected
-        }
+        "[UNTKN EMAIL] Accepted:",
+        info.accepted
     );
 
-    if (
-        !info.accepted ||
-        info.accepted.length === 0
-    ) {
-        throw new Error(
-            `SMTP did not accept customer email for ${recipient}`
-        );
-    }
+    console.log(
+        "[UNTKN EMAIL] Rejected:",
+        info.rejected
+    );
+
+    console.log(
+        "[UNTKN EMAIL] Message ID:",
+        info.messageId
+    );
+
+    console.log(
+        "[UNTKN EMAIL] Response:",
+        info.response
+    );
 
     return info;
 };
@@ -188,7 +162,7 @@ export const verifyEmailConnection =
         await transporter.verify();
 
         console.log(
-            "SMTP connection verified successfully."
+            "[UNTKN EMAIL] SMTP connection verified successfully"
         );
 
         return true;

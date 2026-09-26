@@ -2,7 +2,8 @@ import pool from "../config/database.js";
 import { sendOrderConfirmationEmail } from "../services/order-confirmation.service.js";
 
 export const confirmCodOrder = async (req, res) => {
-    const connection = await pool.getConnection();
+    let connection;
+    let transactionStarted = false;
 
     try {
         const userId = req.user?.id;
@@ -15,17 +16,17 @@ export const confirmCodOrder = async (req, res) => {
             });
         }
 
-        if (
-            !Number.isInteger(orderId) ||
-            orderId <= 0
-        ) {
+        if (!Number.isInteger(orderId) || orderId <= 0) {
             return res.status(400).json({
                 success: false,
                 message: "Invalid Order ID"
             });
         }
 
+        connection = await pool.getConnection();
+
         await connection.beginTransaction();
+        transactionStarted = true;
 
         const [orders] = await connection.execute(
             `
@@ -38,18 +39,16 @@ export const confirmCodOrder = async (req, res) => {
                 shipping_email
             FROM orders
             WHERE id = ?
-            AND user_id = ?
+              AND user_id = ?
             LIMIT 1
             FOR UPDATE
             `,
-            [
-                orderId,
-                userId
-            ]
+            [orderId, userId]
         );
 
         if (orders.length === 0) {
             await connection.rollback();
+            transactionStarted = false;
 
             return res.status(404).json({
                 success: false,
@@ -61,6 +60,7 @@ export const confirmCodOrder = async (req, res) => {
 
         if (order.order_status === "cancelled") {
             await connection.rollback();
+            transactionStarted = false;
 
             return res.status(400).json({
                 success: false,
@@ -70,6 +70,7 @@ export const confirmCodOrder = async (req, res) => {
 
         if (order.payment_status === "paid") {
             await connection.rollback();
+            transactionStarted = false;
 
             return res.status(400).json({
                 success: false,
@@ -77,33 +78,9 @@ export const confirmCodOrder = async (req, res) => {
             });
         }
 
-        if (order.order_status === "confirmed") {
-            await connection.commit();
-
-            return res.status(200).json({
-                success: true,
-                message: "COD order is already confirmed",
-                email_sent: false,
-                order: {
-                    id: order.id,
-                    order_number: order.order_number,
-                    payment_status: order.payment_status,
-                    order_status: order.order_status
-                }
-            });
-        }
-
-        if (order.order_status !== "pending") {
-            await connection.rollback();
-
-            return res.status(400).json({
-                success: false,
-                message: `Order cannot be confirmed from ${order.order_status} status`
-            });
-        }
-
         if (!order.shipping_email) {
             await connection.rollback();
+            transactionStarted = false;
 
             return res.status(400).json({
                 success: false,
@@ -111,61 +88,90 @@ export const confirmCodOrder = async (req, res) => {
             });
         }
 
-        await connection.execute(
-            `
-            UPDATE orders
-            SET
-                order_status = 'confirmed',
-                updated_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-            AND user_id = ?
-            `,
-            [
-                orderId,
-                userId
-            ]
-        );
+        if (
+            order.order_status !== "pending" &&
+            order.order_status !== "confirmed"
+        ) {
+            await connection.rollback();
+            transactionStarted = false;
+
+            return res.status(400).json({
+                success: false,
+                message:
+                    `Order cannot be confirmed from ${order.order_status} status`
+            });
+        }
+
+        if (order.order_status === "pending") {
+            await connection.execute(
+                `
+                UPDATE orders
+                SET
+                    order_status = 'confirmed',
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                  AND user_id = ?
+                `,
+                [orderId, userId]
+            );
+        }
 
         await connection.commit();
+        transactionStarted = false;
 
         let emailSent = false;
 
         try {
             await sendOrderConfirmationEmail(orderId);
             emailSent = true;
+
+            console.log(
+                `COD confirmation email sent successfully for order ${orderId} to ${order.shipping_email}`
+            );
         } catch (emailError) {
             console.error(
-                "COD confirmation email error:",
-                emailError
+                `COD confirmation email failed for order ${orderId}:`
             );
+            console.error(emailError);
         }
 
         return res.status(200).json({
             success: true,
-            message: "COD order confirmed successfully",
+            message:
+                order.order_status === "confirmed"
+                    ? "COD order confirmed successfully"
+                    : "COD order confirmed successfully",
             email_sent: emailSent,
             order: {
-                id: orderId,
+                id: order.id,
                 order_number: order.order_number,
-                payment_status: order.payment_status,
+                payment_status:
+                    order.payment_status || "pending",
                 order_status: "confirmed"
             }
         });
     } catch (error) {
-        try {
-            await connection.rollback();
-        } catch {}
+        if (connection && transactionStarted) {
+            try {
+                await connection.rollback();
+            } catch (rollbackError) {
+                console.error(
+                    "COD transaction rollback error:",
+                    rollbackError
+                );
+            }
+        }
 
-        console.error(
-            "Confirm COD order error:",
-            error
-        );
+        console.error("Confirm COD order error:");
+        console.error(error);
 
         return res.status(500).json({
             success: false,
             message: "Failed to confirm COD order"
         });
     } finally {
-        connection.release();
+        if (connection) {
+            connection.release();
+        }
     }
 };
