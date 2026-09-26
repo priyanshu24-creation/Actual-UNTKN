@@ -1,206 +1,469 @@
-import { useMemo, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import {
+    useEffect,
+    useMemo,
+    useState
+} from "react";
 
-import products from "../data/products";
+import {
+    Link,
+    useSearchParams
+} from "react-router-dom";
 
+import api from "../services/api";
 
 function Search() {
+    const [
+        searchParams,
+        setSearchParams
+    ] = useSearchParams();
 
-  const [searchParams, setSearchParams] =
-    useSearchParams();
+    const query =
+        searchParams.get("q") ||
+        searchParams.get("search") ||
+        "";
 
-  const initialQuery =
-    searchParams.get("q") || "";
+    const [
+        products,
+        setProducts
+    ] = useState([]);
 
-  const [query, setQuery] =
-    useState(initialQuery);
+    const [
+        loading,
+        setLoading
+    ] = useState(true);
 
+    const [
+        error,
+        setError
+    ] = useState("");
 
-  const results = useMemo(() => {
+    useEffect(() => {
+        let cancelled = false;
 
-    const search = query
-      .trim()
-      .toLowerCase();
+        const loadProducts =
+            async () => {
+                try {
+                    setLoading(true);
+                    setError("");
 
-    if (!search) {
-      return products;
-    }
+                    const response =
+                        await api.get(
+                            "/products"
+                        );
 
+                    if (
+                        !response.data?.success
+                    ) {
+                        throw new Error(
+                            response.data
+                                ?.message ||
+                            "Failed to load products."
+                        );
+                    }
 
-    return products.filter((product) => {
+                    const apiProducts =
+                        response.data
+                            ?.products ||
+                        response.data
+                            ?.data ||
+                        [];
 
-      return (
-        product.name
-          .toLowerCase()
-          .includes(search) ||
+                    if (
+                        !Array.isArray(
+                            apiProducts
+                        )
+                    ) {
+                        throw new Error(
+                            "Invalid products response."
+                        );
+                    }
 
-        product.category
-          .toLowerCase()
-          .includes(search) ||
+                    if (
+                        cancelled
+                    ) {
+                        return;
+                    }
 
-        product.collection
-          .toLowerCase()
-          .includes(search)
-      );
+                    setProducts(
+                        apiProducts
+                    );
 
-    });
+                } catch (
+                    requestError
+                ) {
+                    console.error(
+                        "Search products error:",
+                        requestError
+                    );
 
-  }, [query]);
+                    if (
+                        !cancelled
+                    ) {
+                        setProducts([]);
 
+                        setError(
+                            requestError
+                                ?.response
+                                ?.data
+                                ?.message ||
+                            requestError
+                                ?.message ||
+                            "Unable to load products."
+                        );
+                    }
+                } finally {
+                    if (
+                        !cancelled
+                    ) {
+                        setLoading(false);
+                    }
+                }
+            };
 
-  const handleSearch = (event) => {
+        loadProducts();
 
-    event.preventDefault();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
 
-    const trimmedQuery =
-      query.trim();
+    const normalizedQuery =
+        query
+            .trim()
+            .toLowerCase();
 
-    if (trimmedQuery) {
-
-      setSearchParams({
-        q: trimmedQuery,
-      });
-
-    } else {
-
-      setSearchParams({});
-
-    }
-
-  };
-
-
-  return (
-    <div className="search-page">
-
-      <section className="search-header">
-
-        <p className="eyebrow">
-          FIND YOUR STYLE
-        </p>
-
-        <h1>
-          SEARCH
-        </h1>
-
-
-        <form
-          className="search-form"
-          onSubmit={handleSearch}
-        >
-
-          <input
-            type="search"
-            value={query}
-            onChange={(event) =>
-              setQuery(event.target.value)
+    const filteredProducts =
+        useMemo(() => {
+            if (
+                !normalizedQuery
+            ) {
+                return products;
             }
-            placeholder="SEARCH PRODUCTS..."
-            autoFocus
-          />
 
-          <button type="submit">
-            SEARCH →
-          </button>
+            return products.filter(
+                (product) => {
+                    const name =
+                        String(
+                            product.name ||
+                            product.product_name ||
+                            ""
+                        ).toLowerCase();
 
-        </form>
+                    const category =
+                        String(
+                            product.category_name ||
+                            product.category ||
+                            ""
+                        ).toLowerCase();
 
-      </section>
+                    const collection =
+                        String(
+                            product.collection_name ||
+                            product.collection ||
+                            ""
+                        ).toLowerCase();
 
+                    const description =
+                        String(
+                            product.description ||
+                            ""
+                        ).toLowerCase();
 
-      <section className="search-results">
+                    return (
+                        name.includes(
+                            normalizedQuery
+                        ) ||
+                        category.includes(
+                            normalizedQuery
+                        ) ||
+                        collection.includes(
+                            normalizedQuery
+                        ) ||
+                        description.includes(
+                            normalizedQuery
+                        )
+                    );
+                }
+            );
+        }, [
+            products,
+            normalizedQuery
+        ]);
 
-        <div className="search-results-header">
+    const getProductId =
+        (product) => {
+            return (
+                product.id ||
+                product.product_id
+            );
+        };
 
-          <p>
-            {results.length} PRODUCT
-            {results.length !== 1
-              ? "S"
-              : ""}
-          </p>
+    const getProductSlug =
+        (product) => {
+            return (
+                product.slug ||
+                product.product_slug ||
+                getProductId(
+                    product
+                )
+            );
+        };
 
-          {query && (
-            <span>
-              RESULTS FOR "{query.toUpperCase()}"
-            </span>
-          )}
+    const getProductName =
+        (product) => {
+            return (
+                product.name ||
+                product.product_name ||
+                "UNTKN PRODUCT"
+            );
+        };
 
-        </div>
+    const getProductPrice =
+        (product) => {
+            const price =
+                product.sale_price ??
+                product.price ??
+                product.base_price ??
+                product.unit_price ??
+                product.current_price ??
+                0;
 
+            const numericPrice =
+                Number(price);
 
-        {results.length > 0 ? (
+            return Number.isFinite(
+                numericPrice
+            )
+                ? numericPrice
+                : 0;
+        };
 
-          <div className="search-grid">
+    const getProductImage =
+        (product) => {
+            return (
+                product.image_url ||
+                product.primary_image ||
+                product.image ||
+                product.thumbnail ||
+                ""
+            );
+        };
 
-            {results.map((product) => (
+    const formatPrice =
+        (value) => {
+            return `₹${Number(
+                value || 0
+            ).toLocaleString(
+                "en-IN"
+            )}`;
+        };
 
-              <Link
-                key={product.id}
-                to={`/product/${product.slug}`}
-                className="search-card"
-              >
+    const getCategory =
+        (product) => {
+            return (
+                product.category_name ||
+                product.category ||
+                "PRODUCT"
+            );
+        };
 
-                <div className="search-image">
+    const handleSearch =
+        (event) => {
+            event.preventDefault();
 
-                  <img
-                    src={product.image}
-                    alt={product.name}
-                  />
+            const form =
+                event.currentTarget;
 
-                </div>
+            const input =
+                form.elements.search;
 
-                <div className="search-card-info">
+            const value =
+                String(
+                    input?.value ||
+                    ""
+                ).trim();
 
-                  <div>
+            if (value) {
+                setSearchParams({
+                    q: value
+                });
+            } else {
+                setSearchParams({});
+            }
+        };
 
-                    <h2>
-                      {product.name}
-                    </h2>
+    return (
+        <main
+            className="search-page"
+        >
+            <section
+                className="search-header"
+            >
+                <form
+                    onSubmit={
+                        handleSearch
+                    }
+                    className="search-form"
+                >
+                    <input
+                        name="search"
+                        type="search"
+                        defaultValue={
+                            query
+                        }
+                        placeholder="SEARCH PRODUCTS..."
+                        autoComplete="off"
+                        aria-label="Search products"
+                    />
 
-                    <p>
-                      {product.category}
-                    </p>
+                    <button
+                        type="submit"
+                    >
+                        SEARCH →
+                    </button>
+                </form>
+            </section>
 
-                  </div>
+            <section
+                className="search-results"
+            >
+                {loading ? (
+                    <div
+                        className="search-state"
+                    >
+                        LOADING PRODUCTS...
+                    </div>
+                ) : error ? (
+                    <div
+                        className="search-state"
+                    >
+                        {error}
+                    </div>
+                ) : (
+                    <>
+                        <div
+                            className="search-results-header"
+                        >
+                            <span>
+                                {
+                                    filteredProducts.length
+                                }{" "}
+                                PRODUCTS
+                            </span>
+                        </div>
 
-                  <strong>
-                    ₹{product.price}
-                  </strong>
+                        {filteredProducts.length ===
+                        0 ? (
+                            <div
+                                className="search-state"
+                            >
+                                {normalizedQuery
+                                    ? `NO PRODUCTS FOUND FOR "${query}"`
+                                    : "NO PRODUCTS AVAILABLE"}
+                            </div>
+                        ) : (
+                            <div
+                                className="search-products-grid"
+                            >
+                                {filteredProducts.map(
+                                    (
+                                        product
+                                    ) => {
+                                        const id =
+                                            getProductId(
+                                                product
+                                            );
 
-                </div>
+                                        const slug =
+                                            getProductSlug(
+                                                product
+                                            );
 
-              </Link>
+                                        const name =
+                                            getProductName(
+                                                product
+                                            );
 
-            ))}
+                                        const price =
+                                            getProductPrice(
+                                                product
+                                            );
 
-          </div>
+                                        const image =
+                                            getProductImage(
+                                                product
+                                            );
 
-        ) : (
+                                        return (
+                                            <Link
+                                                key={
+                                                    id ||
+                                                    slug ||
+                                                    name
+                                                }
+                                                to={`/product/${encodeURIComponent(
+                                                    slug
+                                                )}`}
+                                                className="search-product-card"
+                                            >
+                                                <div
+                                                    className="search-product-image"
+                                                >
+                                                    {image ? (
+                                                        <img
+                                                            src={
+                                                                image
+                                                            }
+                                                            alt={
+                                                                name
+                                                            }
+                                                            loading="lazy"
+                                                        />
+                                                    ) : (
+                                                        <div
+                                                            className="search-product-placeholder"
+                                                        >
+                                                            UNTKN
+                                                        </div>
+                                                    )}
+                                                </div>
 
-          <div className="no-search-results">
+                                                <div
+                                                    className="search-product-info"
+                                                >
+                                                    <div>
+                                                        <h3>
+                                                            {
+                                                                name
+                                                            }
+                                                        </h3>
 
-            <h2>
-              NO PRODUCTS FOUND.
-            </h2>
+                                                        <p>
+                                                            {
+                                                                getCategory(
+                                                                    product
+                                                                )
+                                                            }
+                                                        </p>
+                                                    </div>
 
-            <p>
-              Try another product name,
-              category or collection.
-            </p>
-
-            <Link to="/shop">
-              VIEW ALL PRODUCTS →
-            </Link>
-
-          </div>
-
-        )}
-
-      </section>
-
-    </div>
-  );
+                                                    <strong>
+                                                        {formatPrice(
+                                                            price
+                                                        )}
+                                                    </strong>
+                                                </div>
+                                            </Link>
+                                        );
+                                    }
+                                )}
+                            </div>
+                        )}
+                    </>
+                )}
+            </section>
+        </main>
+    );
 }
-
 
 export default Search;
