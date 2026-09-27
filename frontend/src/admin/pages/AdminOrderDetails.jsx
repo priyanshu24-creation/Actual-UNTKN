@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   Clock3,
   XCircle,
+  ArrowRightLeft,
 } from "lucide-react";
 import api from "../../services/api";
 
@@ -420,6 +421,82 @@ function AdminOrderDetails() {
   const [success, setSuccess] =
     useState("");
 
+  const [exchangeRequest, setExchangeRequest] =
+    useState(null);
+
+  const [exchangeLoading, setExchangeLoading] =
+    useState(false);
+
+  const [exchangeSaving, setExchangeSaving] =
+    useState(false);
+
+  const [exchangeStatus, setExchangeStatus] =
+    useState("");
+
+  const [exchangeNotes, setExchangeNotes] =
+    useState("");
+
+  const [exchangeError, setExchangeError] =
+    useState("");
+
+  const [exchangeSuccess, setExchangeSuccess] =
+    useState("");
+
+  const loadExchangeRequest =
+    async () => {
+      if (!id) return null;
+
+      try {
+        setExchangeLoading(true);
+        setExchangeError("");
+
+        const response =
+          await api.get(
+            `/orders/admin/${encodeURIComponent(
+              id
+            )}/exchange`
+          );
+
+        const request =
+          response?.data?.exchange_request ||
+          null;
+
+        setExchangeRequest(request);
+
+        if (request) {
+          setExchangeStatus(
+            String(request.status || "requested")
+              .trim()
+              .toLowerCase()
+          );
+          setExchangeNotes(
+            request.admin_notes || ""
+          );
+        } else {
+          setExchangeStatus("");
+          setExchangeNotes("");
+        }
+
+        return request;
+      } catch (requestError) {
+        console.error(
+          "Failed to load exchange request:",
+          requestError
+        );
+
+        setExchangeRequest(null);
+        setExchangeError(
+          requestError?.response?.data?.message ||
+          requestError?.message ||
+          "Failed to load exchange request."
+        );
+
+        return null;
+      } finally {
+        setExchangeLoading(false);
+      }
+    };
+
   const loadOrder =
     async () => {
       const response =
@@ -498,6 +575,8 @@ function AdminOrderDetails() {
             normalized.status ||
               "Processing"
           );
+
+          await loadExchangeRequest();
 
         } catch (
           requestError
@@ -655,6 +734,82 @@ function AdminOrderDetails() {
 
       } finally {
         setSaving(false);
+      }
+    };
+
+  const handleExchangeStatusUpdate =
+    async () => {
+      if (
+        !exchangeRequest?.id ||
+        !order?.id ||
+        !exchangeStatus ||
+        exchangeSaving
+      ) {
+        return;
+      }
+
+      try {
+        setExchangeSaving(true);
+        setExchangeError("");
+        setExchangeSuccess("");
+
+        const response =
+          await api.patch(
+            `/orders/admin/${encodeURIComponent(
+              order.id
+            )}/exchange/${encodeURIComponent(
+              exchangeRequest.id
+            )}/status`,
+            {
+              status: exchangeStatus,
+              admin_notes: exchangeNotes,
+            }
+          );
+
+        const updatedRequest =
+          response?.data?.exchange_request;
+
+        if (!updatedRequest) {
+          throw new Error(
+            "Exchange status was updated, but the updated request could not be loaded."
+          );
+        }
+
+        setExchangeRequest(
+          updatedRequest
+        );
+
+        setExchangeStatus(
+          String(
+            updatedRequest.status ||
+              exchangeStatus
+          )
+            .trim()
+            .toLowerCase()
+        );
+
+        setExchangeNotes(
+          updatedRequest.admin_notes ||
+            ""
+        );
+
+        setExchangeSuccess(
+          "Exchange request updated successfully."
+        );
+
+      } catch (requestError) {
+        console.error(
+          "Failed to update exchange request:",
+          requestError
+        );
+
+        setExchangeError(
+          requestError?.response?.data?.message ||
+          requestError?.message ||
+          "Failed to update exchange request."
+        );
+      } finally {
+        setExchangeSaving(false);
       }
     };
 
@@ -1069,6 +1224,274 @@ function AdminOrderDetails() {
 
             </div>
           </div>
+
+          {exchangeLoading && (
+            <div className="admin-order-details-panel admin-exchange-request-panel">
+              <div className="admin-details-panel-header">
+                <div>
+                  <h2>Exchange Request</h2>
+                  <span>Loading exchange information</span>
+                </div>
+                <ArrowRightLeft size={20} strokeWidth={1.5} />
+              </div>
+
+              <div className="admin-exchange-empty">
+                <span>Checking for an exchange request...</span>
+              </div>
+            </div>
+          )}
+
+          {exchangeRequest && (
+            <div className="admin-order-details-panel admin-exchange-request-panel">
+              <div className="admin-details-panel-header admin-exchange-request-header">
+                <div className="admin-exchange-request-header-left">
+                  <div className="admin-exchange-request-icon">
+                    <ArrowRightLeft size={19} strokeWidth={1.5} />
+                  </div>
+
+                  <div>
+                    <h2>Exchange Request</h2>
+                    <span>Customer exchange request</span>
+                  </div>
+                </div>
+
+                <span
+                  className={`admin-exchange-status-badge ${String(
+                    exchangeRequest.status || "requested"
+                  )
+                    .trim()
+                    .toLowerCase()}`}
+                >
+                  {String(
+                    exchangeRequest.status || "requested"
+                  )
+                    .replace(/_/g, " ")
+                    .toUpperCase()}
+                </span>
+              </div>
+
+              <div className="admin-exchange-request-body">
+                {exchangeError && (
+                  <div className="admin-exchange-message error">
+                    {exchangeError}
+                  </div>
+                )}
+
+                {exchangeSuccess && (
+                  <div className="admin-exchange-message success">
+                    {exchangeSuccess}
+                  </div>
+                )}
+
+                <div className="admin-exchange-request-grid">
+                  <div className="admin-exchange-request-field full">
+                    <span className="admin-exchange-request-field-label">
+                      Product
+                    </span>
+
+                    <div className="admin-exchange-product">
+                      <div className="admin-exchange-product-image">
+                        {exchangeRequest.image_url ? (
+                          <img
+                            src={exchangeRequest.image_url}
+                            alt={
+                              exchangeRequest.product_name ||
+                              "Product"
+                            }
+                          />
+                        ) : (
+                          <div
+                            style={{
+                              width: "100%",
+                              height: "100%",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontSize: "20px",
+                            }}
+                          >
+                            <Package size={22} strokeWidth={1.3} />
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="admin-exchange-product-info">
+                        <strong>
+                          {exchangeRequest.product_name ||
+                            "UNTKN PRODUCT"}
+                        </strong>
+
+                        <span>
+                          {exchangeRequest.size_name
+                            ? `Current Size: ${exchangeRequest.size_name}`
+                            : "Current Size: —"}
+                        </span>
+
+                        {exchangeRequest.color_name && (
+                          <span>
+                            Color: {exchangeRequest.color_name}
+                          </span>
+                        )}
+
+                        <span>
+                          Quantity: {Number(
+                            exchangeRequest.quantity || 1
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="admin-exchange-request-field">
+                    <span className="admin-exchange-request-field-label">
+                      Reason
+                    </span>
+                    <p className="admin-exchange-request-field-value">
+                      {exchangeRequest.reason || "—"}
+                    </p>
+                  </div>
+
+                  <div className="admin-exchange-request-field">
+                    <span className="admin-exchange-request-field-label">
+                      Requested Size
+                    </span>
+                    <p className="admin-exchange-request-field-value">
+                      {exchangeRequest.requested_size ||
+                        "Not specified"}
+                    </p>
+                  </div>
+
+                  <div className="admin-exchange-request-field">
+                    <span className="admin-exchange-request-field-label">
+                      Customer
+                    </span>
+                    <p className="admin-exchange-request-field-value">
+                      {exchangeRequest.shipping_name ||
+                        order.customer ||
+                        "—"}
+                    </p>
+                  </div>
+
+                  <div className="admin-exchange-request-field">
+                    <span className="admin-exchange-request-field-label">
+                      Requested On
+                    </span>
+                    <p className="admin-exchange-request-field-value">
+                      {formatDate(
+                        exchangeRequest.created_at
+                      )}
+                    </p>
+                  </div>
+
+                  <div className="admin-exchange-request-field full">
+                    <span className="admin-exchange-request-field-label">
+                      Customer Message
+                    </span>
+
+                    <div className="admin-exchange-request-message">
+                      {exchangeRequest.details ||
+                        "No additional details provided."}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="admin-exchange-request-grid" style={{ marginTop: "24px" }}>
+                  <div className="admin-exchange-request-field">
+                    <span className="admin-exchange-request-field-label">
+                      Exchange Status
+                    </span>
+
+                    <select
+                      value={exchangeStatus}
+                      onChange={(event) => {
+                        setExchangeStatus(
+                          event.target.value
+                        );
+                        setExchangeSuccess("");
+                        setExchangeError("");
+                      }}
+                      disabled={exchangeSaving}
+                      style={{
+                        width: "100%",
+                        minHeight: "42px",
+                        padding: "0 12px",
+                        border: "1px solid #dddddd",
+                        background: "#fff",
+                        color: "#222",
+                        fontFamily: "inherit",
+                        fontSize: "12px",
+                        outline: "none",
+                      }}
+                    >
+                      <option value="requested">Requested</option>
+                      <option value="approved">Approved</option>
+                      <option value="processing">Processing</option>
+                      <option value="pickup_scheduled">Pickup Scheduled</option>
+                      <option value="received">Received</option>
+                      <option value="replacement_shipped">Replacement Shipped</option>
+                      <option value="completed">Completed</option>
+                      <option value="rejected">Rejected</option>
+                    </select>
+                  </div>
+
+                  <div className="admin-exchange-request-field">
+                    <span className="admin-exchange-request-field-label">
+                      Current Order
+                    </span>
+                    <p className="admin-exchange-request-field-value">
+                      {orderStatus}
+                    </p>
+                  </div>
+
+                  <div className="admin-exchange-request-field full">
+                    <div className="admin-exchange-note">
+                      <label htmlFor="exchangeAdminNotes">
+                        Admin Notes
+                      </label>
+                      <textarea
+                        id="exchangeAdminNotes"
+                        value={exchangeNotes}
+                        onChange={(event) => {
+                          setExchangeNotes(
+                            event.target.value
+                          );
+                          setExchangeSuccess("");
+                          setExchangeError("");
+                        }}
+                        maxLength={2000}
+                        placeholder="Add an internal note about this exchange request..."
+                        disabled={exchangeSaving}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="admin-exchange-actions">
+                  <button
+                    type="button"
+                    className="admin-exchange-action-button"
+                    onClick={
+                      handleExchangeStatusUpdate
+                    }
+                    disabled={exchangeSaving}
+                  >
+                    {exchangeSaving
+                      ? "Updating..."
+                      : "Update Exchange"}
+                  </button>
+
+                  <button
+                    type="button"
+                    className="admin-exchange-action-button secondary"
+                    onClick={loadExchangeRequest}
+                    disabled={exchangeSaving || exchangeLoading}
+                  >
+                    Refresh Request
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="admin-order-details-panel">
             <div className="admin-details-panel-header">

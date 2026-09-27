@@ -19197,3 +19197,526 @@ main,
         font-size: 12px;
     }
 }
+
+/* =========================================================
+   ADMIN ORDER EXCHANGE REQUEST
+   ========================================================= */
+
+.admin-exchange-request-panel {
+  position: relative;
+  margin-top: 24px;
+  border: 1px solid #e3e3e3;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.admin-exchange-request-panel::before {
+  content: "";
+  display: block;
+  width: 100%;
+  height: 3px;
+  background: #111111;
+}
+
+.admin-exchange-request-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 22px 24px;
+  border-bottom: 1px solid #eeeeee;
+}
+
+.admin-exchange-request-header-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.admin-exchange-request-icon {
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #dddddd;
+  background: #fafafa;
+}
+
+.admin-exchange-request-header h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: #111111;
+}
+
+.admin-exchange-request-header p {
+  margin: 5px 0 0;
+  font-size: 12px;
+  color: #777777;
+}
+
+.admin-exchange-status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 11px;
+  border: 1px solid #dedede;
+  background: #f7f7f7;
+  color: #222222;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.admin-exchange-status-badge.requested {
+  background: #fff9ed;
+  border-color: #ead9ae;
+  color: #87661e;
+}
+
+.admin-exchange-status-badge.approved {
+  background: #f3faf4;
+  border-color: #cfe2d2;
+  color: #2f6b38;
+}
+
+.admin-exchange-status-badge.processing {
+  background: #f3f7fb;
+  border-color: #d2ddea;
+  color: #385675;
+}
+
+.admin-exchange-status-badge.pickup_scheduled {
+  background: #f7f4fb;
+  border-color: #ddd4eb;
+  color: #654f80;
+}
+
+.admin-exchange-status-badge.received {
+  background: #f4faf9;
+  border-color: #cde1dc;
+  color: #35685d;
+}
+
+.admin-exchange-status-badge.replacement_shipped {
+  background: #f3f7fb;
+  border-color: #d2ddea;
+  color: #385675;
+}
+
+.admin-exchange-status-badge.completed {
+  background: #f1faf3;
+  border-color: #c9e1cd;
+  color: #286534;
+}
+
+.admin-exchange-status-badge.rejected {
+  background: #fff5f5;
+  border-color: #e8cccc;
+  color: #9b3636;
+}
+
+
+/* =========================================================
+   EXCHANGE REQUEST BODY
+   ========================================================= */
+
+.admin-exchange-request-body {
+  padding: 24px;
+}
+
+.admin-exchange-request-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px 32px;
+}
+
+.admin-exchange-request-field {
+  min-width: 0;
+}
+
+.admin-exchange-request-field.full {
+  grid-column: 1 / -1;
+}
+
+.admin-exchange-request-field-label {
+  display: block;
+  margin-bottom: 7px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #8a8a8a;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.admin-exchange-request-field-value {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #222222;
+}
+
+.admin-exchange-request-message {
+  padding: 15px 16px;
+  border: 1px solid #eeeeee;
+  background: #fafafa;
+  font-size: 13px;
+  line-height: 1.7;
+  color: #444444;
+}
+
+
+/* =========================================================
+   EXCHANGE PRODUCT
+   ========================================================= */
+
+.admin-exchange-product {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 15px;
+  border: 1px solid #eeeeee;
+  background: #ffffff;
+}
+
+.admin-exchange-product-image {
+  width: 64px;
+  height: 78px;
+  flex: 0 0 64px;
+  overflow: hidden;
+  background: #f5f5f5;
+  border: 1px solid #eeeeee;
+}
+
+.admin-exchange-product-image img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.admin-exchange-product-info {
+  min-width: 0;
+}
+
+.admin-exchange-product-info strong {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #111111;
+}
+
+.admin-exchange-product-info span {
+  display: block;
+  font-size: 11px;
+  line-height: 1.6;
+  color: #777777;
+}
+
+
+/* =========================================================
+   EXCHANGE TIMELINE
+   ========================================================= */
+
+.admin-exchange-timeline {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-top: 10px;
+}
+
+.admin-exchange-timeline::before {
+  content: "";
+  position: absolute;
+  top: 18px;
+  bottom: 18px;
+  left: 9px;
+  width: 1px;
+  background: #dddddd;
+}
+
+.admin-exchange-timeline-item {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  min-height: 58px;
+}
+
+.admin-exchange-timeline-marker {
+  position: relative;
+  z-index: 1;
+  width: 19px;
+  height: 19px;
+  min-width: 19px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #d8d8d8;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #999999;
+  font-size: 9px;
+}
+
+.admin-exchange-timeline-item.completed
+  .admin-exchange-timeline-marker {
+  border-color: #222222;
+  background: #222222;
+  color: #ffffff;
+}
+
+.admin-exchange-timeline-item.active
+  .admin-exchange-timeline-marker {
+  border-color: #222222;
+  background: #ffffff;
+  color: #111111;
+  box-shadow: 0 0 0 4px #f1f1f1;
+}
+
+.admin-exchange-timeline-content {
+  padding-bottom: 18px;
+}
+
+.admin-exchange-timeline-content strong {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #222222;
+}
+
+.admin-exchange-timeline-content span {
+  display: block;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #888888;
+}
+
+
+/* =========================================================
+   EXCHANGE ADMIN ACTIONS
+   ========================================================= */
+
+.admin-exchange-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #eeeeee;
+}
+
+.admin-exchange-action-button {
+  min-height: 42px;
+  padding: 0 18px;
+  border: 1px solid #111111;
+  background: #111111;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease,
+    opacity 0.2s ease;
+}
+
+.admin-exchange-action-button:hover {
+  background: #333333;
+  border-color: #333333;
+}
+
+.admin-exchange-action-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.admin-exchange-action-button.secondary {
+  background: #ffffff;
+  color: #111111;
+  border-color: #d7d7d7;
+}
+
+.admin-exchange-action-button.secondary:hover {
+  background: #f5f5f5;
+  border-color: #bdbdbd;
+}
+
+.admin-exchange-action-button.danger {
+  background: #ffffff;
+  color: #a33a3a;
+  border-color: #dfc4c4;
+}
+
+.admin-exchange-action-button.danger:hover {
+  background: #fff6f6;
+  border-color: #cfa7a7;
+}
+
+
+/* =========================================================
+   EXCHANGE EMPTY STATE
+   ========================================================= */
+
+.admin-exchange-empty {
+  padding: 28px 24px;
+  border: 1px dashed #dddddd;
+  background: #fafafa;
+  text-align: center;
+}
+
+.admin-exchange-empty strong {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #333333;
+}
+
+.admin-exchange-empty span {
+  display: block;
+  font-size: 11px;
+  color: #888888;
+}
+
+
+/* =========================================================
+   EXCHANGE ADMIN NOTE
+   ========================================================= */
+
+.admin-exchange-note {
+  margin-top: 20px;
+}
+
+.admin-exchange-note label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #777777;
+}
+
+.admin-exchange-note textarea {
+  display: block;
+  width: 100%;
+  min-height: 100px;
+  padding: 12px 14px;
+  border: 1px solid #dddddd;
+  background: #ffffff;
+  color: #222222;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.6;
+  resize: vertical;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.2s ease;
+}
+
+.admin-exchange-note textarea:focus {
+  border-color: #111111;
+}
+
+
+/* =========================================================
+   EXCHANGE ALERT / MESSAGE
+   ========================================================= */
+
+.admin-exchange-message {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 18px;
+  padding: 13px 15px;
+  border: 1px solid #dedede;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.admin-exchange-message.success {
+  border-color: #cfe2d2;
+  background: #f5fbf6;
+  color: #286b35;
+}
+
+.admin-exchange-message.error {
+  border-color: #e5caca;
+  background: #fff7f7;
+  color: #a33a3a;
+}
+
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (max-width: 768px) {
+  .admin-exchange-request-header {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 18px;
+  }
+
+  .admin-exchange-request-body {
+    padding: 18px;
+  }
+
+  .admin-exchange-request-grid {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
+  .admin-exchange-request-field.full {
+    grid-column: auto;
+  }
+
+  .admin-exchange-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-exchange-action-button {
+    width: 100%;
+  }
+
+  .admin-exchange-product {
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 480px) {
+  .admin-exchange-request-header-left {
+    gap: 10px;
+  }
+
+  .admin-exchange-request-icon {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+  }
+
+  .admin-exchange-request-header h2 {
+    font-size: 15px;
+  }
+
+  .admin-exchange-product-image {
+    width: 54px;
+    height: 68px;
+    flex-basis: 54px;
+  }
+}

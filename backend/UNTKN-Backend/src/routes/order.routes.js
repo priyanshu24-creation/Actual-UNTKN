@@ -20,7 +20,9 @@ import {
 } from "../middleware/auth.middleware.js";
 
 import {
-  requestExchange
+    requestExchange,
+    getAdminExchangeRequest,
+    updateExchangeStatus
 } from "../controllers/exchange.controller.js";
 
 const router = express.Router();
@@ -62,6 +64,20 @@ router.patch(
     authenticate,
     requireAdmin,
     updateAdminOrderStatus
+);
+
+router.get(
+    "/admin/:id/exchange",
+    authenticate,
+    requireAdmin,
+    getAdminExchangeRequest
+);
+
+router.patch(
+    "/admin/:id/exchange/:exchangeId/status",
+    authenticate,
+    requireAdmin,
+    updateExchangeStatus
 );
 
 router.patch(
