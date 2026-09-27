@@ -37,7 +37,7 @@ function getBotResponse(message) {
     text.includes("issue") ||
     text.includes("complaint")
   ) {
-    return "Need help? Please email us at customer@untkn.in or send your issue through the Contact page. Our support team will help you with your concern.";
+    return "Need help? Please email us at contact@untkn.in or send your issue through the Contact page. Our support team will help you with your concern.";
   }
 
   if (

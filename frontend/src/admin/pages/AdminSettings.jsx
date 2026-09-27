@@ -12,15 +12,20 @@ import {
 
 import api from "../../services/api.js";
 
-const DEFAULT_SETTINGS = {
+const DEFAULT_BANNER_MESSAGES = [
+  "FREE SHIPPING ON ORDERS ABOVE ₹999",
+  "NEW DROP LIVE NOW",
+  "EASY RETURNS",
+];
+
+const defaultSettings = {
   storeName: "UNTKN",
   tagline: "More than just a T-shirt",
 
   runningBannerEnabled: true,
-  runningBannerMessage1:
-    "FREE SHIPPING ON ORDERS ABOVE ₹999",
-  runningBannerMessage2: "NEW DROP LIVE NOW",
-  runningBannerMessage3: "EASY RETURNS",
+  runningBannerMessage1: DEFAULT_BANNER_MESSAGES[0],
+  runningBannerMessage2: DEFAULT_BANNER_MESSAGES[1],
+  runningBannerMessage3: DEFAULT_BANNER_MESSAGES[2],
 
   email: "support@untkn.in",
   phone: "+91 98765 43210",
@@ -35,6 +40,7 @@ const DEFAULT_SETTINGS = {
 
   currency: "INR",
   currencySymbol: "₹",
+
   freeShipping: "999",
   shippingCharge: "99",
 
@@ -43,233 +49,96 @@ const DEFAULT_SETTINGS = {
   maintenanceMode: false,
 };
 
-const safeString = (value, fallback = "") => {
-  if (value === null || value === undefined) {
+const cleanNumber = (value, fallback) => {
+  if (
+    value === null ||
+    value === undefined
+  ) {
     return fallback;
   }
 
-  return String(value);
-};
+  const cleaned = String(value)
+    .replace(/[₹$€£,\s]/g, "")
+    .trim();
 
-const safeBoolean = (value, fallback = false) => {
-  if (value === null || value === undefined) {
+  if (!cleaned) {
     return fallback;
   }
 
-  if (typeof value === "boolean") {
-    return value;
-  }
-
-  if (typeof value === "string") {
-    return value.toLowerCase() === "true";
-  }
-
-  if (typeof value === "number") {
-    return value === 1;
-  }
-
-  return Boolean(value);
-};
-
-const safeNumberString = (value, fallback = "") => {
-  if (value === null || value === undefined) {
-    return fallback;
-  }
-
-  if (value === "") {
-    return "";
-  }
-
-  const number = Number(value);
-
-  if (!Number.isFinite(number)) {
-    return fallback;
-  }
-
-  return String(number);
-};
-
-const normalizeMessages = (bannerSettings) => {
-  if (!bannerSettings) {
-    return [
-      DEFAULT_SETTINGS.runningBannerMessage1,
-      DEFAULT_SETTINGS.runningBannerMessage2,
-      DEFAULT_SETTINGS.runningBannerMessage3,
-    ];
-  }
+  const number = Number(cleaned);
 
   if (
-    Array.isArray(bannerSettings.messages)
+    !Number.isFinite(number) ||
+    number < 0
   ) {
-    return [
-      safeString(
-        bannerSettings.messages[0],
-        DEFAULT_SETTINGS.runningBannerMessage1
-      ),
-      safeString(
-        bannerSettings.messages[1],
-        DEFAULT_SETTINGS.runningBannerMessage2
-      ),
-      safeString(
-        bannerSettings.messages[2],
-        DEFAULT_SETTINGS.runningBannerMessage3
-      ),
-    ];
+    return fallback;
   }
 
-  return [
-    safeString(
-      bannerSettings.message_1,
-      DEFAULT_SETTINGS.runningBannerMessage1
-    ),
-    safeString(
-      bannerSettings.message_2,
-      DEFAULT_SETTINGS.runningBannerMessage2
-    ),
-    safeString(
-      bannerSettings.message_3,
-      DEFAULT_SETTINGS.runningBannerMessage3
-    ),
-  ];
+  return number;
 };
 
-const normalizeSettings = (
-  storeSettings = {},
-  bannerSettings = {}
-) => {
-  const messages = normalizeMessages(
-    bannerSettings
+const numberToString = (value, fallback) => {
+  return String(
+    cleanNumber(value, fallback)
   );
-
-  return {
-    storeName: safeString(
-      storeSettings.storeName,
-      DEFAULT_SETTINGS.storeName
-    ),
-
-    tagline: safeString(
-      storeSettings.tagline,
-      DEFAULT_SETTINGS.tagline
-    ),
-
-    runningBannerEnabled: safeBoolean(
-      bannerSettings.enabled,
-      DEFAULT_SETTINGS.runningBannerEnabled
-    ),
-
-    runningBannerMessage1:
-      messages[0],
-
-    runningBannerMessage2:
-      messages[1],
-
-    runningBannerMessage3:
-      messages[2],
-
-    email: safeString(
-      storeSettings.email,
-      DEFAULT_SETTINGS.email
-    ),
-
-    phone: safeString(
-      storeSettings.phone,
-      DEFAULT_SETTINGS.phone
-    ),
-
-    whatsapp: safeString(
-      storeSettings.whatsapp,
-      DEFAULT_SETTINGS.whatsapp
-    ),
-
-    address: safeString(
-      storeSettings.address,
-      DEFAULT_SETTINGS.address
-    ),
-
-    instagram: safeString(
-      storeSettings.instagram,
-      DEFAULT_SETTINGS.instagram
-    ),
-
-    facebook: safeString(
-      storeSettings.facebook,
-      DEFAULT_SETTINGS.facebook
-    ),
-
-    youtube: safeString(
-      storeSettings.youtube,
-      DEFAULT_SETTINGS.youtube
-    ),
-
-    website: safeString(
-      storeSettings.website,
-      DEFAULT_SETTINGS.website
-    ),
-
-    currency: safeString(
-      storeSettings.currency,
-      DEFAULT_SETTINGS.currency
-    ),
-
-    currencySymbol: safeString(
-      storeSettings.currencySymbol,
-      DEFAULT_SETTINGS.currencySymbol
-    ),
-
-    freeShipping: safeNumberString(
-      storeSettings.freeShipping,
-      DEFAULT_SETTINGS.freeShipping
-    ),
-
-    shippingCharge: safeNumberString(
-      storeSettings.shippingCharge,
-      DEFAULT_SETTINGS.shippingCharge
-    ),
-
-    contactEnabled: safeBoolean(
-      storeSettings.contactEnabled,
-      DEFAULT_SETTINGS.contactEnabled
-    ),
-
-    newsletterEnabled: safeBoolean(
-      storeSettings.newsletterEnabled,
-      DEFAULT_SETTINGS.newsletterEnabled
-    ),
-
-    maintenanceMode: safeBoolean(
-      storeSettings.maintenanceMode,
-      DEFAULT_SETTINGS.maintenanceMode
-    ),
-  };
 };
 
-const getResponseSettings = (response) => {
-  if (!response) {
-    return {};
+const normalizeBannerMessages = (
+  bannerSettings
+) => {
+  if (!bannerSettings) {
+    return DEFAULT_BANNER_MESSAGES;
   }
+
+  let messages = [];
 
   if (
-    response.data &&
-    typeof response.data === "object"
+    Array.isArray(
+      bannerSettings.messages
+    )
   ) {
-    if (
-      response.data.settings &&
-      typeof response.data.settings === "object"
-    ) {
-      return response.data.settings;
-    }
-
-    return response.data;
+    messages = bannerSettings.messages;
+  } else {
+    messages = [
+      bannerSettings.message_1,
+      bannerSettings.message_2,
+      bannerSettings.message_3,
+    ];
   }
 
-  return {};
+  return DEFAULT_BANNER_MESSAGES.map(
+    (defaultMessage, index) => {
+      const message = messages[index];
+
+      if (
+        typeof message === "string" &&
+        message.trim()
+      ) {
+        return message
+          .trim()
+          .slice(0, 80);
+      }
+
+      return defaultMessage;
+    }
+  );
+};
+
+const getErrorMessage = (
+  error,
+  fallback
+) => {
+  return (
+    error?.response?.data?.message ||
+    error?.response?.data?.error ||
+    error?.message ||
+    fallback
+  );
 };
 
 function AdminSettings() {
   const [settings, setSettings] =
-    useState(() => ({
-      ...DEFAULT_SETTINGS,
-    }));
+    useState(defaultSettings);
 
   const [loading, setLoading] =
     useState(true);
@@ -287,77 +156,176 @@ function AdminSettings() {
     let mounted = true;
 
     const fetchSettings = async () => {
-      try {
-        setLoading(true);
-        setError("");
+      setLoading(true);
+      setError("");
 
-        const [
-          settingsResponse,
-          bannerResponse,
-        ] = await Promise.all([
-          api.get("/settings/admin", {
+      const [
+        settingsResult,
+        bannerResult,
+      ] = await Promise.allSettled([
+        api.get("/settings/admin"),
+
+        api.get(
+          "/settings/running-banner",
+          {
             params: {
               _: Date.now(),
             },
-          }),
+          }
+        ),
+      ]);
 
-          api.get(
-            "/settings/running-banner",
-            {
-              params: {
-                _: Date.now(),
-              },
-            }
-          ),
-        ]);
+      if (!mounted) {
+        return;
+      }
 
-        if (!mounted) {
-          return;
-        }
+      let nextSettings = {
+        ...defaultSettings,
+      };
 
+      const errors = [];
+
+      /*
+       * STORE SETTINGS
+       */
+
+      if (
+        settingsResult.status ===
+        "fulfilled"
+      ) {
         const storeSettings =
-          getResponseSettings(
-            settingsResponse
-          );
+          settingsResult.value?.data
+            ?.settings || {};
 
+        nextSettings = {
+          ...nextSettings,
+
+          ...storeSettings,
+
+          freeShipping:
+            numberToString(
+              storeSettings.freeShipping,
+              999
+            ),
+
+          shippingCharge:
+            numberToString(
+              storeSettings.shippingCharge,
+              99
+            ),
+
+          contactEnabled:
+            storeSettings.contactEnabled !==
+            undefined
+              ? Boolean(
+                  storeSettings.contactEnabled
+                )
+              : defaultSettings.contactEnabled,
+
+          newsletterEnabled:
+            storeSettings.newsletterEnabled !==
+            undefined
+              ? Boolean(
+                  storeSettings.newsletterEnabled
+                )
+              : defaultSettings.newsletterEnabled,
+
+          maintenanceMode:
+            storeSettings.maintenanceMode !==
+            undefined
+              ? Boolean(
+                  storeSettings.maintenanceMode
+                )
+              : defaultSettings.maintenanceMode,
+        };
+      } else {
+        console.error(
+          "Failed to load store settings:",
+          settingsResult.reason
+        );
+
+        errors.push(
+          getErrorMessage(
+            settingsResult.reason,
+            "Failed to load store settings."
+          )
+        );
+      }
+
+      /*
+       * RUNNING BANNER SETTINGS
+       */
+
+      if (
+        bannerResult.status ===
+        "fulfilled"
+      ) {
         const bannerSettings =
-          getResponseSettings(
-            bannerResponse
-          );
+          bannerResult.value?.data
+            ?.settings || {};
 
-        const normalized =
-          normalizeSettings(
-            storeSettings,
+        const messages =
+          normalizeBannerMessages(
             bannerSettings
           );
 
-        setSettings(normalized);
-      } catch (err) {
+        nextSettings = {
+          ...nextSettings,
+
+          runningBannerEnabled:
+            bannerSettings.enabled !==
+            undefined
+              ? Boolean(
+                  bannerSettings.enabled
+                )
+              : defaultSettings.runningBannerEnabled,
+
+          runningBannerMessage1:
+            messages[0],
+
+          runningBannerMessage2:
+            messages[1],
+
+          runningBannerMessage3:
+            messages[2],
+        };
+      } else {
         console.error(
-          "Failed to load settings:",
-          err
+          "Failed to load running banner settings:",
+          bannerResult.reason
         );
 
-        if (!mounted) {
-          return;
-        }
+        /*
+         * Do not break the entire Settings
+         * page if the banner endpoint fails.
+         */
+        errors.push(
+          getErrorMessage(
+            bannerResult.reason,
+            "Failed to load running banner settings."
+          )
+        );
+      }
 
-        const message =
-          err?.response?.data?.message ||
-          err?.response?.data?.error ||
-          err?.message ||
-          "Failed to load store settings.";
+      setSettings(nextSettings);
 
-        setError(message);
-
-        setSettings({
-          ...DEFAULT_SETTINGS,
-        });
-      } finally {
-        if (mounted) {
-          setLoading(false);
+      if (errors.length > 0) {
+        /*
+         * Only show the error if the actual
+         * store settings request failed.
+         *
+         * Banner failure should not prevent
+         * the main Settings page from working.
+         */
+        if (
+          settingsResult.status ===
+          "rejected"
+        ) {
+          setError(errors[0]);
         }
       }
+
+      setLoading(false);
     };
 
     fetchSettings();
@@ -366,6 +334,10 @@ function AdminSettings() {
       mounted = false;
     };
   }, []);
+
+  /*
+   * INPUT CHANGE
+   */
 
   const handleChange = (event) => {
     const {
@@ -377,123 +349,92 @@ function AdminSettings() {
 
     setSettings((current) => ({
       ...current,
+
       [name]:
         type === "checkbox"
-          ? Boolean(checked)
-          : value ?? "",
+          ? checked
+          : value,
     }));
 
     setSaved(false);
     setError("");
   };
 
-  const handleSave = async (event) => {
+  /*
+   * SAVE SETTINGS
+   */
+
+  const handleSave = async (
+    event
+  ) => {
     event.preventDefault();
 
     if (saving) {
       return;
     }
 
+    setSaving(true);
+    setSaved(false);
+    setError("");
+
     try {
-      setSaving(true);
-      setSaved(false);
-      setError("");
-
-      const storeName = safeString(
-        settings.storeName
-      ).trim();
-
-      const email = safeString(
-        settings.email
-      ).trim();
-
-      const freeShippingValue =
-        safeString(
-          settings.freeShipping
-        ).trim();
-
-      const shippingChargeValue =
-        safeString(
-          settings.shippingCharge
-        ).trim();
-
-      if (!storeName) {
-        setError(
-          "Store Name is required."
-        );
-        return;
-      }
-
-      if (!email) {
-        setError(
-          "Email Address is required."
-        );
-        return;
-      }
-
-      if (!freeShippingValue) {
-        setError(
-          "Free Shipping Above must be a valid number."
-        );
-        return;
-      }
-
-      if (!shippingChargeValue) {
-        setError(
-          "Standard Shipping Charge must be a valid number."
-        );
-        return;
-      }
+      /*
+       * NORMALIZE NUMBERS
+       *
+       * This is important because the
+       * database may return:
+       *
+       * 999
+       * "999"
+       * "₹999"
+       * "1,999"
+       *
+       * and all of them should work.
+       */
 
       const freeShipping =
-        Number(freeShippingValue);
+        cleanNumber(
+          settings.freeShipping,
+          999
+        );
 
       const shippingCharge =
-        Number(shippingChargeValue);
-
-      if (
-        !Number.isFinite(
-          freeShipping
-        ) ||
-        freeShipping < 0
-      ) {
-        setError(
-          "Free Shipping Above must be a valid number."
+        cleanNumber(
+          settings.shippingCharge,
+          99
         );
-        return;
-      }
 
-      if (
-        !Number.isFinite(
-          shippingCharge
-        ) ||
-        shippingCharge < 0
-      ) {
-        setError(
-          "Standard Shipping Charge must be a valid number."
-        );
-        return;
-      }
+      /*
+       * NORMALIZE BANNER MESSAGES
+       */
 
       const bannerMessages = [
-        safeString(
-          settings.runningBannerMessage1
+        String(
+          settings.runningBannerMessage1 ||
+            ""
         )
           .trim()
           .slice(0, 80),
 
-        safeString(
-          settings.runningBannerMessage2
+        String(
+          settings.runningBannerMessage2 ||
+            ""
         )
           .trim()
           .slice(0, 80),
 
-        safeString(
-          settings.runningBannerMessage3
+        String(
+          settings.runningBannerMessage3 ||
+            ""
         )
           .trim()
           .slice(0, 80),
       ];
+
+      /*
+       * Make sure banner messages are not
+       * accidentally empty.
+       */
 
       if (
         bannerMessages.some(
@@ -503,99 +444,109 @@ function AdminSettings() {
         setError(
           "All three running banner messages are required."
         );
+
+        setSaving(false);
         return;
       }
 
+      /*
+       * STORE SETTINGS PAYLOAD
+       */
+
       const storePayload = {
-        storeName,
-
-        tagline: safeString(
-          settings.tagline
+        storeName: String(
+          settings.storeName || ""
         ).trim(),
 
-        email,
-
-        phone: safeString(
-          settings.phone
+        tagline: String(
+          settings.tagline || ""
         ).trim(),
 
-        whatsapp: safeString(
-          settings.whatsapp
+        email: String(
+          settings.email || ""
         ).trim(),
 
-        address: safeString(
-          settings.address
+        phone: String(
+          settings.phone || ""
         ).trim(),
 
-        instagram: safeString(
-          settings.instagram
+        whatsapp: String(
+          settings.whatsapp || ""
         ).trim(),
 
-        facebook: safeString(
-          settings.facebook
+        address: String(
+          settings.address || ""
         ).trim(),
 
-        youtube: safeString(
-          settings.youtube
+        instagram: String(
+          settings.instagram || ""
         ).trim(),
 
-        website: safeString(
-          settings.website
+        facebook: String(
+          settings.facebook || ""
         ).trim(),
 
-        currency: safeString(
-          settings.currency,
-          "INR"
-        ),
+        youtube: String(
+          settings.youtube || ""
+        ).trim(),
 
-        currencySymbol: safeString(
-          settings.currencySymbol,
-          "₹"
-        ),
+        website: String(
+          settings.website || ""
+        ).trim(),
+
+        currency: String(
+          settings.currency || "INR"
+        ).trim(),
+
+        currencySymbol: String(
+          settings.currencySymbol || "₹"
+        ).trim(),
 
         freeShipping,
 
         shippingCharge,
 
-        contactEnabled:
-          Boolean(
-            settings.contactEnabled
-          ),
+        contactEnabled: Boolean(
+          settings.contactEnabled
+        ),
 
-        newsletterEnabled:
-          Boolean(
-            settings.newsletterEnabled
-          ),
+        newsletterEnabled: Boolean(
+          settings.newsletterEnabled
+        ),
 
-        maintenanceMode:
-          Boolean(
-            settings.maintenanceMode
-          ),
+        maintenanceMode: Boolean(
+          settings.maintenanceMode
+        ),
       };
+
+      /*
+       * RUNNING BANNER PAYLOAD
+       *
+       * Keep `messages` because that is
+       * the format used by your existing
+       * AdminSettings implementation.
+       */
 
       const bannerPayload = {
-        enabled:
-          Boolean(
-            settings.runningBannerEnabled
-          ),
+        enabled: Boolean(
+          settings.runningBannerEnabled
+        ),
 
-        messages:
-          bannerMessages,
-
-        message_1:
-          bannerMessages[0],
-
-        message_2:
-          bannerMessages[1],
-
-        message_3:
-          bannerMessages[2],
+        messages: bannerMessages,
       };
 
+      /*
+       * SAVE BOTH SETTINGS
+       *
+       * Promise.allSettled prevents one
+       * endpoint from hiding the result
+       * of the other endpoint.
+       */
+
       const [
-        settingsResponse,
-        bannerResponse,
-      ] = await Promise.all([
+        settingsResult,
+        bannerResult,
+      ] = await Promise.allSettled([
         api.put(
           "/settings/admin",
           storePayload
@@ -607,31 +558,132 @@ function AdminSettings() {
         ),
       ]);
 
-      const savedStoreSettings =
-        getResponseSettings(
-          settingsResponse
+      const saveErrors = [];
+
+      /*
+       * STORE SETTINGS RESULT
+       */
+
+      if (
+        settingsResult.status ===
+        "rejected"
+      ) {
+        console.error(
+          "Failed to save store settings:",
+          settingsResult.reason
         );
+
+        saveErrors.push(
+          getErrorMessage(
+            settingsResult.reason,
+            "Failed to save store settings."
+          )
+        );
+      }
+
+      /*
+       * RUNNING BANNER RESULT
+       */
+
+      if (
+        bannerResult.status ===
+        "rejected"
+      ) {
+        console.error(
+          "Failed to save running banner settings:",
+          bannerResult.reason
+        );
+
+        saveErrors.push(
+          getErrorMessage(
+            bannerResult.reason,
+            "Failed to save running banner settings."
+          )
+        );
+      }
+
+      /*
+       * If either request failed,
+       * show the actual error.
+       */
+
+      if (saveErrors.length > 0) {
+        setError(
+          saveErrors.join(" ")
+        );
+
+        setSaving(false);
+        return;
+      }
+
+      /*
+       * READ SAVED RESPONSE
+       */
+
+      const savedStoreSettings =
+        settingsResult.value?.data
+          ?.settings || {};
 
       const savedBannerSettings =
-        getResponseSettings(
-          bannerResponse
+        bannerResult.value?.data
+          ?.settings || {};
+
+      const savedBannerMessages =
+        normalizeBannerMessages(
+          savedBannerSettings
         );
 
-      const normalizedSaved =
-        normalizeSettings(
-          {
-            ...storePayload,
-            ...savedStoreSettings,
-          },
-          {
-            ...bannerPayload,
-            ...savedBannerSettings,
-          }
-        );
+      /*
+       * UPDATE LOCAL STATE WITH THE
+       * ACTUAL SAVED VALUES
+       */
 
-      setSettings(
-        normalizedSaved
-      );
+      setSettings({
+        ...defaultSettings,
+
+        ...savedStoreSettings,
+
+        freeShipping:
+          numberToString(
+            savedStoreSettings.freeShipping,
+            freeShipping
+          ),
+
+        shippingCharge:
+          numberToString(
+            savedStoreSettings.shippingCharge,
+            shippingCharge
+          ),
+
+        runningBannerEnabled:
+          savedBannerSettings.enabled !==
+          undefined
+            ? Boolean(
+                savedBannerSettings.enabled
+              )
+            : Boolean(
+                settings.runningBannerEnabled
+              ),
+
+        runningBannerMessage1:
+          savedBannerMessages[0],
+
+        runningBannerMessage2:
+          savedBannerMessages[1],
+
+        runningBannerMessage3:
+          savedBannerMessages[2],
+      });
+
+      /*
+       * SUCCESS
+       */
+
+      setSaved(true);
+
+      /*
+       * Tell Navbar to reload the banner.
+       */
 
       window.dispatchEvent(
         new Event(
@@ -639,28 +691,29 @@ function AdminSettings() {
         )
       );
 
-      setSaved(true);
-
-      setTimeout(() => {
+      window.setTimeout(() => {
         setSaved(false);
       }, 2500);
-    } catch (err) {
+    } catch (saveError) {
       console.error(
         "Failed to save settings:",
-        err
+        saveError
       );
 
-      const message =
-        err?.response?.data?.message ||
-        err?.response?.data?.error ||
-        err?.message ||
-        "Failed to save store settings.";
-
-      setError(message);
+      setError(
+        getErrorMessage(
+          saveError,
+          "Failed to save settings."
+        )
+      );
     } finally {
       setSaving(false);
     }
   };
+
+  /*
+   * LOADING
+   */
 
   if (loading) {
     return (
@@ -682,8 +735,14 @@ function AdminSettings() {
     );
   }
 
+  /*
+   * PAGE
+   */
+
   return (
     <section className="admin-settings-page">
+      {/* PAGE HEADER */}
+
       <div className="admin-page-header">
         <div>
           <p className="admin-eyebrow">
@@ -713,11 +772,13 @@ function AdminSettings() {
             {saving
               ? "Saving..."
               : saved
-              ? "Saved"
-              : "Save Changes"}
+                ? "Saved"
+                : "Save Changes"}
           </span>
         </button>
       </div>
+
+      {/* ERROR */}
 
       {error && (
         <div
@@ -735,6 +796,8 @@ function AdminSettings() {
         onSubmit={handleSave}
         className="admin-settings-form"
       >
+        {/* STORE INFORMATION */}
+
         <div className="admin-settings-panel">
           <div className="admin-settings-panel-header">
             <div className="admin-settings-panel-icon">
@@ -771,11 +834,11 @@ function AdminSettings() {
                 name="storeName"
                 type="text"
                 value={
-                  settings.storeName ?? ""
+                  settings.storeName
                 }
                 onChange={handleChange}
-                required
                 disabled={saving}
+                required
               />
             </div>
 
@@ -789,7 +852,7 @@ function AdminSettings() {
                 name="tagline"
                 type="text"
                 value={
-                  settings.tagline ?? ""
+                  settings.tagline
                 }
                 onChange={handleChange}
                 disabled={saving}
@@ -812,16 +875,18 @@ function AdminSettings() {
                   name="website"
                   type="url"
                   value={
-                    settings.website ?? ""
+                    settings.website
                   }
                   onChange={handleChange}
-                  placeholder="https://untkn.in"
                   disabled={saving}
+                  placeholder="https://untkn.in"
                 />
               </div>
             </div>
           </div>
         </div>
+
+        {/* CONTACT */}
 
         <div className="admin-settings-panel">
           <div className="admin-settings-panel-header">
@@ -842,8 +907,8 @@ function AdminSettings() {
               </h2>
 
               <p>
-                Contact details shown on
-                the website.
+                Contact details shown on the
+                website.
               </p>
             </div>
           </div>
@@ -865,7 +930,7 @@ function AdminSettings() {
                   name="email"
                   type="email"
                   value={
-                    settings.email ?? ""
+                    settings.email
                   }
                   onChange={handleChange}
                   disabled={saving}
@@ -889,7 +954,7 @@ function AdminSettings() {
                   name="phone"
                   type="tel"
                   value={
-                    settings.phone ?? ""
+                    settings.phone
                   }
                   onChange={handleChange}
                   disabled={saving}
@@ -913,7 +978,7 @@ function AdminSettings() {
                   name="whatsapp"
                   type="tel"
                   value={
-                    settings.whatsapp ?? ""
+                    settings.whatsapp
                   }
                   onChange={handleChange}
                   disabled={saving}
@@ -937,7 +1002,7 @@ function AdminSettings() {
                   name="address"
                   type="text"
                   value={
-                    settings.address ?? ""
+                    settings.address
                   }
                   onChange={handleChange}
                   disabled={saving}
@@ -946,6 +1011,8 @@ function AdminSettings() {
             </div>
           </div>
         </div>
+
+        {/* SOCIAL */}
 
         <div className="admin-settings-panel">
           <div className="admin-settings-panel-header">
@@ -988,12 +1055,12 @@ function AdminSettings() {
                   id="instagram"
                   name="instagram"
                   type="url"
-                  placeholder="https://instagram.com/..."
                   value={
-                    settings.instagram ?? ""
+                    settings.instagram
                   }
                   onChange={handleChange}
                   disabled={saving}
+                  placeholder="https://instagram.com/..."
                 />
               </div>
             </div>
@@ -1013,12 +1080,12 @@ function AdminSettings() {
                   id="facebook"
                   name="facebook"
                   type="url"
-                  placeholder="https://facebook.com/..."
                   value={
-                    settings.facebook ?? ""
+                    settings.facebook
                   }
                   onChange={handleChange}
                   disabled={saving}
+                  placeholder="https://facebook.com/..."
                 />
               </div>
             </div>
@@ -1038,17 +1105,19 @@ function AdminSettings() {
                   id="youtube"
                   name="youtube"
                   type="url"
-                  placeholder="https://youtube.com/..."
                   value={
-                    settings.youtube ?? ""
+                    settings.youtube
                   }
                   onChange={handleChange}
                   disabled={saving}
+                  placeholder="https://youtube.com/..."
                 />
               </div>
             </div>
           </div>
         </div>
+
+        {/* RUNNING BANNER */}
 
         <div className="admin-settings-panel">
           <div className="admin-settings-panel-header">
@@ -1077,65 +1146,44 @@ function AdminSettings() {
           </div>
 
           <div className="admin-settings-fields">
-            <div className="admin-settings-field full">
-              <label htmlFor="runningBannerMessage1">
-                Message 1
-              </label>
+            {[1, 2, 3].map(
+              (number) => {
+                const field =
+                  `runningBannerMessage${number}`;
 
-              <input
-                id="runningBannerMessage1"
-                name="runningBannerMessage1"
-                type="text"
-                maxLength={80}
-                value={
-                  settings.runningBannerMessage1 ??
-                  ""
-                }
-                onChange={handleChange}
-                placeholder="FREE SHIPPING ON ORDERS ABOVE ₹999"
-                disabled={saving}
-              />
-            </div>
+                return (
+                  <div
+                    className="admin-settings-field full"
+                    key={field}
+                  >
+                    <label
+                      htmlFor={field}
+                    >
+                      Message {number}
+                    </label>
 
-            <div className="admin-settings-field full">
-              <label htmlFor="runningBannerMessage2">
-                Message 2
-              </label>
-
-              <input
-                id="runningBannerMessage2"
-                name="runningBannerMessage2"
-                type="text"
-                maxLength={80}
-                value={
-                  settings.runningBannerMessage2 ??
-                  ""
-                }
-                onChange={handleChange}
-                placeholder="NEW DROP LIVE NOW"
-                disabled={saving}
-              />
-            </div>
-
-            <div className="admin-settings-field full">
-              <label htmlFor="runningBannerMessage3">
-                Message 3
-              </label>
-
-              <input
-                id="runningBannerMessage3"
-                name="runningBannerMessage3"
-                type="text"
-                maxLength={80}
-                value={
-                  settings.runningBannerMessage3 ??
-                  ""
-                }
-                onChange={handleChange}
-                placeholder="EASY RETURNS"
-                disabled={saving}
-              />
-            </div>
+                    <input
+                      id={field}
+                      name={field}
+                      type="text"
+                      maxLength={80}
+                      value={
+                        settings[field]
+                      }
+                      onChange={
+                        handleChange
+                      }
+                      disabled={saving}
+                      placeholder={
+                        DEFAULT_BANNER_MESSAGES[
+                          number - 1
+                        ]
+                      }
+                    />
+                  </div>
+                );
+              }
+            )}
           </div>
 
           <div className="admin-settings-toggles">
@@ -1155,10 +1203,12 @@ function AdminSettings() {
               <input
                 type="checkbox"
                 name="runningBannerEnabled"
-                checked={Boolean(
+                checked={
                   settings.runningBannerEnabled
-                )}
-                onChange={handleChange}
+                }
+                onChange={
+                  handleChange
+                }
                 disabled={saving}
               />
 
@@ -1166,6 +1216,8 @@ function AdminSettings() {
             </label>
           </div>
         </div>
+
+        {/* STORE CONFIGURATION */}
 
         <div className="admin-settings-panel">
           <div className="admin-settings-panel-header">
@@ -1202,7 +1254,7 @@ function AdminSettings() {
                 id="currency"
                 name="currency"
                 value={
-                  settings.currency ?? "INR"
+                  settings.currency
                 }
                 onChange={handleChange}
                 disabled={saving}
@@ -1231,7 +1283,7 @@ function AdminSettings() {
                 name="currencySymbol"
                 type="text"
                 value={
-                  settings.currencySymbol ?? "₹"
+                  settings.currencySymbol
                 }
                 onChange={handleChange}
                 disabled={saving}
@@ -1248,9 +1300,9 @@ function AdminSettings() {
                 name="freeShipping"
                 type="number"
                 min="0"
-                step="0.01"
+                step="1"
                 value={
-                  settings.freeShipping ?? ""
+                  settings.freeShipping
                 }
                 onChange={handleChange}
                 disabled={saving}
@@ -1267,9 +1319,9 @@ function AdminSettings() {
                 name="shippingCharge"
                 type="number"
                 min="0"
-                step="0.01"
+                step="1"
                 value={
-                  settings.shippingCharge ?? ""
+                  settings.shippingCharge
                 }
                 onChange={handleChange}
                 disabled={saving}
@@ -1277,6 +1329,8 @@ function AdminSettings() {
             </div>
           </div>
         </div>
+
+        {/* WEBSITE FEATURES */}
 
         <div className="admin-settings-panel">
           <div className="admin-settings-panel-header">
@@ -1319,10 +1373,12 @@ function AdminSettings() {
               <input
                 type="checkbox"
                 name="contactEnabled"
-                checked={Boolean(
+                checked={
                   settings.contactEnabled
-                )}
-                onChange={handleChange}
+                }
+                onChange={
+                  handleChange
+                }
                 disabled={saving}
               />
 
@@ -1336,18 +1392,20 @@ function AdminSettings() {
                 </strong>
 
                 <span>
-                  Show newsletter subscription
-                  forms.
+                  Show newsletter
+                  subscription forms.
                 </span>
               </div>
 
               <input
                 type="checkbox"
                 name="newsletterEnabled"
-                checked={Boolean(
+                checked={
                   settings.newsletterEnabled
-                )}
-                onChange={handleChange}
+                }
+                onChange={
+                  handleChange
+                }
                 disabled={saving}
               />
 
@@ -1369,10 +1427,12 @@ function AdminSettings() {
               <input
                 type="checkbox"
                 name="maintenanceMode"
-                checked={Boolean(
+                checked={
                   settings.maintenanceMode
-                )}
-                onChange={handleChange}
+                }
+                onChange={
+                  handleChange
+                }
                 disabled={saving}
               />
 
