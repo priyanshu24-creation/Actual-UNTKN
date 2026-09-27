@@ -1,6 +1,8 @@
 import pool from "../config/database.js";
 import { validateCoupon } from "../services/coupon.service.js";
-import { sendOrderStatusEmail } from "../services/order-confirmation.service.js";
+import {
+    sendOrderStatusEmail
+} from "../services/order-confirmation.service.js";
 
 
 // ==========================================
@@ -429,7 +431,8 @@ export const createOrder = async (
             )
 
             VALUES (
-                ?, ?, ?, ?, ?, ?, ?, ?,
+                ?, ?, ?, ?, ?, ?, ?,
+                'INR',
                 'pending',
                 'pending',
                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
@@ -444,10 +447,9 @@ export const createOrder = async (
                 shippingFee,
                 discount,
                 totalAmount,
+
                 appliedCoupon?.code ||
                     null,
-
-                "INR",
 
                 shipping_name.trim(),
 
@@ -487,8 +489,10 @@ export const createOrder = async (
                 await connection.execute(
                     `
                     UPDATE coupons
-                    SET usage_count =
-                        usage_count + 1
+
+                    SET
+                        usage_count =
+                            usage_count + 1
 
                     WHERE id = ?
 
@@ -595,6 +599,7 @@ export const createOrder = async (
         await connection.execute(
             `
             DELETE FROM cart_items
+
             WHERE cart_id = ?
             `,
             [cartId]
@@ -657,7 +662,9 @@ export const createOrder = async (
             "Create order error:"
         );
 
-        console.error(error);
+        console.error(
+            error
+        );
 
         return res.status(500).json({
             success: false,
@@ -764,7 +771,8 @@ export const getOrders = async (
 
             WHERE user_id = ?
 
-            ORDER BY created_at DESC
+            ORDER BY
+                created_at DESC
             `,
             [userId]
         );
@@ -1422,6 +1430,30 @@ export const getAdminOrderById = async (
             order: {
                 ...order,
 
+                subtotal:
+                    Number(
+                        order.subtotal ||
+                        0
+                    ),
+
+                shipping_fee:
+                    Number(
+                        order.shipping_fee ||
+                        0
+                    ),
+
+                discount:
+                    Number(
+                        order.discount ||
+                        0
+                    ),
+
+                total_amount:
+                    Number(
+                        order.total_amount ||
+                        0
+                    ),
+
                 items
             }
         });
@@ -1535,20 +1567,23 @@ export const updateAdminOrderStatus =
 
             const currentPaymentStatus =
                 String(
-                    order.payment_status || ""
+                    order.payment_status ||
+                    ""
                 )
                     .trim()
                     .toLowerCase();
 
             const currentOrderStatus =
                 String(
-                    order.order_status || ""
+                    order.order_status ||
+                    ""
                 )
                     .trim()
                     .toLowerCase();
 
             const isPaidOrder =
-                currentPaymentStatus === "paid";
+                currentPaymentStatus ===
+                "paid";
 
             const isCodOrder =
                 !isPaidOrder &&
@@ -1561,8 +1596,10 @@ export const updateAdminOrderStatus =
                 );
 
             if (
-                orderStatus === "shipped" ||
-                orderStatus === "delivered"
+                orderStatus ===
+                    "shipped" ||
+                orderStatus ===
+                    "delivered"
             ) {
                 if (
                     !isPaidOrder &&
@@ -1577,7 +1614,8 @@ export const updateAdminOrderStatus =
             }
 
             if (
-                orderStatus === "delivered" &&
+                orderStatus ===
+                    "delivered" &&
                 isCodOrder
             ) {
                 await pool.execute(
@@ -1587,7 +1625,8 @@ export const updateAdminOrderStatus =
                     SET
                         order_status = ?,
                         payment_status = 'paid',
-                        updated_at = CURRENT_TIMESTAMP
+                        updated_at =
+                            CURRENT_TIMESTAMP
 
                     WHERE id = ?
                     `,
@@ -1596,6 +1635,7 @@ export const updateAdminOrderStatus =
                         orderId
                     ]
                 );
+
             } else {
                 await pool.execute(
                     `
@@ -1603,7 +1643,8 @@ export const updateAdminOrderStatus =
 
                     SET
                         order_status = ?,
-                        updated_at = CURRENT_TIMESTAMP
+                        updated_at =
+                            CURRENT_TIMESTAMP
 
                     WHERE id = ?
                     `,
@@ -1657,32 +1698,77 @@ export const updateAdminOrderStatus =
                 }
             }
 
+            // ==========================================
+            // IMPORTANT FIX
+            // FETCH THE COMPLETE UPDATED ORDER
+            // ==========================================
+
             const [
                 updatedOrders
-            ] =
-                await pool.execute(
-                    `
-                    SELECT
-                        id,
-                        order_number,
-                        user_id,
+            ] = await pool.execute(
+                `
+                SELECT
+                    o.*,
 
-                        payment_status,
-                        order_status,
+                    u.name AS user_name,
+                    u.email AS user_email
 
-                        total_amount,
-                        currency,
+                FROM orders o
 
-                        updated_at
+                LEFT JOIN users u
+                    ON o.user_id = u.id
 
-                    FROM orders
+                WHERE o.id = ?
 
-                    WHERE id = ?
+                LIMIT 1
+                `,
+                [orderId]
+            );
 
-                    LIMIT 1
-                    `,
-                    [orderId]
-                );
+            if (
+                updatedOrders.length === 0
+            ) {
+                return res.status(404).json({
+                    success: false,
+                    message:
+                        "Order not found after status update"
+                });
+            }
+
+            const updatedOrder =
+                updatedOrders[0];
+
+            const [
+                updatedItems
+            ] = await pool.execute(
+                `
+                SELECT
+                    id,
+                    order_id,
+                    product_id,
+                    variant_id,
+
+                    product_name,
+                    sku,
+
+                    size_name,
+                    color_name,
+
+                    quantity,
+
+                    unit_price,
+                    total_price,
+
+                    created_at
+
+                FROM order_items
+
+                WHERE order_id = ?
+
+                ORDER BY id ASC
+                `,
+                [orderId]
+            );
 
             return res.status(200).json({
                 success: true,
@@ -1693,8 +1779,36 @@ export const updateAdminOrderStatus =
                 email_sent:
                     statusEmailSent,
 
-                order:
-                    updatedOrders[0]
+                order: {
+                    ...updatedOrder,
+
+                    subtotal:
+                        Number(
+                            updatedOrder.subtotal ||
+                            0
+                        ),
+
+                    shipping_fee:
+                        Number(
+                            updatedOrder.shipping_fee ||
+                            0
+                        ),
+
+                    discount:
+                        Number(
+                            updatedOrder.discount ||
+                            0
+                        ),
+
+                    total_amount:
+                        Number(
+                            updatedOrder.total_amount ||
+                            0
+                        ),
+
+                    items:
+                        updatedItems
+                }
             });
 
         } catch (error) {

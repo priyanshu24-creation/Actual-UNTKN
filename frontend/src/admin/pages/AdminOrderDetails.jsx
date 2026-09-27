@@ -15,7 +15,10 @@ import api from "../../services/api";
 
 function getValue(...values) {
   return values.find(
-    (value) => value !== undefined && value !== null && value !== ""
+    (value) =>
+      value !== undefined &&
+      value !== null &&
+      value !== ""
   );
 }
 
@@ -44,7 +47,9 @@ function formatCurrency(value) {
 }
 
 function normalizeStatus(value) {
-  const status = String(value || "Processing").trim();
+  const status = String(
+    value || "Processing"
+  ).trim();
 
   const map = {
     pending: "Processing",
@@ -58,7 +63,10 @@ function normalizeStatus(value) {
     failed: "Cancelled",
   };
 
-  return map[status.toLowerCase()] || status;
+  return (
+    map[status.toLowerCase()] ||
+    status
+  );
 }
 
 function getOrderPayload(response) {
@@ -82,74 +90,40 @@ function getOrderItems(order) {
     order?.products ||
     [];
 
-  if (Array.isArray(items) && items.length > 0) {
-    return items;
-  }
-
-  return [
-    {
-      id: order?.product_id || order?.productId || order?.id,
-      product_id: order?.product_id || order?.productId,
-      product_name:
-        order?.product_name ||
-        order?.productName ||
-        order?.product ||
-        "Product",
-      name:
-        order?.product_name ||
-        order?.productName ||
-        order?.product ||
-        "Product",
-      size: order?.size || order?.size_name || order?.sizeName,
-      quantity: order?.quantity || 1,
-      price:
-        order?.item_price ||
-        order?.unit_price ||
-        order?.unitPrice ||
-        order?.price ||
-        order?.amount ||
-        0,
-      total:
-        order?.item_total ||
-        order?.line_total ||
-        order?.lineTotal ||
-        order?.amount ||
-        0,
-      image:
-        order?.image_url ||
-        order?.imageUrl ||
-        order?.product_image ||
-        order?.productImage ||
-        order?.image ||
-        "",
-    },
-  ];
+  return Array.isArray(items)
+    ? items
+    : [];
 }
 
 function normalizeOrder(raw) {
   if (!raw) return null;
 
   const customerObject =
-    raw.customer && typeof raw.customer === "object"
+    raw.customer &&
+    typeof raw.customer === "object"
       ? raw.customer
-      : raw.user && typeof raw.user === "object"
+      : raw.user &&
+          typeof raw.user === "object"
         ? raw.user
         : {};
 
   const shipping =
-    raw.shipping_address ||
-    raw.shippingAddress ||
-    raw.address ||
-    raw.delivery_address ||
-    raw.deliveryAddress ||
-    {};
+    raw.shipping_address &&
+    typeof raw.shipping_address ===
+      "object"
+      ? raw.shipping_address
+      : raw.shippingAddress &&
+          typeof raw.shippingAddress ===
+            "object"
+        ? raw.shippingAddress
+        : raw.address &&
+            typeof raw.address ===
+              "object"
+          ? raw.address
+          : {};
 
-  const billing =
-    raw.billing_address ||
-    raw.billingAddress ||
-    {};
-
-  const items = getOrderItems(raw);
+  const items =
+    getOrderItems(raw);
 
   const totalAmount = Number(
     getValue(
@@ -161,15 +135,27 @@ function normalizeOrder(raw) {
       raw.orderTotal,
       raw.total,
       raw.amount,
+
       items.reduce(
         (sum, item) =>
           sum +
           Number(
             getValue(
+              item.total_price,
               item.total,
               item.line_total,
               item.lineTotal,
-              Number(item.price || 0) * Number(item.quantity || 1)
+              Number(
+                getValue(
+                  item.unit_price,
+                  item.price,
+                  item.unitPrice,
+                  0
+                )
+              ) *
+                Number(
+                  item.quantity || 1
+                )
             ) || 0
           ),
         0
@@ -182,15 +168,27 @@ function normalizeOrder(raw) {
       raw.subtotal,
       raw.sub_total,
       raw.subTotal,
+
       items.reduce(
         (sum, item) =>
           sum +
           Number(
             getValue(
+              item.total_price,
               item.total,
               item.line_total,
               item.lineTotal,
-              Number(item.price || 0) * Number(item.quantity || 1)
+              Number(
+                getValue(
+                  item.unit_price,
+                  item.price,
+                  item.unitPrice,
+                  0
+                )
+              ) *
+                Number(
+                  item.quantity || 1
+                )
             ) || 0
           ),
         0
@@ -200,6 +198,7 @@ function normalizeOrder(raw) {
 
   const shippingCost = Number(
     getValue(
+      raw.shipping_fee,
       raw.shipping_amount,
       raw.shippingAmount,
       raw.delivery_fee,
@@ -212,9 +211,9 @@ function normalizeOrder(raw) {
 
   const discount = Number(
     getValue(
+      raw.discount,
       raw.discount_amount,
       raw.discountAmount,
-      raw.discount,
       0
     ) || 0
   );
@@ -225,9 +224,7 @@ function normalizeOrder(raw) {
     id: getValue(
       raw.id,
       raw.order_id,
-      raw.orderId,
-      raw.order_number,
-      raw.orderNumber
+      raw.orderId
     ),
 
     orderNumber: getValue(
@@ -239,6 +236,8 @@ function normalizeOrder(raw) {
     ),
 
     customer: getValue(
+      raw.user_name,
+      raw.userName,
       raw.customer_name,
       raw.customerName,
       raw.shipping_name,
@@ -251,14 +250,20 @@ function normalizeOrder(raw) {
     ),
 
     email: getValue(
+      raw.user_email,
+      raw.userEmail,
       raw.customer_email,
       raw.customerEmail,
+      raw.shipping_email,
+      raw.shippingEmail,
       raw.email,
       customerObject.email,
       "—"
     ),
 
     phone: getValue(
+      raw.shipping_phone,
+      raw.shippingPhone,
       raw.customer_phone,
       raw.customerPhone,
       raw.phone,
@@ -304,9 +309,13 @@ function normalizeOrder(raw) {
       ) || "—",
 
     items,
+
     subtotal,
+
     shippingCost,
+
     discount,
+
     totalAmount,
 
     address: {
@@ -316,12 +325,15 @@ function normalizeOrder(raw) {
         shipping.fullName,
         shipping.customer_name,
         shipping.customerName,
+
         raw.shipping_name,
         raw.shippingName,
         raw.customer_name,
         raw.customerName,
         raw.name,
+
         customerObject.name,
+
         "Customer"
       ),
 
@@ -332,25 +344,35 @@ function normalizeOrder(raw) {
         shipping.address,
         shipping.street,
         shipping.street_address,
-        shipping.streetAddress
+        shipping.streetAddress,
+
+        raw.shipping_address_line1,
+        raw.shippingAddressLine1
       ),
 
       line2: getValue(
         shipping.line2,
         shipping.address_line2,
         shipping.addressLine2,
-        shipping.landmark
+        shipping.landmark,
+
+        raw.shipping_address_line2,
+        raw.shippingAddressLine2
       ),
 
       city: getValue(
         shipping.city,
-        shipping.town
+        shipping.town,
+        raw.shipping_city,
+        raw.shippingCity
       ),
 
       state: getValue(
         shipping.state,
         shipping.state_name,
-        shipping.stateName
+        shipping.stateName,
+        raw.shipping_state,
+        raw.shippingState
       ),
 
       pincode: getValue(
@@ -359,73 +381,151 @@ function normalizeOrder(raw) {
         shipping.pinCode,
         shipping.postal_code,
         shipping.postalCode,
-        shipping.zip
+        shipping.zip,
+
+        raw.shipping_postal_code,
+        raw.shippingPostalCode,
+        raw.shipping_pincode,
+        raw.shippingPincode
       ),
 
       country: getValue(
         shipping.country,
+        raw.shipping_country,
+        raw.shippingCountry,
         "India"
       ),
     },
-
-    billing,
   };
 }
 
 function AdminOrderDetails() {
   const { id } = useParams();
 
-  const [order, setOrder] = useState(null);
-  const [orderStatus, setOrderStatus] = useState("Processing");
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [order, setOrder] =
+    useState(null);
+
+  const [orderStatus, setOrderStatus] =
+    useState("Processing");
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [saving, setSaving] =
+    useState(false);
+
+  const [error, setError] =
+    useState("");
+
+  const [success, setSuccess] =
+    useState("");
+
+  const loadOrder =
+    async () => {
+      const response =
+        await api.get(
+          `/orders/admin/${encodeURIComponent(
+            id
+          )}`
+        );
+
+      const rawOrder =
+        getOrderPayload(
+          response
+        );
+
+      if (!rawOrder) {
+        throw new Error(
+          "Order was not found."
+        );
+      }
+
+      const normalized =
+        normalizeOrder(
+          rawOrder
+        );
+
+      setOrder(normalized);
+
+      setOrderStatus(
+        normalized.status ||
+          "Processing"
+      );
+
+      return normalized;
+    };
 
   useEffect(() => {
     let mounted = true;
 
-    const loadOrder = async () => {
-      try {
-        setLoading(true);
-        setError("");
-        setSuccess("");
+    const initialLoad =
+      async () => {
+        try {
+          setLoading(true);
+          setError("");
+          setSuccess("");
 
-        const response = await api.get(
-          `/orders/${encodeURIComponent(id)}`
-        );
+          const response =
+            await api.get(
+              `/orders/admin/${encodeURIComponent(
+                id
+              )}`
+            );
 
-        if (!mounted) return;
+          if (!mounted) return;
 
-        const rawOrder = getOrderPayload(response);
+          const rawOrder =
+            getOrderPayload(
+              response
+            );
 
-        if (!rawOrder) {
-          throw new Error("Order was not found.");
+          if (!rawOrder) {
+            throw new Error(
+              "Order was not found."
+            );
+          }
+
+          const normalized =
+            normalizeOrder(
+              rawOrder
+            );
+
+          setOrder(
+            normalized
+          );
+
+          setOrderStatus(
+            normalized.status ||
+              "Processing"
+          );
+
+        } catch (
+          requestError
+        ) {
+          if (!mounted) return;
+
+          console.error(
+            "Failed to load order:",
+            requestError
+          );
+
+          setOrder(null);
+
+          setError(
+            requestError?.response
+              ?.data?.message ||
+              requestError?.message ||
+              "Failed to load order."
+          );
+
+        } finally {
+          if (mounted) {
+            setLoading(false);
+          }
         }
+      };
 
-        const normalized = normalizeOrder(rawOrder);
-
-        setOrder(normalized);
-        setOrderStatus(normalized.status || "Processing");
-      } catch (requestError) {
-        if (!mounted) return;
-
-        console.error("Failed to load order:", requestError);
-
-        setOrder(null);
-        setError(
-          requestError?.response?.data?.message ||
-            requestError?.message ||
-            "Failed to load order."
-        );
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    loadOrder();
+    initialLoad();
 
     return () => {
       mounted = false;
@@ -433,71 +533,146 @@ function AdminOrderDetails() {
   }, [id]);
 
   const items = useMemo(
-    () => (order ? getOrderItems(order) : []),
+    () =>
+      order
+        ? getOrderItems(order)
+        : [],
     [order]
   );
 
-  const handleStatusChange = (event) => {
-    setOrderStatus(event.target.value);
-    setSuccess("");
-    setError("");
-  };
+  const handleStatusChange =
+    (event) => {
+      setOrderStatus(
+        event.target.value
+      );
 
-  const handleUpdateStatus = async () => {
-    if (!order?.id || saving) return;
-
-    try {
-      setSaving(true);
-      setError("");
       setSuccess("");
+      setError("");
+    };
 
-const response = await api.patch(
-    `/orders/admin/${encodeURIComponent(order.id)}/status`,
-    {
-        order_status: String(orderStatus)
-            .trim()
-            .toLowerCase()
-    }
-);
-
-      const updatedOrder = getOrderPayload(response);
-
-      if (updatedOrder) {
-        const normalized = normalizeOrder(updatedOrder);
-
-        setOrder(normalized);
-        setOrderStatus(normalized.status || orderStatus);
-      } else {
-        setOrder((current) =>
-          current
-            ? {
-                ...current,
-                status: orderStatus,
-              }
-            : current
-        );
+  const handleUpdateStatus =
+    async () => {
+      if (
+        !order?.id ||
+        saving
+      ) {
+        return;
       }
 
-      setSuccess("Order status updated successfully.");
-    } catch (requestError) {
-      console.error("Failed to update order status:", requestError);
+      try {
+        setSaving(true);
 
-      setError(
-        requestError?.response?.data?.message ||
-          requestError?.message ||
-          "Failed to update order status."
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
+        setError("");
+        setSuccess("");
+
+        /*
+         * STEP 1
+         * Update only the status.
+         */
+
+        await api.patch(
+          `/orders/admin/${encodeURIComponent(
+            order.id
+          )}/status`,
+          {
+            order_status:
+              String(
+                orderStatus
+              )
+                .trim()
+                .toLowerCase(),
+          }
+        );
+
+        /*
+         * STEP 2
+         *
+         * IMPORTANT:
+         *
+         * Do NOT use the PATCH response
+         * as the complete order.
+         *
+         * Fetch the complete order again.
+         */
+
+        const response =
+          await api.get(
+            `/orders/admin/${encodeURIComponent(
+              order.id
+            )}`
+          );
+
+        const rawOrder =
+          getOrderPayload(
+            response
+          );
+
+        if (!rawOrder) {
+          throw new Error(
+            "Order was updated, but the complete order could not be loaded."
+          );
+        }
+
+        const normalized =
+          normalizeOrder(
+            rawOrder
+          );
+
+        /*
+         * STEP 3
+         *
+         * Replace the page state with
+         * the complete fresh order.
+         */
+
+        setOrder(
+          normalized
+        );
+
+        setOrderStatus(
+          normalized.status ||
+            orderStatus
+        );
+
+        setSuccess(
+          "Order status updated successfully."
+        );
+
+      } catch (
+        requestError
+      ) {
+        console.error(
+          "Failed to update order status:",
+          requestError
+        );
+
+        setError(
+          requestError?.response
+            ?.data?.message ||
+            requestError?.message ||
+            "Failed to update order status."
+        );
+
+      } finally {
+        setSaving(false);
+      }
+    };
 
   if (loading) {
     return (
       <section className="admin-order-not-found">
-        <p className="admin-page-eyebrow">SALES</p>
-        <h1>Loading Order</h1>
-        <p>Fetching order information from the database.</p>
+        <p className="admin-page-eyebrow">
+          SALES
+        </p>
+
+        <h1>
+          Loading Order
+        </h1>
+
+        <p>
+          Fetching order information
+          from the database.
+        </p>
       </section>
     );
   }
@@ -505,12 +680,17 @@ const response = await api.patch(
   if (!order) {
     return (
       <section className="admin-order-not-found">
-        <p className="admin-page-eyebrow">SALES</p>
+        <p className="admin-page-eyebrow">
+          SALES
+        </p>
 
-        <h1>Order Not Found</h1>
+        <h1>
+          Order Not Found
+        </h1>
 
         <p>
-          {error || "The order you're looking for does not exist."}
+          {error ||
+            "The order you're looking for does not exist."}
         </p>
 
         <Link
@@ -541,7 +721,9 @@ const response = await api.patch(
           </p>
 
           <div className="admin-order-title-row">
-            <h1>#{order.orderNumber}</h1>
+            <h1>
+              #{order.orderNumber}
+            </h1>
 
             <span
               className={`admin-order-status ${String(
@@ -552,7 +734,9 @@ const response = await api.patch(
             </span>
           </div>
 
-          <p>Placed on {order.date}</p>
+          <p>
+            Placed on {order.date}
+          </p>
         </div>
       </div>
 
@@ -561,8 +745,10 @@ const response = await api.patch(
           style={{
             marginBottom: "20px",
             padding: "14px 16px",
-            border: "1px solid #e5caca",
-            background: "#fff7f7",
+            border:
+              "1px solid #e5caca",
+            background:
+              "#fff7f7",
             color: "#a33",
           }}
         >
@@ -575,8 +761,10 @@ const response = await api.patch(
           style={{
             marginBottom: "20px",
             padding: "14px 16px",
-            border: "1px solid #cfe4d2",
-            background: "#f5fbf6",
+            border:
+              "1px solid #cfe4d2",
+            background:
+              "#f5fbf6",
             color: "#286b35",
           }}
         >
@@ -586,11 +774,18 @@ const response = await api.patch(
 
       <div className="admin-order-details-grid">
         <div className="admin-order-details-main">
+
           <div className="admin-order-details-panel">
             <div className="admin-details-panel-header">
               <div>
-                <h2>Order Items</h2>
-                <span>Products in this order</span>
+                <h2>
+                  Order Items
+                </h2>
+
+                <span>
+                  Products in this
+                  order
+                </span>
               </div>
 
               <Package
@@ -601,118 +796,147 @@ const response = await api.patch(
 
             {items.length === 0 ? (
               <div className="admin-table-empty">
-                No items found for this order.
+                No items found for
+                this order.
               </div>
             ) : (
-              items.map((item, index) => {
-                const productName = getValue(
-                  item.product_name,
-                  item.productName,
-                  item.name,
-                  item.product?.name,
-                  item.product?.title,
-                  "Product"
-                );
+              items.map(
+                (
+                  item,
+                  index
+                ) => {
+                  const productName =
+                    getValue(
+                      item.product_name,
+                      item.productName,
+                      item.name,
+                      "Product"
+                    );
 
-                const size = getValue(
-                  item.size_name,
-                  item.sizeName,
-                  item.size,
-                  item.variant?.size?.name,
-                  item.variant?.size_name
-                );
+                  const size =
+                    getValue(
+                      item.size_name,
+                      item.sizeName,
+                      item.size
+                    );
 
-                const quantity = Number(
-                  getValue(
-                    item.quantity,
-                    item.qty,
-                    1
-                  )
-                );
-
-                const itemTotal = Number(
-                  getValue(
-                    item.total,
-                    item.line_total,
-                    item.lineTotal,
-                    item.amount,
+                  const quantity =
                     Number(
                       getValue(
-                        item.price,
-                        item.unit_price,
-                        item.unitPrice,
-                        0
+                        item.quantity,
+                        item.qty,
+                        1
                       )
-                    ) * quantity
-                  ) || 0
-                );
+                    );
 
-                const image = getValue(
-                  item.image_url,
-                  item.imageUrl,
-                  item.product_image,
-                  item.productImage,
-                  item.image,
-                  item.product?.image_url,
-                  item.product?.image
-                );
+                  const itemTotal =
+                    Number(
+                      getValue(
+                        item.total_price,
+                        item.total,
+                        item.line_total,
+                        item.lineTotal,
+                        item.amount,
 
-                return (
-                  <div
-                    className="admin-order-item"
-                    key={
-                      item.id ||
-                      item.order_item_id ||
-                      index
-                    }
-                  >
-                    <div className="admin-order-item-image">
-                      {image ? (
-                        <img
-                          src={image}
-                          alt={productName}
-                          style={{
-                            width: "100%",
-                            height: "100%",
-                            objectFit: "cover",
-                          }}
-                        />
-                      ) : (
-                        <div>
-                          {String(productName).charAt(0)}
-                        </div>
-                      )}
-                    </div>
+                        Number(
+                          getValue(
+                            item.unit_price,
+                            item.price,
+                            item.unitPrice,
+                            0
+                          )
+                        ) *
+                          quantity
+                      ) || 0
+                    );
 
-                    <div className="admin-order-item-info">
-                      <strong>{productName}</strong>
+                  const image =
+                    getValue(
+                      item.image_url,
+                      item.imageUrl,
+                      item.product_image,
+                      item.productImage,
+                      item.image
+                    );
 
-                      {size && (
+                  return (
+                    <div
+                      className="admin-order-item"
+                      key={
+                        item.id ||
+                        item.order_item_id ||
+                        index
+                      }
+                    >
+                      <div className="admin-order-item-image">
+                        {image ? (
+                          <img
+                            src={image}
+                            alt={
+                              productName
+                            }
+                            style={{
+                              width:
+                                "100%",
+                              height:
+                                "100%",
+                              objectFit:
+                                "cover",
+                            }}
+                          />
+                        ) : (
+                          <div>
+                            {String(
+                              productName
+                            ).charAt(
+                              0
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="admin-order-item-info">
+                        <strong>
+                          {
+                            productName
+                          }
+                        </strong>
+
+                        {size && (
+                          <span>
+                            Size:{" "}
+                            {size}
+                          </span>
+                        )}
+
                         <span>
-                          Size: {size}
+                          Quantity:{" "}
+                          {quantity}
                         </span>
-                      )}
+                      </div>
 
-                      <span>
-                        Quantity: {quantity}
-                      </span>
+                      <strong className="admin-order-item-price">
+                        {formatCurrency(
+                          itemTotal
+                        )}
+                      </strong>
                     </div>
-
-                    <strong className="admin-order-item-price">
-                      {formatCurrency(itemTotal)}
-                    </strong>
-                  </div>
-                );
-              })
+                  );
+                }
+              )
             )}
           </div>
 
           <div className="admin-order-details-panel">
             <div className="admin-details-panel-header">
               <div>
-                <h2>Order Timeline</h2>
+                <h2>
+                  Order Timeline
+                </h2>
+
                 <span>
-                  Order fulfillment progress
+                  Order fulfillment
+                  progress
                 </span>
               </div>
 
@@ -723,46 +947,70 @@ const response = await api.patch(
             </div>
 
             <div className="admin-order-timeline">
+
               <div className="admin-timeline-item completed">
                 <div className="admin-timeline-icon">
-                  <CheckCircle2 size={16} />
+                  <CheckCircle2
+                    size={16}
+                  />
                 </div>
 
                 <div>
-                  <strong>Order Placed</strong>
+                  <strong>
+                    Order Placed
+                  </strong>
+
                   <span>
-                    Customer placed the order
+                    Customer placed
+                    the order
                   </span>
                 </div>
               </div>
 
               <div
                 className={
-                  orderStatus === "Cancelled"
+                  orderStatus ===
+                  "Cancelled"
                     ? "admin-timeline-item cancelled"
                     : "admin-timeline-item completed"
                 }
               >
                 <div className="admin-timeline-icon">
-                  {orderStatus === "Cancelled" ? (
-                    <XCircle size={16} />
+                  {orderStatus ===
+                  "Cancelled" ? (
+                    <XCircle
+                      size={16}
+                    />
                   ) : (
-                    <CheckCircle2 size={16} />
+                    <CheckCircle2
+                      size={16}
+                    />
                   )}
                 </div>
 
                 <div>
-                  <strong>Payment</strong>
+                  <strong>
+                    Payment
+                  </strong>
+
                   <span>
-                    {order.payment} ·{" "}
-                    {order.paymentMethod}
+                    {
+                      order.payment
+                    }{" "}
+                    ·{" "}
+                    {
+                      order.paymentMethod
+                    }
                   </span>
                 </div>
               </div>
 
               <div
                 className={
-                  ["Shipped", "Delivered"].includes(
+                  [
+                    "Shipped",
+                    "Delivered",
+                  ].includes(
                     orderStatus
                   )
                     ? "admin-timeline-item completed"
@@ -774,10 +1022,15 @@ const response = await api.patch(
                 </div>
 
                 <div>
-                  <strong>Shipped</strong>
+                  <strong>
+                    Shipped
+                  </strong>
 
                   <span>
-                    {["Shipped", "Delivered"].includes(
+                    {[
+                      "Shipped",
+                      "Delivered",
+                    ].includes(
                       orderStatus
                     )
                       ? "Order has been shipped"
@@ -788,34 +1041,45 @@ const response = await api.patch(
 
               <div
                 className={
-                  orderStatus === "Delivered"
+                  orderStatus ===
+                  "Delivered"
                     ? "admin-timeline-item completed"
                     : "admin-timeline-item"
                 }
               >
                 <div className="admin-timeline-icon">
-                  <CheckCircle2 size={16} />
+                  <CheckCircle2
+                    size={16}
+                  />
                 </div>
 
                 <div>
-                  <strong>Delivered</strong>
+                  <strong>
+                    Delivered
+                  </strong>
 
                   <span>
-                    {orderStatus === "Delivered"
+                    {orderStatus ===
+                    "Delivered"
                       ? "Order delivered successfully"
                       : "Waiting for delivery"}
                   </span>
                 </div>
               </div>
+
             </div>
           </div>
 
           <div className="admin-order-details-panel">
             <div className="admin-details-panel-header">
               <div>
-                <h2>Payment Summary</h2>
+                <h2>
+                  Payment Summary
+                </h2>
+
                 <span>
-                  Order payment information
+                  Order payment
+                  information
                 </span>
               </div>
 
@@ -826,44 +1090,72 @@ const response = await api.patch(
             </div>
 
             <div className="admin-payment-summary">
+
               <div>
-                <span>Subtotal</span>
+                <span>
+                  Subtotal
+                </span>
+
                 <strong>
-                  {formatCurrency(order.subtotal)}
+                  {formatCurrency(
+                    order.subtotal
+                  )}
                 </strong>
               </div>
 
               <div>
-                <span>Shipping</span>
+                <span>
+                  Shipping
+                </span>
+
                 <strong>
-                  {formatCurrency(order.shippingCost)}
+                  {formatCurrency(
+                    order.shippingCost
+                  )}
                 </strong>
               </div>
 
               <div>
-                <span>Discount</span>
+                <span>
+                  Discount
+                </span>
+
                 <strong>
-                  {formatCurrency(order.discount)}
+                  {formatCurrency(
+                    order.discount
+                  )}
                 </strong>
               </div>
 
               <div className="total">
-                <span>Total</span>
+                <span>
+                  Total
+                </span>
+
                 <strong>
-                  {formatCurrency(order.totalAmount)}
+                  {formatCurrency(
+                    order.totalAmount
+                  )}
                 </strong>
               </div>
+
             </div>
           </div>
+
         </div>
 
         <div className="admin-order-details-side">
+
           <div className="admin-order-details-panel">
             <div className="admin-details-panel-header">
               <div>
-                <h2>Customer</h2>
+                <h2>
+                  Customer
+                </h2>
+
                 <span>
-                  Customer information
+                  Customer
+                  information
                 </span>
               </div>
 
@@ -874,18 +1166,30 @@ const response = await api.patch(
             </div>
 
             <div className="admin-customer-details">
-              <strong>{order.customer}</strong>
-              <span>{order.email}</span>
-              <span>{order.phone}</span>
+              <strong>
+                {order.customer}
+              </strong>
+
+              <span>
+                {order.email}
+              </span>
+
+              <span>
+                {order.phone}
+              </span>
             </div>
           </div>
 
           <div className="admin-order-details-panel">
             <div className="admin-details-panel-header">
               <div>
-                <h2>Shipping Address</h2>
+                <h2>
+                  Shipping Address
+                </h2>
+
                 <span>
-                  Delivery information
+                  Delivery
+                  information
                 </span>
               </div>
 
@@ -896,58 +1200,113 @@ const response = await api.patch(
             </div>
 
             <div className="admin-address-details">
-              <strong>{order.address.name}</strong>
 
-              {order.address.line1 && (
-                <span>{order.address.line1}</span>
-              )}
+              <strong>
+                {
+                  order.address
+                    .name
+                }
+              </strong>
 
-              {order.address.line2 && (
-                <span>{order.address.line2}</span>
-              )}
-
-              {(order.address.city ||
-                order.address.state) && (
+              {order.address
+                .line1 && (
                 <span>
-                  {order.address.city}
-                  {order.address.city &&
-                  order.address.state
-                    ? ", "
-                    : ""}
-                  {order.address.state}
+                  {
+                    order.address
+                      .line1
+                  }
                 </span>
               )}
 
-              {order.address.pincode && (
-                <span>{order.address.pincode}</span>
+              {order.address
+                .line2 && (
+                <span>
+                  {
+                    order.address
+                      .line2
+                  }
+                </span>
               )}
 
-              {order.address.country && (
-                <span>{order.address.country}</span>
+              {(order.address
+                .city ||
+                order.address
+                  .state) && (
+                <span>
+                  {
+                    order.address
+                      .city
+                  }
+
+                  {order.address
+                    .city &&
+                  order.address
+                    .state
+                    ? ", "
+                    : ""}
+
+                  {
+                    order.address
+                      .state
+                  }
+                </span>
               )}
+
+              {order.address
+                .pincode && (
+                <span>
+                  {
+                    order.address
+                      .pincode
+                  }
+                </span>
+              )}
+
+              {order.address
+                .country && (
+                <span>
+                  {
+                    order.address
+                      .country
+                  }
+                </span>
+              )}
+
             </div>
           </div>
 
           <div className="admin-order-details-panel">
+
             <div className="admin-details-panel-header">
               <div>
-                <h2>Order Status</h2>
+                <h2>
+                  Order Status
+                </h2>
+
                 <span>
-                  Update fulfillment status
+                  Update fulfillment
+                  status
                 </span>
               </div>
             </div>
 
             <div className="admin-order-status-control">
+
               <label htmlFor="orderStatus">
                 Current Status
               </label>
 
               <select
                 id="orderStatus"
-                value={orderStatus}
-                onChange={handleStatusChange}
-                disabled={saving}
+                value={
+                  orderStatus
+                }
+                onChange={
+                  handleStatusChange
+                }
+                disabled={
+                  saving
+                }
               >
                 <option value="Processing">
                   Processing
@@ -969,15 +1328,21 @@ const response = await api.patch(
               <button
                 type="button"
                 className="admin-update-status-button"
-                onClick={handleUpdateStatus}
-                disabled={saving}
+                onClick={
+                  handleUpdateStatus
+                }
+                disabled={
+                  saving
+                }
               >
                 {saving
                   ? "Updating..."
                   : "Update Status"}
               </button>
+
             </div>
           </div>
+
         </div>
       </div>
     </section>
