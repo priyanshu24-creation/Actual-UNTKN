@@ -1,4 +1,5 @@
 import pool from "../config/database.js";
+import razorpay from "../config/razorpay.js";
 import { validateCoupon } from "../services/coupon.service.js";
 import {
     sendOrderStatusEmail
@@ -1167,46 +1168,145 @@ export const cancelOrder = async (
         const order =
             orders[0];
 
+        const currentOrderStatus =
+            String(
+                order.order_status || ""
+            )
+                .trim()
+                .toLowerCase();
+
+        const currentPaymentStatus =
+            String(
+                order.payment_status || ""
+            )
+                .trim()
+                .toLowerCase();
+
+        const cancellableStatuses = [
+            "pending",
+            "confirmed",
+            "processing"
+        ];
+
         if (
-            order.order_status !==
-                "pending" &&
-            order.order_status !==
-                "confirmed"
+            !cancellableStatuses.includes(
+                currentOrderStatus
+            )
         ) {
             return res.status(400).json({
                 success: false,
                 message:
-                    "This order cannot be cancelled"
+                    currentOrderStatus === "shipped"
+                        ? "This order cannot be cancelled after it has been shipped"
+                        : currentOrderStatus === "delivered"
+                            ? "Delivered orders cannot be cancelled"
+                            : currentOrderStatus === "cancelled"
+                                ? "This order is already cancelled"
+                                : "This order cannot be cancelled"
             });
         }
 
+        let refundProcessed = false;
+        let refundId = null;
+
         if (
-            order.payment_status ===
-                "paid"
+            currentPaymentStatus === "paid"
         ) {
-            return res.status(400).json({
-                success: false,
-                message:
-                    "Paid orders cannot be cancelled from this endpoint"
-            });
+            const [
+                payments
+            ] = await pool.execute(
+                `
+                SELECT
+                    id,
+                    razorpay_payment_id,
+                    amount,
+                    status
+                FROM payments
+                WHERE order_id = ?
+                AND status = 'paid'
+                AND razorpay_payment_id IS NOT NULL
+                ORDER BY id DESC
+                LIMIT 1
+                `,
+                [orderId]
+            );
+
+            if (payments.length === 0) {
+                return res.status(400).json({
+                    success: false,
+                    message:
+                        "Payment details were not found. Please contact support before cancelling this paid order."
+                });
+            }
+
+            const payment =
+                payments[0];
+
+            try {
+                const refund =
+                    await razorpay.payments.refund(
+                        payment.razorpay_payment_id,
+                        {
+                            amount: Math.round(
+                                Number(
+                                    payment.amount || 0
+                                ) * 100
+                            )
+                        }
+                    );
+
+                refundId =
+                    refund?.id || null;
+
+                await pool.execute(
+                    `
+                    UPDATE payments
+                    SET
+                        status = 'refunded'
+                    WHERE id = ?
+                    `,
+                    [payment.id]
+                );
+
+                refundProcessed = true;
+
+            } catch (refundError) {
+                console.error(
+                    `Razorpay refund failed for order ${orderId}:`,
+                    refundError
+                );
+
+                return res.status(400).json({
+                    success: false,
+                    message:
+                        refundError?.error?.description ||
+                        refundError?.error?.reason ||
+                        "Payment refund failed. The order was not cancelled."
+                });
+            }
         }
+
+        const nextPaymentStatus =
+            currentPaymentStatus === "paid" &&
+            refundProcessed
+                ? "refunded"
+                : currentPaymentStatus;
 
         await pool.execute(
             `
             UPDATE orders
-
-            SET order_status =
-                'cancelled'
-
+            SET
+                order_status = 'cancelled',
+                payment_status = ?
             WHERE id = ?
-
             AND user_id = ?
             `,
             [
+                nextPaymentStatus,
                 orderId,
                 userId
             ]
-        );
+            );
 
         let emailSent = false;
 
@@ -1243,7 +1343,13 @@ export const cancelOrder = async (
                 "Order cancelled successfully",
 
             email_sent:
-                emailSent
+                emailSent,
+
+            refund_processed:
+                refundProcessed,
+
+            refund_id:
+                refundId
         });
 
     } catch (error) {

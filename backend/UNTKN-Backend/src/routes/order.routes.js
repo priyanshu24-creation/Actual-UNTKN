@@ -19,6 +19,10 @@ import {
     requireAdmin,
 } from "../middleware/auth.middleware.js";
 
+import {
+  requestExchange
+} from "../controllers/exchange.controller.js";
+
 const router = express.Router();
 
 router.post(
@@ -60,16 +64,22 @@ router.patch(
     updateAdminOrderStatus
 );
 
-router.get(
-    "/:id",
-    authenticate,
-    getOrderById
-);
-
 router.patch(
     "/:id/cancel",
     authenticate,
     cancelOrder
+);
+
+router.post(
+    "/:id/exchange",
+    authenticate,
+    requestExchange
+);
+
+router.get(
+    "/:id",
+    authenticate,
+    getOrderById
 );
 
 export default router;
