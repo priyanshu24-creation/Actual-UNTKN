@@ -1397,29 +1397,40 @@ export const getAdminOrderById = async (
         ] = await pool.execute(
             `
             SELECT
-                id,
-                order_id,
-                product_id,
-                variant_id,
+                oi.id,
+                oi.order_id,
+                oi.product_id,
+                oi.variant_id,
 
-                product_name,
-                sku,
+                oi.product_name,
+                oi.sku,
 
-                size_name,
-                color_name,
+                oi.size_name,
+                oi.color_name,
 
-                quantity,
+                oi.quantity,
 
-                unit_price,
-                total_price,
+                oi.unit_price,
+                oi.total_price,
 
-                created_at
+                oi.created_at,
 
-            FROM order_items
+                pi.image_url AS image_url
 
-            WHERE order_id = ?
+            FROM order_items oi
 
-            ORDER BY id ASC
+            LEFT JOIN (
+                SELECT
+                    product_id,
+                    image_url
+                FROM product_images
+                WHERE is_primary = 1
+            ) pi
+                ON oi.product_id = pi.product_id
+
+            WHERE oi.order_id = ?
+
+            ORDER BY oi.id ASC
             `,
             [orderId]
         );
