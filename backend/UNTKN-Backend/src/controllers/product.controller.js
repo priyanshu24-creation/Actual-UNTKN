@@ -1,21 +1,92 @@
 import pool from "../config/database.js";
 
+const ALLOWED_PRODUCT_TYPES = [
+    "T-Shirts",
+    "Hoodies",
+    "Thermals",
+    "Bottomwear"
+];
+
+const normalizeProductType = (value) => {
+    if (
+        value === undefined ||
+        value === null ||
+        String(value).trim() === ""
+    ) {
+        return "T-Shirts";
+    }
+
+    const cleanValue = String(value).trim();
+
+    return (
+        ALLOWED_PRODUCT_TYPES.find(
+            (item) =>
+                item.toLowerCase() ===
+                cleanValue.toLowerCase()
+        ) || null
+    );
+};
+
+const isValidPositiveInteger = (value) => {
+    return (
+        Number.isInteger(Number(value)) &&
+        Number(value) > 0
+    );
+};
+
+const isValidNonNegativeNumber = (value) => {
+    const number = Number(value);
+
+    return (
+        Number.isFinite(number) &&
+        number >= 0
+    );
+};
+
+const validateSlug = (slug) => {
+    return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(
+        slug
+    );
+};
+
+const findCategory = async (categoryId) => {
+    const [rows] = await pool.execute(
+        `
+            SELECT id, name, slug
+            FROM categories
+            WHERE id = ?
+              AND is_active = TRUE
+            LIMIT 1
+        `,
+        [categoryId]
+    );
+
+    return rows[0] || null;
+};
+
+const findCollection = async (collectionId) => {
+    const [rows] = await pool.execute(
+        `
+            SELECT id, name, slug
+            FROM collections
+            WHERE id = ?
+              AND is_active = TRUE
+            LIMIT 1
+        `,
+        [collectionId]
+    );
+
+    return rows[0] || null;
+};
+
 
 // ======================================================
 // GET ALL PRODUCTS
 // Public
-// Supports:
-// - Pagination
-// - Search
-// - Category filter
-// - Collection filter
-// - Featured filter
-// - Price range filter
 // ======================================================
 
 export const getProducts = async (req, res) => {
     try {
-
         const {
             page = "1",
             limit = "10",
@@ -28,11 +99,6 @@ export const getProducts = async (req, res) => {
             max_price
         } = req.query;
 
-
-        // --------------------------------------------------
-        // Validate pagination
-        // --------------------------------------------------
-
         const pageNumber = Number(page);
         const limitNumber = Number(limit);
 
@@ -42,7 +108,8 @@ export const getProducts = async (req, res) => {
         ) {
             return res.status(400).json({
                 success: false,
-                message: "Page must be a positive integer"
+                message:
+                    "Page must be a positive integer"
             });
         }
 
@@ -53,16 +120,14 @@ export const getProducts = async (req, res) => {
         ) {
             return res.status(400).json({
                 success: false,
-                message: "Limit must be between 1 and 100"
+                message:
+                    "Limit must be between 1 and 100"
             });
         }
 
-        const offset = (pageNumber - 1) * limitNumber;
-
-
-        // --------------------------------------------------
-        // Build WHERE conditions
-        // --------------------------------------------------
+        const offset =
+            (pageNumber - 1) *
+            limitNumber;
 
         let whereClause = `
             WHERE p.published = TRUE
@@ -70,22 +135,17 @@ export const getProducts = async (req, res) => {
 
         const params = [];
 
-
-        // --------------------------------------------------
-        // Category filter
-        // Example:
-        // ?category=tshirts
-        // --------------------------------------------------
-
         if (category !== undefined) {
-
             const cleanCategory =
-                String(category).trim().toLowerCase();
+                String(category)
+                    .trim()
+                    .toLowerCase();
 
             if (!cleanCategory) {
                 return res.status(400).json({
                     success: false,
-                    message: "Category cannot be empty"
+                    message:
+                        "Category cannot be empty"
                 });
             }
 
@@ -93,61 +153,43 @@ export const getProducts = async (req, res) => {
                 AND c.slug = ?
             `;
 
-            params.push(cleanCategory);
+            params.push(
+                cleanCategory
+            );
         }
 
-
-        // --------------------------------------------------
-        // Product type filter
-        // Example:
-        // ?type=T-Shirts
-        // --------------------------------------------------
-
         if (type !== undefined) {
+            const productType =
+                normalizeProductType(type);
 
-            const allowedTypes = [
-                "T-Shirts",
-                "Hoodies",
-                "Thermals",
-                "Bottomwear"
-            ];
-
-            const cleanType = String(type).trim();
-            const matchedType = allowedTypes.find(
-                (item) =>
-                    item.toLowerCase() ===
-                    cleanType.toLowerCase()
-            );
-
-            if (!matchedType) {
+            if (!productType) {
                 return res.status(400).json({
                     success: false,
-                    message: "Invalid product type"
+                    message:
+                        "Invalid product type. Allowed values: T-Shirts, Hoodies, Thermals, Bottomwear"
                 });
             }
 
             whereClause += `
                 AND p.product_type = ?
             `;
-            params.push(matchedType);
+
+            params.push(
+                productType
+            );
         }
 
-
-        // --------------------------------------------------
-        // Collection filter
-        // Example:
-        // ?collection=summer-collection
-        // --------------------------------------------------
-
         if (collection !== undefined) {
-
             const cleanCollection =
-                String(collection).trim().toLowerCase();
+                String(collection)
+                    .trim()
+                    .toLowerCase();
 
             if (!cleanCollection) {
                 return res.status(400).json({
                     success: false,
-                    message: "Collection cannot be empty"
+                    message:
+                        "Collection cannot be empty"
                 });
             }
 
@@ -155,25 +197,20 @@ export const getProducts = async (req, res) => {
                 AND col.slug = ?
             `;
 
-            params.push(cleanCollection);
+            params.push(
+                cleanCollection
+            );
         }
 
-
-        // --------------------------------------------------
-        // Featured filter
-        // Example:
-        // ?featured=true
-        // --------------------------------------------------
-
         if (featured !== undefined) {
-
             if (
                 featured !== "true" &&
                 featured !== "false"
             ) {
                 return res.status(400).json({
                     success: false,
-                    message: "Featured must be true or false"
+                    message:
+                        "Featured must be true or false"
                 });
             }
 
@@ -182,24 +219,17 @@ export const getProducts = async (req, res) => {
             `;
 
             params.push(
-                featured === "true" ? 1 : 0
+                featured === "true"
+                    ? 1
+                    : 0
             );
         }
 
-
-        // --------------------------------------------------
-        // Search
-        // Example:
-        // ?search=black+tshirt
-        // --------------------------------------------------
-
         if (search !== undefined) {
-
             const cleanSearch =
                 String(search).trim();
 
             if (cleanSearch) {
-
                 whereClause += `
                     AND (
                         p.name LIKE ?
@@ -219,81 +249,79 @@ export const getProducts = async (req, res) => {
             }
         }
 
-
-        // --------------------------------------------------
-        // Minimum price
-        // Example:
-        // ?min_price=500
-        // --------------------------------------------------
-
         if (min_price !== undefined) {
-
             const minPrice =
                 Number(min_price);
 
             if (
-                !Number.isFinite(minPrice) ||
+                !Number.isFinite(
+                    minPrice
+                ) ||
                 minPrice < 0
             ) {
                 return res.status(400).json({
                     success: false,
-                    message: "Minimum price must be a valid non-negative number"
+                    message:
+                        "Minimum price must be a valid non-negative number"
                 });
             }
 
             whereClause += `
-                AND COALESCE(p.sale_price, p.base_price) >= ?
+                AND COALESCE(
+                    p.sale_price,
+                    p.base_price
+                ) >= ?
             `;
 
-            params.push(minPrice);
+            params.push(
+                minPrice
+            );
         }
 
-
-        // --------------------------------------------------
-        // Maximum price
-        // Example:
-        // ?max_price=2000
-        // --------------------------------------------------
-
         if (max_price !== undefined) {
-
             const maxPrice =
                 Number(max_price);
 
             if (
-                !Number.isFinite(maxPrice) ||
+                !Number.isFinite(
+                    maxPrice
+                ) ||
                 maxPrice < 0
             ) {
                 return res.status(400).json({
                     success: false,
-                    message: "Maximum price must be a valid non-negative number"
+                    message:
+                        "Maximum price must be a valid non-negative number"
                 });
             }
 
             if (
                 min_price !== undefined &&
-                Number(min_price) > maxPrice
+                Number(min_price) >
+                    maxPrice
             ) {
                 return res.status(400).json({
                     success: false,
-                    message: "Minimum price cannot be greater than maximum price"
+                    message:
+                        "Minimum price cannot be greater than maximum price"
                 });
             }
 
             whereClause += `
-                AND COALESCE(p.sale_price, p.base_price) <= ?
+                AND COALESCE(
+                    p.sale_price,
+                    p.base_price
+                ) <= ?
             `;
 
-            params.push(maxPrice);
+            params.push(
+                maxPrice
+            );
         }
 
-
-        // --------------------------------------------------
-        // Count total matching products
-        // --------------------------------------------------
-
         const countQuery = `
-            SELECT COUNT(*) AS total
+            SELECT
+                COUNT(*) AS total
             FROM products p
 
             LEFT JOIN categories c
@@ -312,16 +340,15 @@ export const getProducts = async (req, res) => {
             );
 
         const total =
-            Number(countResult[0].total);
-
-
-        // --------------------------------------------------
-        // Get paginated products
-        // --------------------------------------------------
+            Number(
+                countResult[0]?.total || 0
+            );
 
         const productsQuery = `
             SELECT
-                p.*, pi.image_url,
+                p.*,
+
+                pi.image_url,
 
                 c.name AS category_name,
                 c.slug AS category_slug,
@@ -338,14 +365,18 @@ export const getProducts = async (req, res) => {
                 ON p.collection_id = col.id
 
             LEFT JOIN (
-                SELECT product_id, image_url
+                SELECT
+                    product_id,
+                    image_url
                 FROM product_images
                 WHERE is_primary = 1
-            ) pi ON p.id = pi.product_id
-            
+            ) pi
+                ON p.id = pi.product_id
+
             ${whereClause}
 
-            ORDER BY p.created_at DESC
+            ORDER BY
+                p.created_at DESC
 
             LIMIT ?
             OFFSET ?
@@ -363,32 +394,35 @@ export const getProducts = async (req, res) => {
                 productParams
             );
 
-
-        // --------------------------------------------------
-        // Pagination information
-        // --------------------------------------------------
-
         const totalPages =
-            Math.ceil(total / limitNumber);
-
-
-        // --------------------------------------------------
-        // Response
-        // --------------------------------------------------
+            Math.ceil(
+                total /
+                limitNumber
+            );
 
         return res.status(200).json({
-
             success: true,
 
-            count: products.length,
+            count:
+                products.length,
 
             pagination: {
-                current_page: pageNumber,
-                per_page: limitNumber,
-                total_products: total,
-                total_pages: totalPages,
+                current_page:
+                    pageNumber,
+
+                per_page:
+                    limitNumber,
+
+                total_products:
+                    total,
+
+                total_pages:
+                    totalPages,
+
                 has_next_page:
-                    pageNumber < totalPages,
+                    pageNumber <
+                    totalPages,
+
                 has_previous_page:
                     pageNumber > 1
             },
@@ -396,9 +430,7 @@ export const getProducts = async (req, res) => {
             products
         });
 
-
     } catch (error) {
-
         console.error(
             "Get products error:",
             error
@@ -406,7 +438,8 @@ export const getProducts = async (req, res) => {
 
         return res.status(500).json({
             success: false,
-            message: "Failed to fetch products"
+            message:
+                "Failed to fetch products"
         });
     }
 };
@@ -417,102 +450,129 @@ export const getProducts = async (req, res) => {
 // Public
 // ======================================================
 
-export const getProductBySlug = async (req, res) => {
-
+export const getProductBySlug = async (
+    req,
+    res
+) => {
     try {
+        const { slug } =
+            req.params;
 
-        const { slug } = req.params;
-
-        if (!slug || !slug.trim()) {
+        if (
+            !slug ||
+            !String(slug).trim()
+        ) {
             return res.status(400).json({
                 success: false,
-                message: "Product slug is required"
+                message:
+                    "Product slug is required"
             });
         }
 
         const cleanSlug =
-            slug.trim().toLowerCase();
+            String(slug)
+                .trim()
+                .toLowerCase();
 
-        const [products] = await pool.execute(
-            `
-                SELECT
-                    p.*,
-                    c.name AS category_name,
-                    c.slug AS category_slug,
-                    col.name AS collection_name,
-                    col.slug AS collection_slug
-                FROM products p
-                LEFT JOIN categories c
-                    ON p.category_id = c.id
-                LEFT JOIN collections col
-                    ON p.collection_id = col.id
-                WHERE p.slug = ?
-                AND p.published = TRUE
-                LIMIT 1
-            `,
-            [cleanSlug]
-        );
+        const [products] =
+            await pool.execute(
+                `
+                    SELECT
+                        p.*,
 
-        if (products.length === 0) {
+                        c.name AS category_name,
+                        c.slug AS category_slug,
 
+                        col.name AS collection_name,
+                        col.slug AS collection_slug
+
+                    FROM products p
+
+                    LEFT JOIN categories c
+                        ON p.category_id = c.id
+
+                    LEFT JOIN collections col
+                        ON p.collection_id = col.id
+
+                    WHERE p.slug = ?
+                      AND p.published = TRUE
+
+                    LIMIT 1
+                `,
+                [cleanSlug]
+            );
+
+        if (
+            products.length === 0
+        ) {
             return res.status(404).json({
                 success: false,
-                message: "Product not found"
+                message:
+                    "Product not found"
             });
         }
 
-        const product = products[0];
+        const product =
+            products[0];
 
+        const [images] =
+            await pool.execute(
+                `
+                    SELECT
+                        id,
+                        image_url,
+                        public_id,
+                        alt_text,
+                        is_primary,
+                        sort_order
 
-        // Get images
-        const [images] = await pool.execute(
-            `
-                SELECT
-                    id,
-                    image_url,
-                    public_id,
-                    alt_text,
-                    is_primary,
-                    sort_order
-                FROM product_images
-                WHERE product_id = ?
-                ORDER BY
-                    is_primary DESC,
-                    sort_order ASC
-            `,
-            [product.id]
-        );
+                    FROM product_images
 
+                    WHERE product_id = ?
 
-        // Get active variants
-        const [variants] = await pool.execute(
-            `
-                SELECT
-                    pv.id,
-                    pv.sku,
-                    pv.price,
-                    pv.stock_quantity,
-                    pv.active,
-                    pv.size_id,
-                    s.name AS size_name,
-                    pv.color_id,
-                    c.name AS color_name,
-                    c.hex_code
-                FROM product_variants pv
-                LEFT JOIN sizes s
-                    ON pv.size_id = s.id
-                LEFT JOIN colors c
-                    ON pv.color_id = c.id
-                WHERE pv.product_id = ?
-                AND pv.active = TRUE
-                ORDER BY pv.id ASC
-            `,
-            [product.id]
-        );
+                    ORDER BY
+                        is_primary DESC,
+                        sort_order ASC,
+                        id ASC
+                `,
+                [product.id]
+            );
 
+        const [variants] =
+            await pool.execute(
+                `
+                    SELECT
+                        pv.id,
+                        pv.sku,
+                        pv.price,
+                        pv.stock_quantity,
+                        pv.active,
+                        pv.size_id,
+                        s.name AS size_name,
+                        pv.color_id,
+                        c.name AS color_name,
+                        c.hex_code
+
+                    FROM product_variants pv
+
+                    LEFT JOIN sizes s
+                        ON pv.size_id = s.id
+
+                    LEFT JOIN colors c
+                        ON pv.color_id = c.id
+
+                    WHERE pv.product_id = ?
+                      AND pv.active = TRUE
+
+                    ORDER BY
+                        pv.id ASC
+                `,
+                [product.id]
+            );
 
         return res.status(200).json({
             success: true,
+
             product: {
                 ...product,
                 images,
@@ -521,7 +581,6 @@ export const getProductBySlug = async (req, res) => {
         });
 
     } catch (error) {
-
         console.error(
             "Get product error:",
             error
@@ -529,7 +588,8 @@ export const getProductBySlug = async (req, res) => {
 
         return res.status(500).json({
             success: false,
-            message: "Failed to fetch product"
+            message:
+                "Failed to fetch product"
         });
     }
 };
@@ -540,10 +600,11 @@ export const getProductBySlug = async (req, res) => {
 // Admin only
 // ======================================================
 
-export const createProduct = async (req, res) => {
-
+export const createProduct = async (
+    req,
+    res
+) => {
     try {
-
         const {
             name,
             slug,
@@ -563,46 +624,43 @@ export const createProduct = async (req, res) => {
             seo_description
         } = req.body;
 
-
-        // ------------------------------
-        // Required fields
-        // ------------------------------
-
         if (
-            typeof name !== "string" ||
+            typeof name !==
+                "string" ||
             !name.trim()
         ) {
             return res.status(400).json({
                 success: false,
-                message: "Product name is required"
+                message:
+                    "Product name is required"
             });
         }
 
         if (
-            typeof slug !== "string" ||
+            typeof slug !==
+                "string" ||
             !slug.trim()
         ) {
             return res.status(400).json({
                 success: false,
-                message: "Product slug is required"
+                message:
+                    "Product slug is required"
             });
         }
 
         if (
-            base_price === undefined ||
-            base_price === null ||
+            base_price ===
+                undefined ||
+            base_price ===
+                null ||
             base_price === ""
         ) {
             return res.status(400).json({
                 success: false,
-                message: "Base price is required"
+                message:
+                    "Base price is required"
             });
         }
-
-
-        // ------------------------------
-        // Clean values
-        // ------------------------------
 
         const cleanName =
             name.trim();
@@ -610,16 +668,11 @@ export const createProduct = async (req, res) => {
         const cleanSlug =
             slug.trim().toLowerCase();
 
-
-        // ------------------------------
-        // Validate slug format
-        // ------------------------------
-
-        const slugPattern =
-            /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-
-        if (!slugPattern.test(cleanSlug)) {
-
+        if (
+            !validateSlug(
+                cleanSlug
+            )
+        ) {
             return res.status(400).json({
                 success: false,
                 message:
@@ -627,19 +680,14 @@ export const createProduct = async (req, res) => {
             });
         }
 
-
-        // ------------------------------
-        // Validate base price
-        // ------------------------------
-
         const basePrice =
             Number(base_price);
 
         if (
-            !Number.isFinite(basePrice) ||
-            basePrice < 0
+            !isValidNonNegativeNumber(
+                basePrice
+            )
         ) {
-
             return res.status(400).json({
                 success: false,
                 message:
@@ -647,26 +695,22 @@ export const createProduct = async (req, res) => {
             });
         }
 
-
-        // ------------------------------
-        // Validate sale price
-        // ------------------------------
-
         const salePrice =
-            sale_price !== undefined &&
+            sale_price !==
+                undefined &&
             sale_price !== null &&
             sale_price !== ""
-                ? Number(sale_price)
+                ? Number(
+                      sale_price
+                  )
                 : null;
 
         if (
             salePrice !== null &&
-            (
-                !Number.isFinite(salePrice) ||
-                salePrice < 0
+            !isValidNonNegativeNumber(
+                salePrice
             )
         ) {
-
             return res.status(400).json({
                 success: false,
                 message:
@@ -674,12 +718,11 @@ export const createProduct = async (req, res) => {
             });
         }
 
-
         if (
             salePrice !== null &&
-            salePrice > basePrice
+            salePrice >
+                basePrice
         ) {
-
             return res.status(400).json({
                 success: false,
                 message:
@@ -687,20 +730,18 @@ export const createProduct = async (req, res) => {
             });
         }
 
-
-        // ------------------------------
-        // Validate currency
-        // ------------------------------
-
         const cleanCurrency =
             currency
                 ? String(currency)
-                    .trim()
-                    .toUpperCase()
+                      .trim()
+                      .toUpperCase()
                 : "INR";
 
-        if (!/^[A-Z]{3}$/.test(cleanCurrency)) {
-
+        if (
+            !/^[A-Z]{3}$/.test(
+                cleanCurrency
+            )
+        ) {
             return res.status(400).json({
                 success: false,
                 message:
@@ -708,32 +749,47 @@ export const createProduct = async (req, res) => {
             });
         }
 
+        const finalProductType =
+            normalizeProductType(
+                product_type
+            );
 
-        // ------------------------------
-        // Validate boolean fields
-        // ------------------------------
+        if (!finalProductType) {
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Invalid product type. Allowed values: T-Shirts, Hoodies, Thermals, Bottomwear"
+            });
+        }
 
         const finalPublished =
-            published === undefined
+            published ===
+                undefined
                 ? false
-                : published === true ||
-                  published === "true";
+                : published ===
+                      true ||
+                  published ===
+                      "true";
 
         const finalFeatured =
-            featured === undefined
+            featured ===
+                undefined
                 ? false
-                : featured === true ||
-                  featured === "true";
-
+                : featured ===
+                      true ||
+                  featured ===
+                      "true";
 
         if (
-            published !== undefined &&
+            published !==
+                undefined &&
             published !== true &&
             published !== false &&
-            published !== "true" &&
-            published !== "false"
+            published !==
+                "true" &&
+            published !==
+                "false"
         ) {
-
             return res.status(400).json({
                 success: false,
                 message:
@@ -741,15 +797,16 @@ export const createProduct = async (req, res) => {
             });
         }
 
-
         if (
-            featured !== undefined &&
+            featured !==
+                undefined &&
             featured !== true &&
             featured !== false &&
-            featured !== "true" &&
-            featured !== "false"
+            featured !==
+                "true" &&
+            featured !==
+                "false"
         ) {
-
             return res.status(400).json({
                 success: false,
                 message:
@@ -757,23 +814,21 @@ export const createProduct = async (req, res) => {
             });
         }
 
+        const [duplicate] =
+            await pool.execute(
+                `
+                    SELECT id
+                    FROM products
+                    WHERE slug = ?
+                    LIMIT 1
+                `,
+                [cleanSlug]
+            );
 
-        // ------------------------------
-        // Check duplicate slug
-        // ------------------------------
-
-        const [existing] = await pool.execute(
-            `
-                SELECT id
-                FROM products
-                WHERE slug = ?
-                LIMIT 1
-            `,
-            [cleanSlug]
-        );
-
-        if (existing.length > 0) {
-
+        if (
+            duplicate.length >
+            0
+        ) {
             return res.status(409).json({
                 success: false,
                 message:
@@ -781,104 +836,64 @@ export const createProduct = async (req, res) => {
             });
         }
 
-
-        // ------------------------------
-        // Validate category
-        // ------------------------------
+        let categoryId =
+            null;
 
         if (
-            category_id !== undefined &&
-            category_id !== null &&
+            category_id !==
+                undefined &&
+            category_id !==
+                null &&
             category_id !== ""
         ) {
-
-            const categoryId =
-                Number(category_id);
-
             if (
-                !Number.isInteger(categoryId) ||
-                categoryId <= 0
+                !isValidPositiveInteger(
+                    category_id
+                )
             ) {
-
                 return res.status(400).json({
                     success: false,
-                    message: "Invalid category ID"
+                    message:
+                        "Invalid category ID"
                 });
             }
 
-            const [category] =
-                await pool.execute(
-                    `
-                        SELECT id
-                        FROM categories
-                        WHERE id = ?
-                        AND is_active = TRUE
-                        LIMIT 1
-                    `,
-                    [categoryId]
+            const category =
+                await findCategory(
+                    Number(
+                        category_id
+                    )
                 );
 
-            if (category.length === 0) {
-
+            if (!category) {
                 return res.status(400).json({
                     success: false,
-                    message: "Invalid category"
+                    message:
+                        "Invalid category"
                 });
             }
+
+            categoryId =
+                Number(
+                    category.id
+                );
         }
 
-
-        // ------------------------------
-        // Validate product type
-        // ------------------------------
-
-        const allowedProductTypes = [
-            "T-Shirts",
-            "Hoodies",
-            "Thermals",
-            "Bottomwear"
-        ];
-
-        const finalProductType =
-            product_type === undefined ||
-            product_type === null ||
-            product_type === ""
-                ? "T-Shirts"
-                : String(product_type).trim();
-
-        const validProductType =
-            allowedProductTypes.find(
-                (item) =>
-                    item.toLowerCase() ===
-                    finalProductType.toLowerCase()
-            );
-
-        if (!validProductType) {
-            return res.status(400).json({
-                success: false,
-                message: "Invalid product type. Allowed values: T-Shirts, Hoodies, Thermals, Bottomwear"
-            });
-        }
-
-
-        // ------------------------------
-        // Validate collection
-        // ------------------------------
+        let collectionId =
+            null;
 
         if (
-            collection_id !== undefined &&
-            collection_id !== null &&
+            collection_id !==
+                undefined &&
+            collection_id !==
+                null &&
             collection_id !== ""
         ) {
-
-            const collectionId =
-                Number(collection_id);
-
             if (
-                !Number.isInteger(collectionId) ||
-                collectionId <= 0
+                !isValidPositiveInteger(
+                    collection_id
+                )
             ) {
-
                 return res.status(400).json({
                     success: false,
                     message:
@@ -886,32 +901,26 @@ export const createProduct = async (req, res) => {
                 });
             }
 
-            const [collection] =
-                await pool.execute(
-                    `
-                        SELECT id
-                        FROM collections
-                        WHERE id = ?
-                        AND is_active = TRUE
-                        LIMIT 1
-                    `,
-                    [collectionId]
+            const collection =
+                await findCollection(
+                    Number(
+                        collection_id
+                    )
                 );
 
-            if (collection.length === 0) {
-
+            if (!collection) {
                 return res.status(400).json({
                     success: false,
                     message:
                         "Invalid collection"
                 });
             }
+
+            collectionId =
+                Number(
+                    collection.id
+                );
         }
-
-
-        // ------------------------------
-        // Insert product
-        // ------------------------------
 
         const [result] =
             await pool.execute(
@@ -934,24 +943,46 @@ export const createProduct = async (req, res) => {
                         seo_title,
                         seo_description
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+
+                    VALUES (
+                        ?,
+                        ?,
+                        ?,
+                        ?,
+                        ?,
+                        ?,
+                        ?,
+                        ?,
+                        ?,
+                        ?,
+                        ?,
+                        ?,
+                        ?,
+                        ?,
+                        ?,
+                        ?
+                    )
                 `,
                 [
                     cleanName,
                     cleanSlug,
-                    category_id || null,
-                    validProductType,
-                    collection_id || null,
-                    typeof short_description === "string"
+                    categoryId,
+                    finalProductType,
+                    collectionId,
+                    typeof short_description ===
+                        "string"
                         ? short_description.trim()
                         : null,
-                    typeof description === "string"
+                    typeof description ===
+                        "string"
                         ? description.trim()
                         : null,
-                    typeof materials === "string"
+                    typeof materials ===
+                        "string"
                         ? materials.trim()
                         : null,
-                    typeof care_instructions === "string"
+                    typeof care_instructions ===
+                        "string"
                         ? care_instructions.trim()
                         : null,
                     basePrice,
@@ -959,19 +990,16 @@ export const createProduct = async (req, res) => {
                     cleanCurrency,
                     finalPublished,
                     finalFeatured,
-                    typeof seo_title === "string"
+                    typeof seo_title ===
+                        "string"
                         ? seo_title.trim()
                         : null,
-                    typeof seo_description === "string"
+                    typeof seo_description ===
+                        "string"
                         ? seo_description.trim()
                         : null
                 ]
             );
-
-
-        // ------------------------------
-        // Get created product
-        // ------------------------------
 
         const [products] =
             await pool.execute(
@@ -979,29 +1007,58 @@ export const createProduct = async (req, res) => {
                     SELECT *
                     FROM products
                     WHERE id = ?
+                    LIMIT 1
                 `,
                 [result.insertId]
             );
-
 
         return res.status(201).json({
             success: true,
             message:
                 "Product created successfully",
-            product: products[0]
+            product:
+                products[0]
         });
 
     } catch (error) {
-
         console.error(
             "Create product error:",
             error
         );
 
+        if (
+            error?.code ===
+                "ER_DUP_ENTRY" ||
+            error?.errno ===
+                1062
+        ) {
+            return res.status(409).json({
+                success: false,
+                message:
+                    "Product slug already exists"
+            });
+        }
+
+        if (
+            error?.code ===
+                "ER_BAD_FIELD_ERROR"
+        ) {
+            return res.status(500).json({
+                success: false,
+                message:
+                    "Database schema is missing the product_type column"
+            });
+        }
+
         return res.status(500).json({
             success: false,
             message:
-                "Failed to create product"
+                "Failed to create product",
+            error:
+                process.env.NODE_ENV ===
+                    "development"
+                    ? error.message
+                    : undefined
         });
     }
 };
@@ -1012,35 +1069,29 @@ export const createProduct = async (req, res) => {
 // Admin only
 // ======================================================
 
-export const updateProduct = async (req, res) => {
-
+export const updateProduct = async (
+    req,
+    res
+) => {
     try {
-
-        const { id } = req.params;
+        const {
+            id
+        } = req.params;
 
         const productId =
             Number(id);
 
-        // ------------------------------
-        // Validate product ID
-        // ------------------------------
-
         if (
-            !Number.isInteger(productId) ||
-            productId <= 0
+            !isValidPositiveInteger(
+                productId
+            )
         ) {
-
             return res.status(400).json({
                 success: false,
                 message:
                     "Product ID must be a valid positive integer"
             });
         }
-
-
-        // ------------------------------
-        // Check product
-        // ------------------------------
 
         const [existing] =
             await pool.execute(
@@ -1053,8 +1104,10 @@ export const updateProduct = async (req, res) => {
                 [productId]
             );
 
-        if (existing.length === 0) {
-
+        if (
+            existing.length ===
+            0
+        ) {
             return res.status(404).json({
                 success: false,
                 message:
@@ -1064,7 +1117,6 @@ export const updateProduct = async (req, res) => {
 
         const currentProduct =
             existing[0];
-
 
         const {
             name,
@@ -1085,22 +1137,17 @@ export const updateProduct = async (req, res) => {
             seo_description
         } = req.body;
 
-
         const fields = [];
         const values = [];
 
-
-        // ------------------------------
-        // Name
-        // ------------------------------
-
-        if (name !== undefined) {
-
+        if (
+            name !== undefined
+        ) {
             if (
-                typeof name !== "string" ||
+                typeof name !==
+                    "string" ||
                 !name.trim()
             ) {
-
                 return res.status(400).json({
                     success: false,
                     message:
@@ -1108,22 +1155,23 @@ export const updateProduct = async (req, res) => {
                 });
             }
 
-            fields.push("name = ?");
-            values.push(name.trim());
+            fields.push(
+                "name = ?"
+            );
+
+            values.push(
+                name.trim()
+            );
         }
 
-
-        // ------------------------------
-        // Slug
-        // ------------------------------
-
-        if (slug !== undefined) {
-
+        if (
+            slug !== undefined
+        ) {
             if (
-                typeof slug !== "string" ||
+                typeof slug !==
+                    "string" ||
                 !slug.trim()
             ) {
-
                 return res.status(400).json({
                     success: false,
                     message:
@@ -1134,11 +1182,11 @@ export const updateProduct = async (req, res) => {
             const cleanSlug =
                 slug.trim().toLowerCase();
 
-            const slugPattern =
-                /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-
-            if (!slugPattern.test(cleanSlug)) {
-
+            if (
+                !validateSlug(
+                    cleanSlug
+                )
+            ) {
                 return res.status(400).json({
                     success: false,
                     message:
@@ -1146,14 +1194,13 @@ export const updateProduct = async (req, res) => {
                 });
             }
 
-
             const [duplicate] =
                 await pool.execute(
                     `
                         SELECT id
                         FROM products
                         WHERE slug = ?
-                        AND id != ?
+                          AND id != ?
                         LIMIT 1
                     `,
                     [
@@ -1162,8 +1209,10 @@ export const updateProduct = async (req, res) => {
                     ]
                 );
 
-            if (duplicate.length > 0) {
-
+            if (
+                duplicate.length >
+                0
+            ) {
                 return res.status(409).json({
                     success: false,
                     message:
@@ -1171,38 +1220,38 @@ export const updateProduct = async (req, res) => {
                 });
             }
 
-            fields.push("slug = ?");
-            values.push(cleanSlug);
+            fields.push(
+                "slug = ?"
+            );
+
+            values.push(
+                cleanSlug
+            );
         }
 
-
-        // ------------------------------
-        // Category
-        // ------------------------------
-
-        if (category_id !== undefined) {
-
+        if (
+            category_id !==
+                undefined
+        ) {
             if (
-                category_id === null ||
-                category_id === ""
+                category_id ===
+                    null ||
+                category_id ===
+                    ""
             ) {
-
                 fields.push(
                     "category_id = ?"
                 );
 
-                values.push(null);
-
+                values.push(
+                    null
+                );
             } else {
-
-                const categoryId =
-                    Number(category_id);
-
                 if (
-                    !Number.isInteger(categoryId) ||
-                    categoryId <= 0
+                    !isValidPositiveInteger(
+                        category_id
+                    )
                 ) {
-
                     return res.status(400).json({
                         success: false,
                         message:
@@ -1210,20 +1259,14 @@ export const updateProduct = async (req, res) => {
                     });
                 }
 
-                const [category] =
-                    await pool.execute(
-                        `
-                            SELECT id
-                            FROM categories
-                            WHERE id = ?
-                            AND is_active = TRUE
-                            LIMIT 1
-                        `,
-                        [categoryId]
+                const category =
+                    await findCategory(
+                        Number(
+                            category_id
+                        )
                     );
 
-                if (category.length === 0) {
-
+                if (!category) {
                     return res.status(400).json({
                         success: false,
                         message:
@@ -1235,70 +1278,65 @@ export const updateProduct = async (req, res) => {
                     "category_id = ?"
                 );
 
-                values.push(categoryId);
+                values.push(
+                    Number(
+                        category.id
+                    )
+                );
             }
         }
 
+        if (
+            product_type !==
+                undefined
+        ) {
+            const validProductType =
+                normalizeProductType(
+                    product_type
+                );
 
-        // ------------------------------
-        // Product type
-        // ------------------------------
-
-        if (product_type !== undefined) {
-
-            const allowedProductTypes = [
-                "T-Shirts",
-                "Hoodies",
-                "Thermals",
-                "Bottomwear"
-            ];
-
-            const cleanProductType = String(product_type).trim();
-            const validProductType = allowedProductTypes.find(
-                (item) =>
-                    item.toLowerCase() ===
-                    cleanProductType.toLowerCase()
-            );
-
-            if (!validProductType) {
+            if (
+                !validProductType
+            ) {
                 return res.status(400).json({
                     success: false,
-                    message: "Invalid product type. Allowed values: T-Shirts, Hoodies, Thermals, Bottomwear"
+                    message:
+                        "Invalid product type. Allowed values: T-Shirts, Hoodies, Thermals, Bottomwear"
                 });
             }
 
-            fields.push("product_type = ?");
-            values.push(validProductType);
+            fields.push(
+                "product_type = ?"
+            );
+
+            values.push(
+                validProductType
+            );
         }
 
-
-        // ------------------------------
-        // Collection
-        // ------------------------------
-
-        if (collection_id !== undefined) {
-
+        if (
+            collection_id !==
+                undefined
+        ) {
             if (
-                collection_id === null ||
-                collection_id === ""
+                collection_id ===
+                    null ||
+                collection_id ===
+                    ""
             ) {
-
                 fields.push(
                     "collection_id = ?"
                 );
 
-                values.push(null);
-
+                values.push(
+                    null
+                );
             } else {
-
-                const collectionId =
-                    Number(collection_id);
-
                 if (
-                    !Number.isInteger(collectionId) ||
-                    collectionId <= 0
+                    !isValidPositiveInteger(
+                        collection_id
+                    )
                 ) {
-
                     return res.status(400).json({
                         success: false,
                         message:
@@ -1306,20 +1344,14 @@ export const updateProduct = async (req, res) => {
                     });
                 }
 
-                const [collection] =
-                    await pool.execute(
-                        `
-                            SELECT id
-                            FROM collections
-                            WHERE id = ?
-                            AND is_active = TRUE
-                            LIMIT 1
-                        `,
-                        [collectionId]
+                const collection =
+                    await findCollection(
+                        Number(
+                            collection_id
+                        )
                     );
 
-                if (collection.length === 0) {
-
+                if (!collection) {
                     return res.status(400).json({
                         success: false,
                         message:
@@ -1331,94 +1363,105 @@ export const updateProduct = async (req, res) => {
                     "collection_id = ?"
                 );
 
-                values.push(collectionId);
+                values.push(
+                    Number(
+                        collection.id
+                    )
+                );
             }
         }
 
-
-        // ------------------------------
-        // Text fields
-        // ------------------------------
-
-        if (short_description !== undefined) {
-
+        if (
+            short_description !==
+                undefined
+        ) {
             fields.push(
                 "short_description = ?"
             );
 
             values.push(
-                typeof short_description === "string"
+                typeof short_description ===
+                    "string"
                     ? short_description.trim()
                     : null
             );
         }
 
-
-        if (description !== undefined) {
-
+        if (
+            description !==
+                undefined
+        ) {
             fields.push(
                 "description = ?"
             );
 
             values.push(
-                typeof description === "string"
+                typeof description ===
+                    "string"
                     ? description.trim()
                     : null
             );
         }
 
-
-        if (materials !== undefined) {
-
+        if (
+            materials !==
+                undefined
+        ) {
             fields.push(
                 "materials = ?"
             );
 
             values.push(
-                typeof materials === "string"
+                typeof materials ===
+                    "string"
                     ? materials.trim()
                     : null
             );
         }
 
-
-        if (care_instructions !== undefined) {
-
+        if (
+            care_instructions !==
+                undefined
+        ) {
             fields.push(
                 "care_instructions = ?"
             );
 
             values.push(
-                typeof care_instructions === "string"
+                typeof care_instructions ===
+                    "string"
                     ? care_instructions.trim()
                     : null
             );
         }
 
-
-        // ------------------------------
-        // Calculate final base price
-        // ------------------------------
-
         let finalBasePrice =
-            Number(currentProduct.base_price);
+            Number(
+                currentProduct.base_price
+            );
 
         let finalSalePrice =
-            currentProduct.sale_price === null
+            currentProduct.sale_price ===
+                null
                 ? null
-                : Number(currentProduct.sale_price);
+                : Number(
+                      currentProduct.sale_price
+                  );
 
-
-        if (base_price !== undefined) {
-
-            const value =
-                Number(base_price);
+        if (
+            base_price !==
+                undefined
+        ) {
+            const newBasePrice =
+                Number(
+                    base_price
+                );
 
             if (
-                !Number.isFinite(value) ||
-                value < 0
+                !isValidNonNegativeNumber(
+                    newBasePrice
+                )
             ) {
-
                 return res.status(400).json({
                     success: false,
                     message:
@@ -1426,32 +1469,39 @@ export const updateProduct = async (req, res) => {
                 });
             }
 
-            finalBasePrice = value;
+            finalBasePrice =
+                newBasePrice;
 
             fields.push(
                 "base_price = ?"
             );
 
-            values.push(value);
+            values.push(
+                newBasePrice
+            );
         }
 
-
-        if (sale_price !== undefined) {
-
-            const value =
-                sale_price === null ||
-                sale_price === ""
+        if (
+            sale_price !==
+                undefined
+        ) {
+            const newSalePrice =
+                sale_price ===
+                    null ||
+                sale_price ===
+                    ""
                     ? null
-                    : Number(sale_price);
+                    : Number(
+                          sale_price
+                      );
 
             if (
-                value !== null &&
-                (
-                    !Number.isFinite(value) ||
-                    value < 0
+                newSalePrice !==
+                    null &&
+                !isValidNonNegativeNumber(
+                    newSalePrice
                 )
             ) {
-
                 return res.status(400).json({
                     success: false,
                     message:
@@ -1459,21 +1509,24 @@ export const updateProduct = async (req, res) => {
                 });
             }
 
-            finalSalePrice = value;
+            finalSalePrice =
+                newSalePrice;
 
             fields.push(
                 "sale_price = ?"
             );
 
-            values.push(value);
+            values.push(
+                newSalePrice
+            );
         }
 
-
         if (
-            finalSalePrice !== null &&
-            finalSalePrice > finalBasePrice
+            finalSalePrice !==
+                null &&
+            finalSalePrice >
+                finalBasePrice
         ) {
-
             return res.status(400).json({
                 success: false,
                 message:
@@ -1481,18 +1534,15 @@ export const updateProduct = async (req, res) => {
             });
         }
 
-
-        // ------------------------------
-        // Currency
-        // ------------------------------
-
-        if (currency !== undefined) {
-
+        if (
+            currency !==
+                undefined
+        ) {
             if (
-                typeof currency !== "string" ||
+                typeof currency !==
+                    "string" ||
                 !currency.trim()
             ) {
-
                 return res.status(400).json({
                     success: false,
                     message:
@@ -1501,10 +1551,15 @@ export const updateProduct = async (req, res) => {
             }
 
             const cleanCurrency =
-                currency.trim().toUpperCase();
+                currency
+                    .trim()
+                    .toUpperCase();
 
-            if (!/^[A-Z]{3}$/.test(cleanCurrency)) {
-
+            if (
+                !/^[A-Z]{3}$/.test(
+                    cleanCurrency
+                )
+            ) {
                 return res.status(400).json({
                     success: false,
                     message:
@@ -1516,23 +1571,23 @@ export const updateProduct = async (req, res) => {
                 "currency = ?"
             );
 
-            values.push(cleanCurrency);
+            values.push(
+                cleanCurrency
+            );
         }
 
-
-        // ------------------------------
-        // Published
-        // ------------------------------
-
-        if (published !== undefined) {
-
+        if (
+            published !==
+                undefined
+        ) {
             if (
                 published !== true &&
                 published !== false &&
-                published !== "true" &&
-                published !== "false"
+                published !==
+                    "true" &&
+                published !==
+                    "false"
             ) {
-
                 return res.status(400).json({
                     success: false,
                     message:
@@ -1546,24 +1601,23 @@ export const updateProduct = async (req, res) => {
 
             values.push(
                 published === true ||
-                published === "true"
+                    published ===
+                        "true"
             );
         }
 
-
-        // ------------------------------
-        // Featured
-        // ------------------------------
-
-        if (featured !== undefined) {
-
+        if (
+            featured !==
+                undefined
+        ) {
             if (
                 featured !== true &&
                 featured !== false &&
-                featured !== "true" &&
-                featured !== "false"
+                featured !==
+                    "true" &&
+                featured !==
+                    "false"
             ) {
-
                 return res.status(400).json({
                     success: false,
                     message:
@@ -1577,49 +1631,47 @@ export const updateProduct = async (req, res) => {
 
             values.push(
                 featured === true ||
-                featured === "true"
+                    featured ===
+                        "true"
             );
         }
 
-
-        // ------------------------------
-        // SEO
-        // ------------------------------
-
-        if (seo_title !== undefined) {
-
+        if (
+            seo_title !==
+                undefined
+        ) {
             fields.push(
                 "seo_title = ?"
             );
 
             values.push(
-                typeof seo_title === "string"
+                typeof seo_title ===
+                    "string"
                     ? seo_title.trim()
                     : null
             );
         }
 
-
-        if (seo_description !== undefined) {
-
+        if (
+            seo_description !==
+                undefined
+        ) {
             fields.push(
                 "seo_description = ?"
             );
 
             values.push(
-                typeof seo_description === "string"
+                typeof seo_description ===
+                    "string"
                     ? seo_description.trim()
                     : null
             );
         }
 
-
-        // ------------------------------
-        // No fields
-        // ------------------------------
-
-        if (fields.length === 0) {
-
+        if (
+            fields.length ===
+            0
+        ) {
             return res.status(400).json({
                 success: false,
                 message:
@@ -1627,27 +1679,20 @@ export const updateProduct = async (req, res) => {
             });
         }
 
-
-        values.push(productId);
-
-
-        // ------------------------------
-        // Update
-        // ------------------------------
+        values.push(
+            productId
+        );
 
         await pool.execute(
             `
                 UPDATE products
-                SET ${fields.join(", ")}
+                SET ${fields.join(
+                    ", "
+                )}
                 WHERE id = ?
             `,
             values
         );
-
-
-        // ------------------------------
-        // Return updated product
-        // ------------------------------
 
         const [products] =
             await pool.execute(
@@ -1655,70 +1700,121 @@ export const updateProduct = async (req, res) => {
                     SELECT *
                     FROM products
                     WHERE id = ?
+                    LIMIT 1
                 `,
                 [productId]
             );
-
 
         return res.status(200).json({
             success: true,
             message:
                 "Product updated successfully",
-            product: products[0]
+            product:
+                products[0]
         });
 
     } catch (error) {
-
         console.error(
             "Update product error:",
             error
         );
 
+        if (
+            error?.code ===
+                "ER_DUP_ENTRY" ||
+            error?.errno ===
+                1062
+        ) {
+            return res.status(409).json({
+                success: false,
+                message:
+                    "Product slug already exists"
+            });
+        }
+
+        if (
+            error?.code ===
+                "ER_BAD_FIELD_ERROR"
+        ) {
+            return res.status(500).json({
+                success: false,
+                message:
+                    "Database schema is missing the product_type column"
+            });
+        }
+
         return res.status(500).json({
             success: false,
             message:
-                "Failed to update product"
+                "Failed to update product",
+            error:
+                process.env.NODE_ENV ===
+                    "development"
+                    ? error.message
+                    : undefined
         });
     }
 };
 
 
 // ======================================================
-// DELETE / UNPUBLISH PRODUCT
+// DELETE PRODUCT
 // Admin only
 // ======================================================
 
-export const deleteProduct = async (req, res) => {
-    const connection = await pool.getConnection();
+export const deleteProduct = async (
+    req,
+    res
+) => {
+    let connection = null;
 
     try {
-        const productId = Number(req.params.id);
+        const productId =
+            Number(
+                req.params.id
+            );
 
-        if (!Number.isInteger(productId) || productId <= 0) {
+        if (
+            !isValidPositiveInteger(
+                productId
+            )
+        ) {
             return res.status(400).json({
                 success: false,
-                message: "Product ID must be a valid positive integer"
+                message:
+                    "Product ID must be a valid positive integer"
             });
         }
 
+        connection =
+            await pool.getConnection();
+
         await connection.beginTransaction();
 
-        const [existing] = await connection.execute(
-            `
-                SELECT id, name, slug
-                FROM products
-                WHERE id = ?
-                LIMIT 1
-            `,
-            [productId]
-        );
+        const [existing] =
+            await connection.execute(
+                `
+                    SELECT
+                        id,
+                        name,
+                        slug
+                    FROM products
+                    WHERE id = ?
+                    LIMIT 1
+                `,
+                [productId]
+            );
 
-        if (existing.length === 0) {
+        if (
+            existing.length ===
+            0
+        ) {
             await connection.rollback();
 
             return res.status(404).json({
                 success: false,
-                message: "Product not found"
+                message:
+                    "Product not found"
             });
         }
 
@@ -1734,20 +1830,38 @@ export const deleteProduct = async (req, res) => {
 
         return res.status(200).json({
             success: true,
-            message: "Product deleted permanently",
+            message:
+                "Product deleted permanently",
             productId
         });
-    } catch (error) {
-        await connection.rollback();
 
-        console.error("Delete product error:", error);
+    } catch (error) {
+        if (connection) {
+            try {
+                await connection.rollback();
+            } catch {
+            }
+        }
+
+        console.error(
+            "Delete product error:",
+            error
+        );
 
         return res.status(500).json({
             success: false,
-            message: "Failed to delete product",
-            error: error.message
+            message:
+                "Failed to delete product",
+            error:
+                process.env.NODE_ENV ===
+                    "development"
+                    ? error.message
+                    : undefined
         });
+
     } finally {
-        connection.release();
+        if (connection) {
+            connection.release();
+        }
     }
 };
