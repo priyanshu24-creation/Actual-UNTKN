@@ -20,6 +20,7 @@ export const getProducts = async (req, res) => {
             page = "1",
             limit = "10",
             category,
+            type,
             collection,
             featured,
             search,
@@ -93,6 +94,42 @@ export const getProducts = async (req, res) => {
             `;
 
             params.push(cleanCategory);
+        }
+
+
+        // --------------------------------------------------
+        // Product type filter
+        // Example:
+        // ?type=T-Shirts
+        // --------------------------------------------------
+
+        if (type !== undefined) {
+
+            const allowedTypes = [
+                "T-Shirts",
+                "Hoodies",
+                "Thermals",
+                "Bottomwear"
+            ];
+
+            const cleanType = String(type).trim();
+            const matchedType = allowedTypes.find(
+                (item) =>
+                    item.toLowerCase() ===
+                    cleanType.toLowerCase()
+            );
+
+            if (!matchedType) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Invalid product type"
+                });
+            }
+
+            whereClause += `
+                AND p.product_type = ?
+            `;
+            params.push(matchedType);
         }
 
 
@@ -511,6 +548,7 @@ export const createProduct = async (req, res) => {
             name,
             slug,
             category_id,
+            product_type,
             collection_id,
             short_description,
             description,
@@ -791,6 +829,39 @@ export const createProduct = async (req, res) => {
 
 
         // ------------------------------
+        // Validate product type
+        // ------------------------------
+
+        const allowedProductTypes = [
+            "T-Shirts",
+            "Hoodies",
+            "Thermals",
+            "Bottomwear"
+        ];
+
+        const finalProductType =
+            product_type === undefined ||
+            product_type === null ||
+            product_type === ""
+                ? "T-Shirts"
+                : String(product_type).trim();
+
+        const validProductType =
+            allowedProductTypes.find(
+                (item) =>
+                    item.toLowerCase() ===
+                    finalProductType.toLowerCase()
+            );
+
+        if (!validProductType) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid product type. Allowed values: T-Shirts, Hoodies, Thermals, Bottomwear"
+            });
+        }
+
+
+        // ------------------------------
         // Validate collection
         // ------------------------------
 
@@ -849,6 +920,7 @@ export const createProduct = async (req, res) => {
                         name,
                         slug,
                         category_id,
+                        product_type,
                         collection_id,
                         short_description,
                         description,
@@ -862,12 +934,13 @@ export const createProduct = async (req, res) => {
                         seo_title,
                         seo_description
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 `,
                 [
                     cleanName,
                     cleanSlug,
                     category_id || null,
+                    validProductType,
                     collection_id || null,
                     typeof short_description === "string"
                         ? short_description.trim()
@@ -997,6 +1070,7 @@ export const updateProduct = async (req, res) => {
             name,
             slug,
             category_id,
+            product_type,
             collection_id,
             short_description,
             description,
@@ -1163,6 +1237,38 @@ export const updateProduct = async (req, res) => {
 
                 values.push(categoryId);
             }
+        }
+
+
+        // ------------------------------
+        // Product type
+        // ------------------------------
+
+        if (product_type !== undefined) {
+
+            const allowedProductTypes = [
+                "T-Shirts",
+                "Hoodies",
+                "Thermals",
+                "Bottomwear"
+            ];
+
+            const cleanProductType = String(product_type).trim();
+            const validProductType = allowedProductTypes.find(
+                (item) =>
+                    item.toLowerCase() ===
+                    cleanProductType.toLowerCase()
+            );
+
+            if (!validProductType) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Invalid product type. Allowed values: T-Shirts, Hoodies, Thermals, Bottomwear"
+                });
+            }
+
+            fields.push("product_type = ?");
+            values.push(validProductType);
         }
 
 

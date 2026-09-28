@@ -25,6 +25,7 @@ function AdminEditProduct() {
   const [formData, setFormData] = useState({
     name: "",
     category: "",
+    productType: "T-Shirts",
     collection: "",
     price: "",
     oldPrice: "",
@@ -413,6 +414,30 @@ function AdminEditProduct() {
           "";
 
         // --------------------------------------
+        // PRODUCT TYPE
+        // --------------------------------------
+
+        const allowedProductTypes = [
+          "T-Shirts",
+          "Hoodies",
+          "Thermals",
+          "Bottomwear",
+        ];
+
+        const loadedProductType = String(
+          fullProduct.product_type ||
+            fullProduct.productType ||
+            "T-Shirts"
+        ).trim();
+
+        const productType =
+          allowedProductTypes.find(
+            (item) =>
+              item.toLowerCase() ===
+              loadedProductType.toLowerCase()
+          ) || "T-Shirts";
+
+        // --------------------------------------
         // COLLECTION
         // --------------------------------------
 
@@ -433,6 +458,8 @@ function AdminEditProduct() {
           name: fullProduct.name || "",
 
           categoryId,
+
+          productType,
 
           collectionId,
 
@@ -460,6 +487,8 @@ function AdminEditProduct() {
           name: normalizedProduct.name,
 
           category: String(categoryId || ""),
+
+          productType,
 
           collection: String(
             collectionId || ""
@@ -1235,6 +1264,20 @@ function AdminEditProduct() {
     }
 
     if (
+      ![
+        "T-Shirts",
+        "Hoodies",
+        "Thermals",
+        "Bottomwear",
+      ].includes(formData.productType)
+    ) {
+      setError(
+        "Please select a valid clothing type."
+      );
+      return;
+    }
+
+    if (
       formData.price === "" ||
       Number(formData.price) < 0
     ) {
@@ -1281,6 +1324,8 @@ function AdminEditProduct() {
         category_id: formData.category
           ? Number(formData.category)
           : null,
+
+        product_type: formData.productType,
 
         collection_id:
           formData.collection
@@ -1412,6 +1457,9 @@ if (
 
               categoryId:
                 formData.category,
+
+              productType:
+                formData.productType,
 
               collectionId:
                 formData.collection,
@@ -1665,6 +1713,35 @@ if (
                         </option>
                       )
                     )}
+                  </select>
+                </div>
+
+                {/* CLOTHING TYPE */}
+
+                <div className="admin-form-group">
+                  <label htmlFor="productType">
+                    Clothing Type
+                  </label>
+
+                  <select
+                    id="productType"
+                    name="productType"
+                    value={formData.productType}
+                    onChange={handleChange}
+                    required
+                  >
+                    <option value="T-Shirts">
+                      T-Shirts
+                    </option>
+                    <option value="Hoodies">
+                      Hoodies
+                    </option>
+                    <option value="Thermals">
+                      Thermals
+                    </option>
+                    <option value="Bottomwear">
+                      Bottomwear
+                    </option>
                   </select>
                 </div>
 

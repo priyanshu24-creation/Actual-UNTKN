@@ -18,7 +18,7 @@ export const ensureCouponSchema = async () => {
             usage_count INT NOT NULL DEFAULT 0,
             per_user_limit INT NOT NULL DEFAULT 1,
             first_order_only TINYINT(1) NOT NULL DEFAULT 0,
-            scope_type ENUM('all', 'category', 'collection') NOT NULL DEFAULT 'all',
+            scope_type ENUM('all', 'category', 'collection', 'product') NOT NULL DEFAULT 'all',
             scope_id INT NULL,
             is_active TINYINT(1) NOT NULL DEFAULT 1,
             created_by INT NULL,
@@ -46,6 +46,27 @@ export const ensureCouponSchema = async () => {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
 
+    const [scopeColumns] = await pool.execute(`
+        SELECT COLUMN_TYPE
+        FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = 'coupons'
+        AND COLUMN_NAME = 'scope_type'
+        LIMIT 1
+    `);
+
+    if (
+        scopeColumns.length &&
+        !String(scopeColumns[0].COLUMN_TYPE || "").includes("'product'")
+    ) {
+        await pool.execute(`
+            ALTER TABLE coupons
+            MODIFY COLUMN scope_type
+            ENUM('all', 'category', 'collection', 'product')
+            NOT NULL DEFAULT 'all'
+        `);
+    }
+
     const [columns] = await pool.execute(`
         SELECT COUNT(*) AS count
         FROM INFORMATION_SCHEMA.COLUMNS
@@ -58,6 +79,29 @@ export const ensureCouponSchema = async () => {
         await pool.execute(`
             ALTER TABLE orders
             ADD COLUMN coupon_code VARCHAR(100) NULL
+        `);
+    }
+};
+
+export const ensureCouponProductScopeSchema = async () => {
+    const [columns] = await pool.execute(`
+        SELECT COLUMN_TYPE
+        FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = 'coupons'
+        AND COLUMN_NAME = 'scope_type'
+        LIMIT 1
+    `);
+
+    if (
+        columns.length &&
+        !String(columns[0].COLUMN_TYPE || "").includes("'product'")
+    ) {
+        await pool.execute(`
+            ALTER TABLE coupons
+            MODIFY COLUMN scope_type
+            ENUM('all', 'category', 'collection', 'product')
+            NOT NULL DEFAULT 'all'
         `);
     }
 };
@@ -94,7 +138,9 @@ const getEligibleSubtotal = (coupon, items) => {
             const matches =
                 coupon.scope_type === "category"
                     ? Number(item.category_id) === Number(coupon.scope_id)
-                    : Number(item.collection_id) === Number(coupon.scope_id);
+                    : coupon.scope_type === "collection"
+                    ? Number(item.collection_id) === Number(coupon.scope_id)
+                    : Number(item.product_id) === Number(coupon.scope_id);
 
             if (!matches) {
                 return sum;

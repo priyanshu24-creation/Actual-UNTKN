@@ -25,6 +25,9 @@ function Shop() {
   const [products, setProducts] =
     useState([]);
 
+  const [collections, setCollections] =
+    useState([]);
+
   const [loading, setLoading] =
     useState(true);
 
@@ -34,19 +37,84 @@ function Shop() {
   const [sort, setSort] =
     useState("featured");
 
-  const categoryFromUrl =
-    searchParams.get("category") || "All";
+  const typeFromUrl =
+    searchParams.get("type") ||
+    searchParams.get("category") ||
+    "All";
 
   const collectionFromUrl =
     searchParams.get("collection") || "";
 
+  const normalizeCollectionKey = (value) => {
+    return String(value || "")
+      .trim()
+      .toLowerCase()
+      .replace(/['’]/g, "")
+      .replace(/&/g, "and")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+  };
+
+  const getCollectionId = (product) => {
+    const directId =
+      product?.collection_id ??
+      product?.collectionId ??
+      product?.collection?.id;
+
+    if (
+      directId !== null &&
+      directId !== undefined &&
+      String(directId).trim() !== ""
+    ) {
+      return Number(directId);
+    }
+
+    return null;
+  };
+
+  const getProductCollectionKeys = (product) => {
+    const values = [];
+
+    if (
+      product?.collection &&
+      typeof product.collection === "object"
+    ) {
+      values.push(
+        product.collection?.slug,
+        product.collection?.name,
+        product.collection?.title
+      );
+    } else {
+      values.push(product?.collection);
+    }
+
+    values.push(
+      product?.collection_slug,
+      product?.collectionSlug,
+      product?.collection_name,
+      product?.collectionName
+    );
+
+    return values
+      .filter(
+        (value) =>
+          value !== null &&
+          value !== undefined &&
+          String(value).trim() !== ""
+      )
+      .map((value) =>
+        normalizeCollectionKey(value)
+      )
+      .filter(Boolean);
+  };
+
   const featuredFromUrl =
     searchParams.get("featured") === "true";
 
-  const category = CATEGORIES.includes(
-    categoryFromUrl
+  const productType = CATEGORIES.includes(
+    typeFromUrl
   )
-    ? categoryFromUrl
+    ? typeFromUrl
     : "All";
 
   const getImageUrl = (image) => {
@@ -140,23 +208,34 @@ function Shop() {
     ).trim();
   };
 
+  const getProductType = (product) => {
+    return String(
+      product?.product_type ??
+        product?.productType ??
+        product?.type ??
+        ""
+    ).trim();
+  };
+
   const getCollection = (product) => {
     if (
       product?.collection &&
       typeof product.collection === "object"
     ) {
-      return (
+      return String(
         product.collection?.name ||
-        product.collection?.title ||
-        product.collection?.slug ||
-        ""
-      );
+          product.collection?.title ||
+          product.collection?.slug ||
+          ""
+      ).trim();
     }
 
     return String(
       product?.collection_name ||
         product?.collection ||
         product?.collectionName ||
+        product?.collection_slug ||
+        product?.collectionSlug ||
         ""
     ).trim();
   };
@@ -260,6 +339,9 @@ function Shop() {
       category:
         getCategory(product),
 
+      product_type:
+        getProductType(product),
+
       collection:
         getCollection(product),
 
@@ -303,17 +385,34 @@ function Shop() {
          * There is NO /admin dependency here.
          */
 
-        const response =
-          await api.get(
-            "/products",
-            {
-              params: {
-                page: 1,
-                limit: 100,
-                _: Date.now(),
-              },
-            }
-          );
+        const [response, collectionsResponse] =
+          await Promise.all([
+            api.get(
+              "/products",
+              {
+                params: {
+                  page: 1,
+                  limit: 100,
+                  _: Date.now(),
+                },
+              }
+            ),
+            api.get(
+              "/collections",
+              {
+                params: {
+                  _: Date.now(),
+                },
+              }
+            ).catch((collectionError) => {
+              console.warn(
+                "Could not load collections for shop filtering:",
+                collectionError
+              );
+
+              return null;
+            }),
+          ]);
 
         const data =
           response?.data;
@@ -325,6 +424,21 @@ function Shop() {
             data?.message ||
               "Failed to load products."
           );
+        }
+
+        const collectionsData =
+          collectionsResponse?.data;
+
+        const rawCollections =
+          collectionsData?.collections ||
+          collectionsData?.data?.collections ||
+          collectionsData?.data ||
+          [];
+
+        if (Array.isArray(rawCollections)) {
+          setCollections(rawCollections);
+        } else {
+          setCollections([]);
         }
 
         const rawProducts =
@@ -511,17 +625,19 @@ function Shop() {
       ];
 
       if (
-        category !== "All"
+        productType !== "All"
       ) {
         result =
           result.filter(
             (product) =>
               String(
-                product.category || ""
+                product.product_type ||
+                  product.productType ||
+                  ""
               )
                 .toLowerCase()
                 .trim() ===
-              category
+              productType
                 .toLowerCase()
                 .trim()
           );
@@ -530,26 +646,82 @@ function Shop() {
       if (
         collectionFromUrl
       ) {
+        const requestedCollectionKey =
+          normalizeCollectionKey(
+            collectionFromUrl
+          );
+
+        const matchedCollection =
+          collections.find(
+            (collection) => {
+              const collectionId =
+                collection?.id;
+
+              const collectionSlug =
+                normalizeCollectionKey(
+                  collection?.slug
+                );
+
+              const collectionName =
+                normalizeCollectionKey(
+                  collection?.name ||
+                    collection?.title
+                );
+
+              return (
+                collectionSlug ===
+                  requestedCollectionKey ||
+                collectionName ===
+                  requestedCollectionKey ||
+                String(collectionId || "") ===
+                  String(collectionFromUrl).trim()
+              );
+            }
+          );
+
+        const matchedCollectionId =
+          matchedCollection?.id !==
+          undefined
+            ? Number(matchedCollection.id)
+            : null;
+
         result =
           result.filter(
             (product) => {
-              const productCollection =
-                String(
-                  product.collection ||
-                    ""
-                )
-                  .toLowerCase()
-                  .trim();
+              const productCollectionId =
+                getCollectionId(product);
+
+              if (
+                matchedCollectionId !==
+                  null &&
+                Number.isFinite(
+                  matchedCollectionId
+                ) &&
+                productCollectionId !== null
+              ) {
+                return (
+                  productCollectionId ===
+                  matchedCollectionId
+                );
+              }
+
+              const productKeys =
+                getProductCollectionKeys(
+                  product
+                );
 
               return (
-                productCollection ===
-                  collectionFromUrl
-                    .toLowerCase()
-                    .trim() ||
-                productCollection.includes(
-                  collectionFromUrl
-                    .toLowerCase()
-                    .trim()
+                productKeys.includes(
+                  requestedCollectionKey
+                ) ||
+                productKeys.some(
+                  (key) =>
+                    key.includes(
+                      requestedCollectionKey
+                    ) ||
+                    requestedCollectionKey.includes(
+                      key
+                    )
                 )
               );
             }
@@ -618,29 +790,30 @@ function Shop() {
       return result;
     }, [
       products,
-      category,
+      collections,
+      productType,
       collectionFromUrl,
       featuredFromUrl,
       sort,
     ]);
 
-  const handleCategory =
-    (selectedCategory) => {
+  const handleProductType =
+    (selectedType) => {
       const nextParams =
         new URLSearchParams(
           searchParams
         );
 
+      nextParams.delete("category");
+
       if (
-        selectedCategory === "All"
+        selectedType === "All"
       ) {
-        nextParams.delete(
-          "category"
-        );
+        nextParams.delete("type");
       } else {
         nextParams.set(
-          "category",
-          selectedCategory
+          "type",
+          selectedType
         );
       }
 
@@ -682,12 +855,12 @@ function Shop() {
                 key={item}
                 type="button"
                 className={
-                  category === item
+                  productType === item
                     ? "category-button active"
                     : "category-button"
                 }
                 onClick={() =>
-                  handleCategory(
+                  handleProductType(
                     item
                   )
                 }
@@ -786,20 +959,35 @@ function Shop() {
             </h2>
 
             <p>
-              No products were
-              found in this
-              category.
+              {collectionFromUrl
+                ? "No products were found in this collection."
+                : productType !== "All"
+                ? "No products were found in this clothing type."
+                : "No products were found."}
             </p>
 
-            {category !==
-              "All" && (
+            {(productType !== "All" ||
+              collectionFromUrl) && (
               <button
                 type="button"
-                onClick={() =>
-                  handleCategory(
-                    "All"
-                  )
-                }
+                onClick={() => {
+                  const nextParams =
+                    new URLSearchParams(
+                      searchParams
+                    );
+
+                  nextParams.delete(
+                    "collection"
+                  );
+                  nextParams.delete(
+                    "category"
+                  );
+                  nextParams.delete("type");
+
+                  setSearchParams(
+                    nextParams
+                  );
+                }}
               >
                 VIEW ALL PRODUCTS
               </button>

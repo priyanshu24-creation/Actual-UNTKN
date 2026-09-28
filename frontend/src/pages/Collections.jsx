@@ -135,13 +135,33 @@ function Collections() {
   ==========================================================
   */
 
+  const getCollectionSlug = (collection) => {
+    if (collection?.slug) {
+      return String(collection.slug).trim();
+    }
+
+    return String(
+      collection?.name ||
+        collection?.title ||
+        ""
+    )
+      .trim()
+      .toLowerCase()
+      .replace(/['’]/g, "")
+      .replace(/&/g, "and")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+  };
+
   const getCollectionLink = (collection) => {
-    if (!collection?.slug) {
+    const slug = getCollectionSlug(collection);
+
+    if (!slug) {
       return "/shop";
     }
 
     return `/shop?collection=${encodeURIComponent(
-      collection.slug
+      slug
     )}`;
   };
 
@@ -525,8 +545,12 @@ function Collections() {
           <div className="featured-collection-content">
 
             <p className="eyebrow">
-              {collections[0].slug
-                ? collections[0].slug
+              {getCollectionSlug(
+                collections[0]
+              )
+                ? getCollectionSlug(
+                    collections[0]
+                  )
                     .replace(/-/g, " ")
                     .toUpperCase()
                 : "FEATURED COLLECTION"}

@@ -65,29 +65,49 @@ function AdminProducts() {
             setLoading(true);
             setError("");
 
-            const response = await api.get(
-                "/products",
-                {
-                    params: {
-                        page: 1,
-                        limit: 100
+            const allProducts = [];
+            let page = 1;
+            let hasNextPage = true;
+
+            while (hasNextPage) {
+                const response = await api.get(
+                    "/products",
+                    {
+                        params: {
+                            page,
+                            limit: 100,
+                            _: Date.now()
+                        }
                     }
+                );
+
+                const data = response.data;
+                const products =
+                    data?.products ||
+                    data?.data?.products ||
+                    data?.data ||
+                    [];
+
+                if (!Array.isArray(products)) {
+                    throw new Error(
+                        "Invalid products response."
+                    );
                 }
-            );
 
-            const data = response.data;
+                allProducts.push(...products);
 
-            const products =
-                data?.products ||
-                data?.data?.products ||
-                data?.data ||
-                [];
+                hasNextPage = Boolean(
+                    data?.pagination?.has_next_page
+                );
 
-            setProductList(
-                Array.isArray(products)
-                    ? products
-                    : []
-            );
+                if (!hasNextPage) {
+                    break;
+                }
+
+                page += 1;
+            }
+
+            setProductList(allProducts);
         } catch (err) {
             console.error(
                 "Failed to load products:",
@@ -584,15 +604,23 @@ function AdminProducts() {
             checked
         } = event.target;
 
-        setCouponForm(
-            (current) => ({
+        setCouponForm((current) => {
+            if (name === "scope_type") {
+                return {
+                    ...current,
+                    scope_type: value,
+                    scope_id: ""
+                };
+            }
+
+            return {
                 ...current,
                 [name]:
                     type === "checkbox"
                         ? checked
                         : value
-            })
-        );
+            };
+        });
     };
 
     const generateCouponCode =
@@ -733,7 +761,11 @@ function AdminProducts() {
                     !couponForm.scope_id
                 ) {
                     throw new Error(
-                        "Select a category or collection."
+                        couponForm.scope_type === "category"
+                            ? "Select a category."
+                            : couponForm.scope_type === "collection"
+                            ? "Select a collection."
+                            : "Select a product."
                     );
                 }
 
@@ -1511,8 +1543,29 @@ function AdminProducts() {
                                                 : coupon.scope_type ===
                                                   "category"
                                                 ? "CATEGORY"
-                                                : "COLLECTION"}
+                                                : coupon.scope_type ===
+                                                  "collection"
+                                                ? "COLLECTION"
+                                                : "PRODUCT"}
                                         </span>
+
+                                        {coupon.scope_type === "product" && (
+                                            <span
+                                                style={{
+                                                    display: "block",
+                                                    marginTop: "5px",
+                                                    color: "#555",
+                                                    fontSize: "10px",
+                                                    lineHeight: 1.4
+                                                }}
+                                            >
+                                                {productList.find(
+                                                    (product) =>
+                                                        Number(product.id) ===
+                                                        Number(coupon.scope_id)
+                                                )?.name || `Product #${coupon.scope_id}`}
+                                            </span>
+                                        )}
                                     </div>
 
                                     <div>
@@ -2437,6 +2490,9 @@ function AdminProducts() {
                                         <option value="collection">
                                             One collection
                                         </option>
+                                        <option value="product">
+                                            Specific product
+                                        </option>
                                     </select>
                                 </CouponField>
 
@@ -2447,7 +2503,15 @@ function AdminProducts() {
                                             couponForm.scope_type ===
                                             "category"
                                                 ? "SELECT CATEGORY"
-                                                : "SELECT COLLECTION"
+                                                : couponForm.scope_type ===
+                                                  "collection"
+                                                ? "SELECT COLLECTION"
+                                                : "SELECT PRODUCT"
+                                        }
+                                        hint={
+                                            couponForm.scope_type === "product"
+                                                ? "The product list is loaded from your product database. New products appear automatically after refresh."
+                                                : undefined
                                         }
                                     >
                                         <select
@@ -2470,7 +2534,10 @@ function AdminProducts() {
                                             {(couponForm.scope_type ===
                                             "category"
                                                 ? categoriesData
-                                                : collectionsData
+                                                : couponForm.scope_type ===
+                                                  "collection"
+                                                ? collectionsData
+                                                : productList
                                             ).map(
                                                 (
                                                     item
