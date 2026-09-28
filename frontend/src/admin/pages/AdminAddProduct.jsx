@@ -9,16 +9,20 @@ import {
 
 import api from "../../services/api.js";
 
+const PRODUCT_TYPES = [
+  "T-Shirts",
+  "Hoodies",
+  "Thermals",
+  "Bottomwear",
+];
+
 function AdminAddProduct() {
   const navigate = useNavigate();
-
-  // ==========================================
-  // FORM STATE
-  // ==========================================
 
   const [formData, setFormData] = useState({
     name: "",
     category: "",
+    productType: "",
     collection: "",
     price: "",
     oldPrice: "",
@@ -29,23 +33,27 @@ function AdminAddProduct() {
   const [images, setImages] = useState([]);
   const [selectedSizes, setSelectedSizes] = useState([]);
 
-  // ==========================================
-  // DATABASE OPTIONS
-  // ==========================================
-
   const [categories, setCategories] = useState([]);
   const [collections, setCollections] = useState([]);
   const [sizes, setSizes] = useState([]);
 
-  const [loadingOptions, setLoadingOptions] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
+  const [loadingOptions, setLoadingOptions] =
+    useState(true);
 
-  const availableSizes = ["XS", "S", "M", "L", "XL", "XXL"];
+  const [saving, setSaving] =
+    useState(false);
 
-  // ==========================================
-  // LOAD CATEGORIES, COLLECTIONS AND SIZES
-  // ==========================================
+  const [error, setError] =
+    useState("");
+
+  const availableSizes = [
+    "XS",
+    "S",
+    "M",
+    "L",
+    "XL",
+    "XXL",
+  ];
 
   useEffect(() => {
     const loadOptions = async () => {
@@ -63,9 +71,14 @@ function AdminAddProduct() {
           api.get("/sizes"),
         ]);
 
-        const categoryData = categoriesResponse.data;
-        const collectionData = collectionsResponse.data;
-        const sizeData = sizesResponse.data;
+        const categoryData =
+          categoriesResponse?.data;
+
+        const collectionData =
+          collectionsResponse?.data;
+
+        const sizeData =
+          sizesResponse?.data;
 
         const loadedCategories =
           categoryData?.categories ||
@@ -86,30 +99,37 @@ function AdminAddProduct() {
           [];
 
         setCategories(
-          Array.isArray(loadedCategories)
+          Array.isArray(
+            loadedCategories
+          )
             ? loadedCategories
             : []
         );
 
         setCollections(
-          Array.isArray(loadedCollections)
+          Array.isArray(
+            loadedCollections
+          )
             ? loadedCollections
             : []
         );
 
         setSizes(
-          Array.isArray(loadedSizes)
+          Array.isArray(
+            loadedSizes
+          )
             ? loadedSizes
             : []
         );
-      } catch (err) {
+      } catch (requestError) {
         console.error(
           "Failed to load product options:",
-          err
+          requestError
         );
 
         setError(
-          err?.response?.data?.message ||
+          requestError?.response?.data
+            ?.message ||
             "Failed to load categories, collections and sizes."
         );
       } finally {
@@ -120,12 +140,11 @@ function AdminAddProduct() {
     loadOptions();
   }, []);
 
-  // ==========================================
-  // FORM CHANGE
-  // ==========================================
-
   const handleChange = (event) => {
-    const { name, value } = event.target;
+    const {
+      name,
+      value,
+    } = event.target;
 
     setFormData((current) => ({
       ...current,
@@ -133,53 +152,62 @@ function AdminAddProduct() {
     }));
   };
 
-  // ==========================================
-  // SIZE SELECTION
-  // ==========================================
-
   const toggleSize = (size) => {
-    setSelectedSizes((current) => {
-      if (current.includes(size)) {
-        return current.filter(
-          (item) => item !== size
-        );
-      }
+    setSelectedSizes(
+      (current) => {
+        if (
+          current.includes(size)
+        ) {
+          return current.filter(
+            (item) =>
+              item !== size
+          );
+        }
 
-      return [...current, size];
-    });
+        return [
+          ...current,
+          size,
+        ];
+      }
+    );
   };
 
-  // ==========================================
-  // IMAGE SELECTION
-  // ==========================================
-
-  const handleImageChange = (event) => {
+  const handleImageChange = (
+    event
+  ) => {
     const files = Array.from(
       event.target.files || []
     );
 
-    const newImages = files.map((file) => ({
-      file,
-      preview: URL.createObjectURL(file),
-    }));
+    const newImages =
+      files.map((file) => ({
+        file,
+        preview:
+          URL.createObjectURL(
+            file
+          ),
+      }));
 
-    setImages((current) => [
-      ...current,
-      ...newImages,
-    ]);
+    setImages(
+      (current) => [
+        ...current,
+        ...newImages,
+      ]
+    );
 
     event.target.value = "";
   };
 
-  // ==========================================
-  // REMOVE IMAGE
-  // ==========================================
-
-  const removeImage = (index) => {
+  const removeImage = (
+    index
+  ) => {
     setImages((current) => {
-      const imageToRemove = current[index];
+      const imageToRemove =
+        current[index];
 
-      if (imageToRemove?.preview) {
+      if (
+        imageToRemove?.preview
+      ) {
         URL.revokeObjectURL(
           imageToRemove.preview
         );
@@ -192,85 +220,142 @@ function AdminAddProduct() {
     });
   };
 
-  // ==========================================
-  // CREATE SLUG
-  // ==========================================
-
-  const createSlug = (name) => {
+  const createSlug = (
+    name
+  ) => {
     return name
       .trim()
       .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "");
+      .replace(
+        /[^a-z0-9]+/g,
+        "-"
+      )
+      .replace(
+        /^-+|-+$/g,
+        "");
   };
 
-  // ==========================================
-  // FIND DATABASE OPTION
-  // ==========================================
-
-  const findOption = (items, value) => {
+  const findOption = (
+    items,
+    value
+  ) => {
     return items.find(
       (item) =>
-        String(item.id) === String(value) ||
-        item.name === value
+        String(item?.id) ===
+          String(value) ||
+        String(
+          item?.name || ""
+        ).trim() ===
+          String(
+            value || ""
+          ).trim()
     );
   };
 
-  // ==========================================
-  // CREATE SKU
-  // ==========================================
+  const createSku = (
+    productName,
+    size
+  ) => {
+    const base =
+      productName
+        .trim()
+        .toUpperCase()
+        .replace(
+          /[^A-Z0-9]+/g,
+          "-"
+        )
+        .replace(
+          /^-+|-+$/g,
+          "");
 
-  const createSku = (productName, size) => {
-    const base = productName
-      .trim()
-      .toUpperCase()
-      .replace(/[^A-Z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "");
+    const sizePart =
+      String(size || "SIZE")
+        .toUpperCase()
+        .replace(
+          /[^A-Z0-9]+/g,
+          "");
 
-    return `${base}-${size}-${Date.now()}`;
+    return `${base}-${sizePart}-${Date.now()}`;
   };
 
-  // ==========================================
-  // SUBMIT PRODUCT
-  // ==========================================
-
-  const handleSubmit = async (event) => {
+  const handleSubmit = async (
+    event
+  ) => {
     event.preventDefault();
 
-    if (saving) return;
+    if (saving) {
+      return;
+    }
 
     setError("");
 
-    // ------------------------------------------
-    // VALIDATION
-    // ------------------------------------------
-
-    if (!formData.name.trim()) {
-      setError("Product name is required.");
+    if (
+      !formData.name.trim()
+    ) {
+      setError(
+        "Product name is required."
+      );
       return;
     }
 
-    if (!formData.category) {
-      setError("Please select a category.");
+    if (
+      !formData.category
+    ) {
+      setError(
+        "Please select a category."
+      );
       return;
     }
 
-    if (!formData.price) {
-      setError("Sale price is required.");
+    if (
+      !formData.productType
+    ) {
+      setError(
+        "Please select a clothing type."
+      );
       return;
     }
 
-    if (!formData.oldPrice) {
-      setError("Original price is required.");
+    if (
+      !formData.price
+    ) {
+      setError(
+        "Sale price is required."
+      );
       return;
     }
 
-    if (!formData.stock) {
-      setError("Stock quantity is required.");
+    if (
+      !formData.oldPrice
+    ) {
+      setError(
+        "Original price is required."
+      );
       return;
     }
 
-    if (selectedSizes.length === 0) {
+    if (
+      !formData.stock
+    ) {
+      setError(
+        "Stock quantity is required."
+      );
+      return;
+    }
+
+    if (
+      Number(formData.stock) <= 0
+    ) {
+      setError(
+        "Stock quantity must be greater than 0."
+      );
+      return;
+    }
+
+    if (
+      selectedSizes.length ===
+      0
+    ) {
       setError(
         "Please select at least one size."
       );
@@ -280,14 +365,11 @@ function AdminAddProduct() {
     try {
       setSaving(true);
 
-      // ------------------------------------------
-      // FIND CATEGORY
-      // ------------------------------------------
-
-      const category = findOption(
-        categories,
-        formData.category
-      );
+      const category =
+        findOption(
+          categories,
+          formData.category
+        );
 
       if (!category) {
         throw new Error(
@@ -295,17 +377,16 @@ function AdminAddProduct() {
         );
       }
 
-      // ------------------------------------------
-      // FIND COLLECTION
-      // ------------------------------------------
-
       let collection = null;
 
-      if (formData.collection) {
-        collection = findOption(
-          collections,
-          formData.collection
-        );
+      if (
+        formData.collection
+      ) {
+        collection =
+          findOption(
+            collections,
+            formData.collection
+          );
 
         if (!collection) {
           throw new Error(
@@ -314,33 +395,77 @@ function AdminAddProduct() {
         }
       }
 
-      // ------------------------------------------
-      // CREATE PRODUCT
-      // ------------------------------------------
+      const basePrice =
+        Number(
+          formData.oldPrice
+        );
+
+      const salePrice =
+        Number(
+          formData.price
+        );
+
+      if (
+        !Number.isFinite(
+          basePrice
+        ) ||
+        basePrice < 0
+      ) {
+        throw new Error(
+          "Invalid original price."
+        );
+      }
+
+      if (
+        !Number.isFinite(
+          salePrice
+        ) ||
+        salePrice < 0
+      ) {
+        throw new Error(
+          "Invalid sale price."
+        );
+      }
+
+      if (
+        salePrice >
+        basePrice
+      ) {
+        throw new Error(
+          "Sale price cannot be greater than original price."
+        );
+      }
 
       const productPayload = {
-        name: formData.name.trim(),
+        name:
+          formData.name.trim(),
 
         slug: createSlug(
           formData.name
         ),
 
-        category_id: Number(category.id),
+        category_id:
+          Number(category.id),
 
-        collection_id: collection
-          ? Number(collection.id)
-          : null,
+        product_type:
+          formData.productType,
+
+        collection_id:
+          collection
+            ? Number(
+                collection.id
+              )
+            : null,
 
         description:
-          formData.description.trim() || null,
+          formData.description.trim() ||
+          null,
 
-        base_price: Number(
-          formData.oldPrice
-        ),
+        base_price:
+          basePrice,
 
-        sale_price: Number(
-          formData.price
-        ),
+        sale_price:
+          salePrice,
 
         currency: "INR",
 
@@ -356,12 +481,13 @@ function AdminAddProduct() {
         );
 
       const productData =
-        productResponse.data;
+        productResponse?.data;
 
       const createdProduct =
         productData?.product ||
         productData?.data?.product ||
-        productData?.data;
+        productData?.data ||
+        null;
 
       const productId =
         createdProduct?.id ||
@@ -374,38 +500,40 @@ function AdminAddProduct() {
         );
       }
 
-      // ------------------------------------------
-      // CREATE VARIANTS
-      // ------------------------------------------
+      const totalStock =
+        Number(
+          formData.stock
+        );
 
-      const totalStock = Number(
-        formData.stock
-      );
-
-      const stockPerSize = Math.floor(
-        totalStock /
-          selectedSizes.length
-      );
+      const stockPerSize =
+        Math.floor(
+          totalStock /
+            selectedSizes.length
+        );
 
       let remainingStock =
         totalStock;
 
       for (
         let index = 0;
-        index < selectedSizes.length;
+        index <
+        selectedSizes.length;
         index++
       ) {
         const sizeName =
           selectedSizes[index];
 
-        // Find real size from database
         const sizeRecord =
           sizes.find(
             (item) =>
-              String(item.name)
+              String(
+                item?.name || ""
+              )
                 .trim()
                 .toUpperCase() ===
-              String(sizeName)
+              String(
+                sizeName
+              )
                 .trim()
                 .toUpperCase()
           );
@@ -422,43 +550,51 @@ function AdminAddProduct() {
             ? remainingStock
             : stockPerSize;
 
-        remainingStock -= stock;
+        remainingStock -=
+          stock;
 
         await api.post(
-          `/products/${productId}/variants`,
+          `/products/${encodeURIComponent(
+            productId
+          )}/variants`,
           {
             sku: createSku(
               formData.name,
               sizeName
             ),
 
-            size_id: Number(
-              sizeRecord.id
-            ),
+            size_id:
+              Number(
+                sizeRecord.id
+              ),
 
-            color_id: null,
+            color_id:
+              null,
 
-            price: Number(
-              formData.price
-            ),
+            price:
+              salePrice,
 
-            stock_quantity: stock,
+            stock_quantity:
+              stock,
 
             active: true,
           }
         );
       }
 
-      // ------------------------------------------
-      // UPLOAD PRODUCT IMAGES
-      // ------------------------------------------
-
       for (
         let index = 0;
         index < images.length;
         index++
       ) {
-        const image = images[index];
+        const image =
+          images[index];
+
+        if (
+          !image?.file
+        ) {
+          continue;
+        }
 
         const imageFormData =
           new FormData();
@@ -469,7 +605,9 @@ function AdminAddProduct() {
         );
 
         await api.post(
-          `/products/${productId}/images`,
+          `/products/${encodeURIComponent(
+            productId
+          )}/images`,
           imageFormData,
           {
             headers: {
@@ -480,37 +618,35 @@ function AdminAddProduct() {
         );
       }
 
-      // ------------------------------------------
-      // CLEAN PREVIEWS
-      // ------------------------------------------
-
-      images.forEach((image) => {
-        if (image.preview) {
-          URL.revokeObjectURL(
-            image.preview
-          );
+      images.forEach(
+        (image) => {
+          if (
+            image?.preview
+          ) {
+            URL.revokeObjectURL(
+              image.preview
+            );
+          }
         }
-      });
-
-      // ------------------------------------------
-      // SUCCESS
-      // ------------------------------------------
+      );
 
       alert(
         "Product created successfully."
       );
 
-      navigate("/admin/products");
-
-    } catch (err) {
+      navigate(
+        "/admin/products"
+      );
+    } catch (requestError) {
       console.error(
         "CREATE PRODUCT ERROR:",
-        err
+        requestError
       );
 
       setError(
-        err?.response?.data?.message ||
-          err?.message ||
+        requestError?.response
+          ?.data?.message ||
+          requestError?.message ||
           "Failed to create product."
       );
     } finally {
@@ -518,19 +654,10 @@ function AdminAddProduct() {
     }
   };
 
-  // ==========================================
-  // RENDER
-  // ==========================================
-
   return (
     <section className="admin-add-product-page">
-
-      {/* HEADER */}
-
       <div className="admin-add-product-header">
-
         <div>
-
           <Link
             to="/admin/products"
             className="admin-back-link"
@@ -543,26 +670,27 @@ function AdminAddProduct() {
             CATALOGUE
           </p>
 
-          <h1>Add Product</h1>
+          <h1>
+            Add Product
+          </h1>
 
           <p>
             Create a new product for your store.
           </p>
-
         </div>
-
       </div>
-
-      {/* ERROR */}
 
       {error && (
         <div
           style={{
-            marginBottom: "20px",
-            padding: "14px 16px",
+            marginBottom:
+              "20px",
+            padding:
+              "14px 16px",
             border:
               "1px solid #e5caca",
-            background: "#fff7f7",
+            background:
+              "#fff7f7",
             color: "#a33",
           }}
         >
@@ -574,17 +702,9 @@ function AdminAddProduct() {
         className="admin-product-form"
         onSubmit={handleSubmit}
       >
-
-        {/* LEFT COLUMN */}
-
         <div className="admin-product-form-main">
-
-          {/* PRODUCT INFORMATION */}
-
           <div className="admin-form-panel">
-
             <div className="admin-form-panel-header">
-
               <h2>
                 Product Information
               </h2>
@@ -592,15 +712,10 @@ function AdminAddProduct() {
               <p>
                 Basic information about the product.
               </p>
-
             </div>
 
             <div className="admin-form-body">
-
-              {/* NAME */}
-
               <div className="admin-form-group">
-
                 <label htmlFor="name">
                   Product Name
                 </label>
@@ -609,20 +724,19 @@ function AdminAddProduct() {
                   id="name"
                   name="name"
                   type="text"
-                  placeholder="e.g. Karma"
-                  value={formData.name}
-                  onChange={handleChange}
+                  placeholder='e.g. UNTKN "History Remembers" Oversized T-Shirt'
+                  value={
+                    formData.name
+                  }
+                  onChange={
+                    handleChange
+                  }
                   required
                 />
-
               </div>
 
               <div className="admin-form-grid">
-
-                {/* CATEGORY */}
-
                 <div className="admin-form-group">
-
                   <label htmlFor="category">
                     Category
                   </label>
@@ -641,7 +755,6 @@ function AdminAddProduct() {
                       loadingOptions
                     }
                   >
-
                     <option value="">
                       {loadingOptions
                         ? "Loading categories..."
@@ -654,19 +767,49 @@ function AdminAddProduct() {
                           key={item.id}
                           value={item.id}
                         >
-                          {item.name}
+                          {
+                            item.name
+                          }
                         </option>
                       )
                     )}
-
                   </select>
-
                 </div>
 
-                {/* COLLECTION */}
+                <div className="admin-form-group">
+                  <label htmlFor="productType">
+                    Clothing Type
+                  </label>
+
+                  <select
+                    id="productType"
+                    name="productType"
+                    value={
+                      formData.productType
+                    }
+                    onChange={
+                      handleChange
+                    }
+                    required
+                  >
+                    <option value="">
+                      Select clothing type
+                    </option>
+
+                    {PRODUCT_TYPES.map(
+                      (type) => (
+                        <option
+                          key={type}
+                          value={type}
+                        >
+                          {type}
+                        </option>
+                      )
+                    )}
+                  </select>
+                </div>
 
                 <div className="admin-form-group">
-
                   <label htmlFor="collection">
                     Collection
                   </label>
@@ -684,7 +827,6 @@ function AdminAddProduct() {
                       loadingOptions
                     }
                   >
-
                     <option value="">
                       {loadingOptions
                         ? "Loading collections..."
@@ -697,21 +839,17 @@ function AdminAddProduct() {
                           key={item.id}
                           value={item.id}
                         >
-                          {item.name}
+                          {
+                            item.name
+                          }
                         </option>
                       )
                     )}
-
                   </select>
-
                 </div>
-
               </div>
 
-              {/* DESCRIPTION */}
-
               <div className="admin-form-group">
-
                 <label htmlFor="description">
                   Description
                 </label>
@@ -728,19 +866,12 @@ function AdminAddProduct() {
                     handleChange
                   }
                 />
-
               </div>
-
             </div>
-
           </div>
 
-          {/* PRICING & INVENTORY */}
-
           <div className="admin-form-panel">
-
             <div className="admin-form-panel-header">
-
               <h2>
                 Pricing & Inventory
               </h2>
@@ -748,30 +879,26 @@ function AdminAddProduct() {
               <p>
                 Set the price and available inventory.
               </p>
-
             </div>
 
             <div className="admin-form-body">
-
               <div className="admin-form-grid">
-
-                {/* ORIGINAL PRICE */}
-
                 <div className="admin-form-group">
-
                   <label htmlFor="oldPrice">
                     Original Price
                   </label>
 
                   <div className="admin-input-prefix">
-
-                    <span>₹</span>
+                    <span>
+                      ₹
+                    </span>
 
                     <input
                       id="oldPrice"
                       name="oldPrice"
                       type="number"
                       min="0"
+                      step="0.01"
                       placeholder="799"
                       value={
                         formData.oldPrice
@@ -781,28 +908,25 @@ function AdminAddProduct() {
                       }
                       required
                     />
-
                   </div>
-
                 </div>
 
-                {/* SALE PRICE */}
-
                 <div className="admin-form-group">
-
                   <label htmlFor="price">
                     Sale Price
                   </label>
 
                   <div className="admin-input-prefix">
-
-                    <span>₹</span>
+                    <span>
+                      ₹
+                    </span>
 
                     <input
                       id="price"
                       name="price"
                       type="number"
                       min="0"
+                      step="0.01"
                       placeholder="549"
                       value={
                         formData.price
@@ -812,17 +936,11 @@ function AdminAddProduct() {
                       }
                       required
                     />
-
                   </div>
-
                 </div>
-
               </div>
 
-              {/* STOCK */}
-
               <div className="admin-form-group">
-
                 <label htmlFor="stock">
                   Total Stock
                 </label>
@@ -832,6 +950,7 @@ function AdminAddProduct() {
                   name="stock"
                   type="number"
                   min="1"
+                  step="1"
                   placeholder="50"
                   value={
                     formData.stock
@@ -841,19 +960,14 @@ function AdminAddProduct() {
                   }
                   required
                 />
-
               </div>
 
-              {/* SIZES */}
-
               <div className="admin-form-group">
-
                 <label>
                   Available Sizes
                 </label>
 
                 <div className="admin-size-selector">
-
                   {availableSizes.map(
                     (size) => (
                       <button
@@ -876,27 +990,15 @@ function AdminAddProduct() {
                       </button>
                     )
                   )}
-
                 </div>
-
               </div>
-
             </div>
-
           </div>
-
         </div>
 
-        {/* RIGHT COLUMN */}
-
         <div className="admin-product-form-side">
-
-          {/* IMAGES */}
-
           <div className="admin-form-panel">
-
             <div className="admin-form-panel-header">
-
               <h2>
                 Product Images
               </h2>
@@ -904,13 +1006,10 @@ function AdminAddProduct() {
               <p>
                 Upload product images.
               </p>
-
             </div>
 
             <div className="admin-form-body">
-
               <label className="admin-image-upload">
-
                 <Upload
                   size={25}
                   strokeWidth={1.4}
@@ -932,25 +1031,27 @@ function AdminAddProduct() {
                     handleImageChange
                   }
                 />
-
               </label>
 
-              {images.length > 0 && (
+              {images.length >
+                0 && (
                 <div className="admin-image-preview-grid">
-
                   {images.map(
-                    (image, index) => (
+                    (
+                      image,
+                      index
+                    ) => (
                       <div
                         className="admin-image-preview"
                         key={`${image.preview}-${index}`}
                       >
-
                         <img
                           src={
                             image.preview
                           }
                           alt={`Product preview ${
-                            index + 1
+                            index +
+                            1
                           }`}
                         />
 
@@ -963,26 +1064,20 @@ function AdminAddProduct() {
                           }
                           aria-label="Remove image"
                         >
-                          <X size={14} />
+                          <X
+                            size={14}
+                          />
                         </button>
-
                       </div>
                     )
                   )}
-
                 </div>
               )}
-
             </div>
-
           </div>
 
-          {/* PUBLISH */}
-
           <div className="admin-form-panel admin-publish-panel">
-
             <div className="admin-form-panel-header">
-
               <h2>
                 Publish Product
               </h2>
@@ -990,11 +1085,9 @@ function AdminAddProduct() {
               <p>
                 Save this product to your catalogue.
               </p>
-
             </div>
 
             <div className="admin-form-body">
-
               <button
                 type="submit"
                 className="admin-save-product-button"
@@ -1016,15 +1109,10 @@ function AdminAddProduct() {
               >
                 Cancel
               </Link>
-
             </div>
-
           </div>
-
         </div>
-
       </form>
-
     </section>
   );
 }
