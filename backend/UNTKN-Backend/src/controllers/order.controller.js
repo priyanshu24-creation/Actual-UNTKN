@@ -1110,19 +1110,29 @@ export const cancelOrder = async (
     req,
     res
 ) => {
+    let connection = null;
+    let transactionStarted = false;
+
     try {
         const userId =
-            req.user.id;
+            Number(req.user?.id);
 
         const orderId =
-            Number(
-                req.params.id
-            );
+            Number(req.params.id);
 
         if (
-            !Number.isInteger(
-                orderId
-            ) ||
+            !Number.isInteger(userId) ||
+            userId <= 0
+        ) {
+            return res.status(401).json({
+                success: false,
+                message:
+                    "Authentication required"
+            });
+        }
+
+        if (
+            !Number.isInteger(orderId) ||
             orderId <= 0
         ) {
             return res.status(400).json({
@@ -1132,32 +1142,45 @@ export const cancelOrder = async (
             });
         }
 
-        const [
-            orders
-        ] = await pool.execute(
-            `
-            SELECT
-                id,
-                order_status,
-                payment_status
+        connection =
+            await pool.getConnection();
 
-            FROM orders
+        await connection.beginTransaction();
+        transactionStarted = true;
 
-            WHERE id = ?
+        const [orders] =
+            await connection.execute(
+                `
+                SELECT
+                    id,
+                    user_id,
+                    order_number,
+                    order_status,
+                    payment_status,
+                    total_amount,
+                    currency
 
-            AND user_id = ?
+                FROM orders
 
-            LIMIT 1
-            `,
-            [
-                orderId,
-                userId
-            ]
-        );
+                WHERE id = ?
+                  AND user_id = ?
+
+                LIMIT 1
+
+                FOR UPDATE
+                `,
+                [
+                    orderId,
+                    userId
+                ]
+            );
 
         if (
             orders.length === 0
         ) {
+            await connection.rollback();
+            transactionStarted = false;
+
             return res.status(404).json({
                 success: false,
                 message:
@@ -1193,6 +1216,9 @@ export const cancelOrder = async (
                 currentOrderStatus
             )
         ) {
+            await connection.rollback();
+            transactionStarted = false;
+
             return res.status(400).json({
                 success: false,
                 message:
@@ -1208,107 +1234,198 @@ export const cancelOrder = async (
 
         let refundProcessed = false;
         let refundId = null;
+        let refundAmount = 0;
 
         if (
             currentPaymentStatus === "paid"
         ) {
-            const [
-                payments
-            ] = await pool.execute(
-                `
-                SELECT
-                    id,
-                    razorpay_payment_id,
-                    amount,
-                    status
-                FROM payments
-                WHERE order_id = ?
-                AND status = 'paid'
-                AND razorpay_payment_id IS NOT NULL
-                ORDER BY id DESC
-                LIMIT 1
-                `,
-                [orderId]
-            );
+            const [payments] =
+                await connection.execute(
+                    `
+                    SELECT
+                        id,
+                        order_id,
+                        razorpay_order_id,
+                        razorpay_payment_id,
+                        amount,
+                        currency,
+                        status
 
-            if (payments.length === 0) {
+                    FROM payments
+
+                    WHERE order_id = ?
+                      AND razorpay_payment_id IS NOT NULL
+                      AND status IN ('paid', 'refunded')
+
+                    ORDER BY id DESC
+
+                    LIMIT 1
+
+                    FOR UPDATE
+                    `,
+                    [orderId]
+                );
+
+            if (
+                payments.length === 0
+            ) {
+                await connection.rollback();
+                transactionStarted = false;
+
                 return res.status(400).json({
                     success: false,
                     message:
-                        "Payment details were not found. Please contact support before cancelling this paid order."
+                        "Payment details were not found. The order was not cancelled."
                 });
             }
 
             const payment =
                 payments[0];
 
-            try {
-                const refund =
-                    await razorpay.payments.refund(
-                        payment.razorpay_payment_id,
-                        {
-                            amount: Math.round(
-                                Number(
-                                    payment.amount || 0
-                                ) * 100
-                            )
-                        }
-                    );
-
-                refundId =
-                    refund?.id || null;
-
-                await pool.execute(
-                    `
-                    UPDATE payments
-                    SET
-                        status = 'refunded'
-                    WHERE id = ?
-                    `,
-                    [payment.id]
+            refundAmount =
+                Math.round(
+                    Number(
+                        payment.amount ||
+                        order.total_amount ||
+                        0
+                    ) * 100
                 );
 
-                refundProcessed = true;
-
-            } catch (refundError) {
-                console.error(
-                    `Razorpay refund failed for order ${orderId}:`,
-                    refundError
-                );
+            if (
+                !Number.isInteger(
+                    refundAmount
+                ) ||
+                refundAmount <= 0
+            ) {
+                await connection.rollback();
+                transactionStarted = false;
 
                 return res.status(400).json({
                     success: false,
                     message:
-                        refundError?.error?.description ||
-                        refundError?.error?.reason ||
-                        "Payment refund failed. The order was not cancelled."
+                        "Invalid payment amount. The order was not cancelled."
                 });
+            }
+
+            if (
+                String(
+                    payment.status || ""
+                )
+                    .trim()
+                    .toLowerCase() ===
+                "refunded"
+            ) {
+                refundProcessed = true;
+            } else {
+                try {
+                    const refund =
+                        await razorpay.payments.refund(
+                            payment.razorpay_payment_id,
+                            {
+                                amount:
+                                    refundAmount,
+
+                                notes: {
+                                    reason:
+                                        "Customer order cancellation",
+
+                                    order_id:
+                                        String(
+                                            orderId
+                                        ),
+
+                                    order_number:
+                                        String(
+                                            order.order_number ||
+                                            orderId
+                                        )
+                                }
+                            }
+                        );
+
+                    refundId =
+                        refund?.id ||
+                        null;
+
+                    if (
+                        !refundId
+                    ) {
+                        throw new Error(
+                            "Razorpay did not return a refund ID"
+                        );
+                    }
+
+                    await connection.execute(
+                        `
+                        UPDATE payments
+                        SET
+                            status = 'refunded',
+                            updated_at =
+                                CURRENT_TIMESTAMP
+
+                        WHERE id = ?
+                        `,
+                        [payment.id]
+                    );
+
+                    refundProcessed =
+                        true;
+
+                } catch (
+                    refundError
+                ) {
+                    console.error(
+                        `Razorpay refund failed for order ${orderId}:`,
+                        refundError
+                    );
+
+                    await connection.rollback();
+                    transactionStarted = false;
+
+                    return res.status(400).json({
+                        success: false,
+                        message:
+                            refundError?.error?.description ||
+                            refundError?.error?.reason ||
+                            refundError?.description ||
+                            refundError?.message ||
+                            "Payment refund failed. The order was not cancelled."
+                    });
+                }
             }
         }
 
         const nextPaymentStatus =
-            currentPaymentStatus === "paid" &&
-            refundProcessed
+            refundProcessed &&
+            currentPaymentStatus === "paid"
                 ? "refunded"
                 : currentPaymentStatus;
 
-        await pool.execute(
+        await connection.execute(
             `
             UPDATE orders
+
             SET
                 order_status = 'cancelled',
-                payment_status = ?
+                payment_status = ?,
+                updated_at =
+                    CURRENT_TIMESTAMP
+
             WHERE id = ?
-            AND user_id = ?
+              AND user_id = ?
             `,
             [
                 nextPaymentStatus,
                 orderId,
                 userId
             ]
-            );
+        );
+
+        await connection.commit();
+        transactionStarted = false;
 
         let emailSent = false;
+        let emailMessageId = null;
 
         try {
             const emailResult =
@@ -1322,16 +1439,13 @@ export const cancelOrder = async (
                     emailResult?.messageId
                 );
 
-            console.log(
-                `Cancellation email processing completed for order ${orderId}: ${emailSent}`
-            );
+            emailMessageId =
+                emailResult?.messageId ||
+                null;
 
         } catch (emailError) {
             console.error(
-                `Cancellation email failed for order ${orderId}`
-            );
-
-            console.error(
+                `Cancellation email failed for order ${orderId}:`,
                 emailError
             );
         }
@@ -1340,19 +1454,52 @@ export const cancelOrder = async (
             success: true,
 
             message:
-                "Order cancelled successfully",
+                refundProcessed
+                    ? "Order cancelled successfully. Your online payment refund has been initiated."
+                    : "Order cancelled successfully.",
 
-            email_sent:
-                emailSent,
+            payment_status:
+                nextPaymentStatus,
 
             refund_processed:
                 refundProcessed,
 
             refund_id:
-                refundId
+                refundId,
+
+            refund_amount:
+                refundProcessed
+                    ? Number(
+                        (
+                            refundAmount / 100
+                        ).toFixed(2)
+                    )
+                    : 0,
+
+            email_sent:
+                emailSent,
+
+            email_message_id:
+                emailMessageId
         });
 
     } catch (error) {
+        if (
+            connection &&
+            transactionStarted
+        ) {
+            try {
+                await connection.rollback();
+            } catch (
+                rollbackError
+            ) {
+                console.error(
+                    "Cancel order rollback error:",
+                    rollbackError
+                );
+            }
+        }
+
         console.error(
             "Cancel order error:",
             error
@@ -1363,6 +1510,13 @@ export const cancelOrder = async (
             message:
                 "Failed to cancel order"
         });
+
+    } finally {
+        if (
+            connection
+        ) {
+            connection.release();
+        }
     }
 };
 
