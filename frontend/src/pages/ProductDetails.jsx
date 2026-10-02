@@ -130,6 +130,8 @@ function ProductDetails() {
   const [addingToCart, setAddingToCart] = useState(false);
   const [bagNotification, setBagNotification] = useState(null);
   const [actionNotification, setActionNotification] = useState(null);
+  const [sizeGuideOpen, setSizeGuideOpen] =
+    useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -1516,6 +1518,13 @@ function ProductDetails() {
 
                 <button
                   type="button"
+                  onClick={() =>
+                    setSizeGuideOpen(true)
+                  }
+                  aria-haspopup="dialog"
+                  aria-expanded={
+                    sizeGuideOpen
+                  }
                 >
                   SIZE GUIDE
                 </button>
@@ -1804,6 +1813,137 @@ function ProductDetails() {
 
       </section>
 
+
+      {sizeGuideOpen && (
+        <div
+          className="size-guide-overlay"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (
+              event.target ===
+              event.currentTarget
+            ) {
+              setSizeGuideOpen(false);
+            }
+          }}
+        >
+          <div
+            className="size-guide-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="size-guide-title"
+          >
+            <div className="size-guide-header">
+              <div>
+                <p className="eyebrow">
+                  FIT GUIDE
+                </p>
+
+                <h2 id="size-guide-title">
+                  SIZE CHART
+                </h2>
+              </div>
+
+              <button
+                type="button"
+                className="size-guide-close"
+                onClick={() =>
+                  setSizeGuideOpen(false)
+                }
+                aria-label="Close size guide"
+              >
+                <X
+                  size={18}
+                  strokeWidth={1.7}
+                />
+              </button>
+            </div>
+
+            <p className="size-guide-note">
+              General body-measurement reference.
+              Fit can vary depending on the product,
+              fabric, and cut.
+            </p>
+
+            <div className="size-guide-table-wrap">
+              <table className="size-guide-table">
+                <thead>
+                  <tr>
+                    <th>SIZE</th>
+                    <th>CHEST (IN)</th>
+                    <th>CHEST (CM)</th>
+                    <th>WAIST (IN)</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  <tr>
+                    <td>XS</td>
+                    <td>34–36</td>
+                    <td>86–91</td>
+                    <td>28–30</td>
+                  </tr>
+
+                  <tr>
+                    <td>S</td>
+                    <td>36–38</td>
+                    <td>91–97</td>
+                    <td>30–32</td>
+                  </tr>
+
+                  <tr>
+                    <td>M</td>
+                    <td>38–40</td>
+                    <td>97–102</td>
+                    <td>32–34</td>
+                  </tr>
+
+                  <tr>
+                    <td>L</td>
+                    <td>40–42</td>
+                    <td>102–107</td>
+                    <td>34–36</td>
+                  </tr>
+
+                  <tr>
+                    <td>XL</td>
+                    <td>42–44</td>
+                    <td>107–112</td>
+                    <td>36–38</td>
+                  </tr>
+
+                  <tr>
+                    <td>XXL</td>
+                    <td>44–46</td>
+                    <td>112–117</td>
+                    <td>38–40</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div className="size-guide-measure">
+              <strong>
+                HOW TO MEASURE
+              </strong>
+
+              <p>
+                Measure around the fullest part
+                of your chest while keeping the
+                tape level and comfortable.
+                For waist, measure around your
+                natural waistline.
+              </p>
+            </div>
+
+            <p className="size-guide-footnote">
+              This chart is a general reference,
+              not a product-specific garment
+              measurement chart.
+            </p>
+          </div>
+        </div>
+      )}
 
       <ProductReviews
         productId={

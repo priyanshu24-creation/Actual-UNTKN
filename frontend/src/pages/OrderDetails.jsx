@@ -148,7 +148,7 @@ function OrderDetails() {
 
       setActionMessage(
         response.data?.refund_processed
-          ? "Order cancelled successfully. Your online payment refund has been initiated."
+          ? "Order cancelled successfully. Your refund has been initiated to your original payment method. It will appear in your account once your payment provider completes processing. No action is required from you."
           : "Order cancelled successfully."
       );
 

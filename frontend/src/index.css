@@ -19720,3 +19720,183 @@ main,
     flex-basis: 54px;
   }
 }
+
+/* =========================
+   SIZE GUIDE MODAL
+========================= */
+
+.size-guide-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 20px;
+
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.size-guide-modal {
+  width: min(680px, 100%);
+  max-height: 88vh;
+
+  overflow-y: auto;
+
+  background: #fff;
+
+  padding: 32px;
+}
+
+.size-guide-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+
+  gap: 20px;
+}
+
+.size-guide-header h2 {
+  margin-top: 10px;
+
+  font-size: clamp(32px, 6vw, 52px);
+  line-height: 0.95;
+
+  letter-spacing: -0.045em;
+}
+
+.size-guide-close {
+  width: 42px;
+  height: 42px;
+
+  display: grid;
+  place-items: center;
+
+  flex-shrink: 0;
+
+  border: 1px solid #ddd;
+  background: #fff;
+
+  cursor: pointer;
+}
+
+.size-guide-close:hover {
+  border-color: #111;
+}
+
+.size-guide-note {
+  margin-top: 18px;
+
+  font-size: 12px;
+  line-height: 1.7;
+
+  color: #666;
+}
+
+.size-guide-table-wrap {
+  margin-top: 24px;
+
+  overflow-x: auto;
+}
+
+.size-guide-table {
+  width: 100%;
+
+  border-collapse: collapse;
+
+  min-width: 520px;
+}
+
+.size-guide-table th,
+.size-guide-table td {
+  padding: 14px 12px;
+
+  border-bottom: 1px solid #e8e8e8;
+
+  text-align: left;
+
+  white-space: nowrap;
+}
+
+.size-guide-table th {
+  font-size: 9px;
+
+  font-weight: 600;
+
+  letter-spacing: 0.12em;
+
+  color: #777;
+}
+
+.size-guide-table td {
+  font-size: 12px;
+}
+
+.size-guide-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.size-guide-table td:first-child {
+  font-weight: 700;
+}
+
+.size-guide-measure {
+  margin-top: 24px;
+
+  padding: 20px;
+
+  background: #f7f7f5;
+}
+
+.size-guide-measure strong {
+  display: block;
+
+  font-size: 10px;
+
+  letter-spacing: 0.12em;
+}
+
+.size-guide-measure p {
+  margin-top: 10px;
+
+  font-size: 12px;
+
+  line-height: 1.7;
+
+  color: #666;
+}
+
+.size-guide-footnote {
+  margin-top: 18px;
+
+  font-size: 10px;
+
+  line-height: 1.6;
+
+  color: #888;
+}
+
+@media (max-width: 640px) {
+  .size-guide-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .size-guide-modal {
+    width: 100%;
+    max-height: 90vh;
+
+    padding: 24px 18px 28px;
+  }
+
+  .size-guide-header h2 {
+    font-size: 38px;
+  }
+
+  .size-guide-table th,
+  .size-guide-table td {
+    padding: 12px 10px;
+  }
+}

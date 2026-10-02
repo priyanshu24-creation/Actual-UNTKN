@@ -34,6 +34,7 @@ const formatDate = (value) => {
     }
 
     return date.toLocaleString("en-IN", {
+        timeZone: "Asia/Kolkata",
         day: "2-digit",
         month: "long",
         year: "numeric",
@@ -290,6 +291,85 @@ const buildItemsText = (items) => {
         .join("\n");
 };
 
+
+
+const getExpectedDeliveryRange = (value) => {
+    if (!value) {
+        return "";
+    }
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+        return "";
+    }
+
+    const parts = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Kolkata",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit"
+    }).formatToParts(date);
+
+    const year = Number(
+        parts.find(
+            (part) => part.type === "year"
+        )?.value
+    );
+
+    const month = Number(
+        parts.find(
+            (part) => part.type === "month"
+        )?.value
+    );
+
+    const day = Number(
+        parts.find(
+            (part) => part.type === "day"
+        )?.value
+    );
+
+    if (
+        !year ||
+        !month ||
+        !day
+    ) {
+        return "";
+    }
+
+    const startDate = new Date(
+        Date.UTC(
+            year,
+            month - 1,
+            day + 7
+        )
+    );
+
+    const endDate = new Date(
+        Date.UTC(
+            year,
+            month - 1,
+            day + 8
+        )
+    );
+
+    const formatDeliveryDate = (
+        deliveryDate
+    ) => {
+        return deliveryDate.toLocaleDateString(
+            "en-IN",
+            {
+                timeZone: "UTC",
+                day: "2-digit",
+                month: "long",
+                year: "numeric"
+            }
+        );
+    };
+
+    return `${formatDeliveryDate(startDate)} – ${formatDeliveryDate(endDate)}`;
+};
+
 const buildCustomerEmail = ({ order, items }) => {
     const customerName =
         order.shipping_name || "Customer";
@@ -297,7 +377,14 @@ const buildCustomerEmail = ({ order, items }) => {
     const orderNumber =
         order.order_number || `#${order.id}`;
 
-    const addressText =
+    
+
+
+    const expectedDelivery =
+        getExpectedDeliveryRange(
+            order.created_at
+        );
+const addressText =
         buildTextAddress(order);
 
     const addressHtml =
@@ -330,6 +417,10 @@ Your order has been confirmed successfully.
 
 Order Number: ${orderNumber}
 Order Date: ${formatDate(order.created_at)}
+Expected Delivery: ${expectedDelivery}
+
+Delivery Note:
+Most orders arrive within 7–8 days. Processing or transit may sometimes take a little longer, while some orders may arrive earlier than expected.
 Order Status: ${orderStatus}
 Payment Status: ${paymentStatus}
 
@@ -434,6 +525,47 @@ UNTKN
                 <strong>Payment Status:</strong>
                 ${escapeHtml(paymentStatus)}
             </p>
+
+            <div style="
+                margin:28px 0;
+                padding:24px;
+                background:#f7f7f7;
+                border-left:4px solid #111111;
+            ">
+
+                <p style="
+                    margin:0;
+                    font-size:10px;
+                    font-weight:700;
+                    letter-spacing:2px;
+                    color:#777777;
+                ">
+                    EXPECTED DELIVERY
+                </p>
+
+                <p style="
+                    margin:10px 0 0;
+                    font-size:20px;
+                    font-weight:700;
+                    color:#111111;
+                ">
+                    ${escapeHtml(expectedDelivery)}
+                </p>
+
+                <p style="
+                    margin:12px 0 0;
+                    font-size:13px;
+                    line-height:1.7;
+                    color:#666666;
+                ">
+                    Most orders arrive within 7–8 days.
+                    Processing or transit may sometimes take
+                    a little longer, while some orders may
+                    arrive earlier than expected.
+                </p>
+
+            </div>
+
 
         </div>
 
