@@ -30,6 +30,7 @@ function AdminEditProduct() {
     price: "",
     oldPrice: "",
     description: "",
+    noReturnPolicy: false,
   });
 
   // ==========================================
@@ -500,6 +501,13 @@ function AdminEditProduct() {
 
           description:
             normalizedProduct.description,
+
+          noReturnPolicy:
+            Boolean(
+              Number(
+                normalizedProduct.no_return_policy || 0
+              )
+            ),
         });
 
         setImages(normalizedImages);
@@ -1346,6 +1354,11 @@ function AdminEditProduct() {
 
         currency:
           product?.currency || "INR",
+
+        no_return_policy:
+          Boolean(
+            formData.noReturnPolicy
+          ),
       };
 
       const response = await api.put(
@@ -1474,6 +1487,11 @@ if (
 
               description:
                 formData.description,
+
+              no_return_policy:
+                formData.noReturnPolicy
+                  ? 1
+                  : 0,
             }
           : current
       );
@@ -1913,6 +1931,126 @@ if (
                 </small>
 
               </div>
+
+            </div>
+
+          </div>
+
+          {/* RETURN POLICY */}
+
+          <div className="admin-form-panel">
+
+            <div className="admin-form-panel-header">
+              <h2>
+                Return Policy
+              </h2>
+
+              <p>
+                Choose whether this product can be returned.
+              </p>
+            </div>
+
+            <div className="admin-form-body">
+
+              <label
+                htmlFor="noReturnPolicy"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "20px",
+                  padding: "18px 20px",
+                  border: "1px solid #e5e5e5",
+                  background: "#fafafa",
+                  cursor: "pointer",
+                }}
+              >
+
+                <span
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "6px",
+                  }}
+                >
+                  <strong
+                    style={{
+                      fontSize: "14px",
+                      fontWeight: 600,
+                    }}
+                  >
+                    No Return Policy
+                  </strong>
+
+                  <span
+                    style={{
+                      fontSize: "12px",
+                      color: "#777",
+                    }}
+                  >
+                    {formData.noReturnPolicy
+                      ? "Customers cannot return this product."
+                      : "Customers can return this product."}
+                  </span>
+                </span>
+
+                <span
+                  style={{
+                    position: "relative",
+                    width: "48px",
+                    height: "26px",
+                    flex: "0 0 auto",
+                    borderRadius: "999px",
+                    background: formData.noReturnPolicy
+                      ? "#111"
+                      : "#d6d6d6",
+                    transition: "background 0.2s ease",
+                  }}
+                >
+                  <input
+                    id="noReturnPolicy"
+                    name="noReturnPolicy"
+                    type="checkbox"
+                    checked={Boolean(
+                      formData.noReturnPolicy
+                    )}
+                    onChange={(event) =>
+                      setFormData((current) => ({
+                        ...current,
+                        noReturnPolicy:
+                          event.target.checked,
+                      }))
+                    }
+                    style={{
+                      position: "absolute",
+                      opacity: 0,
+                      width: "100%",
+                      height: "100%",
+                      margin: 0,
+                      cursor: "pointer",
+                      zIndex: 2,
+                    }}
+                  />
+
+                  <span
+                    style={{
+                      position: "absolute",
+                      top: "3px",
+                      left: formData.noReturnPolicy
+                        ? "25px"
+                        : "3px",
+                      width: "20px",
+                      height: "20px",
+                      borderRadius: "50%",
+                      background: "#fff",
+                      transition: "left 0.2s ease",
+                      boxShadow:
+                        "0 1px 3px rgba(0,0,0,0.18)",
+                    }}
+                  />
+                </span>
+
+              </label>
 
             </div>
 

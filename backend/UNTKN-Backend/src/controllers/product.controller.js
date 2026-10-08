@@ -1133,6 +1133,7 @@ export const updateProduct = async (
             currency,
             published,
             featured,
+            no_return_policy,
             seo_title,
             seo_description
         } = req.body;
@@ -1633,6 +1634,39 @@ export const updateProduct = async (
                 featured === true ||
                     featured ===
                         "true"
+            );
+        }
+
+        if (
+            no_return_policy !==
+                undefined
+        ) {
+            if (
+                no_return_policy !== true &&
+                no_return_policy !== false &&
+                no_return_policy !== 1 &&
+                no_return_policy !== 0 &&
+                no_return_policy !== "true" &&
+                no_return_policy !== "false" &&
+                no_return_policy !== "1" &&
+                no_return_policy !== "0"
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    message:
+                        "No return policy must be true or false"
+                });
+            }
+
+            fields.push(
+                "no_return_policy = ?"
+            );
+
+            values.push(
+                no_return_policy === true ||
+                no_return_policy === 1 ||
+                no_return_policy === "true" ||
+                no_return_policy === "1"
             );
         }
 

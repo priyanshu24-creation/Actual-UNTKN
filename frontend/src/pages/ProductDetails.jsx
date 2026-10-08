@@ -1782,12 +1782,23 @@ function ProductDetails() {
               <div>
 
                 <strong>
-                  EASY RETURNS
+                  {Boolean(
+                    Number(
+                      product?.no_return_policy || 0
+                    )
+                  )
+                    ? "NO RETURNS"
+                    : "EASY RETURNS"}
                 </strong>
 
                 <p>
-                  Simple return and
-                  exchange policy.
+                  {Boolean(
+                    Number(
+                      product?.no_return_policy || 0
+                    )
+                  )
+                    ? "This product is not eligible for return or exchange."
+                    : "Simple return and exchange policy."}
                 </p>
 
               </div>
@@ -1796,6 +1807,52 @@ function ProductDetails() {
 
           </div>
 
+          {Boolean(
+            Number(
+              product?.no_return_policy || 0
+            )
+          ) && (
+            <div
+              className="product-no-return-policy"
+              style={{
+                marginTop: "20px",
+                padding: "16px 18px",
+                border: "1px solid #d9d9d9",
+                background: "#fafafa",
+              }}
+            >
+              <p
+                className="eyebrow"
+                style={{
+                  marginBottom: "7px",
+                }}
+              >
+                RETURN POLICY
+              </p>
+
+              <strong
+                style={{
+                  display: "block",
+                  fontSize: "13px",
+                  letterSpacing: "0.06em",
+                }}
+              >
+                NO RETURN POLICY
+              </strong>
+
+              <p
+                style={{
+                  marginTop: "7px",
+                  marginBottom: 0,
+                  fontSize: "13px",
+                  lineHeight: 1.6,
+                  color: "#666",
+                }}
+              >
+                This product cannot be returned or exchanged.
+              </p>
+            </div>
+          )}
 
           <div className="product-description">
 
