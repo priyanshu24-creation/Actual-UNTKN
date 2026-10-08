@@ -32,6 +32,9 @@ import ContactButton from "./components/ContactButton";
 import ScrollToTop from "./components/ScrollToTop";
 import IntroAnimation from "./components/IntroAnimation";
 
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
+
 // =========================================================
 // ADMIN IMPORTS
 // =========================================================
@@ -150,6 +153,16 @@ function AppContent() {
             path="/login"
             element={<Login />}
           />
+
+          <Route
+    path="/forgot-password"
+    element={<ForgotPassword />}
+/>
+
+<Route
+    path="/reset-password"
+    element={<ResetPassword />}
+/>
 
           {/* REGISTER */}
           <Route

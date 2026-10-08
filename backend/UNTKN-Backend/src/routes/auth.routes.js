@@ -6,7 +6,9 @@ import {
     logout,
     getMe,
     updateProfile,
-    createAdmin
+    createAdmin,
+    forgotPassword,
+    resetPassword
 } from "../controllers/auth.controller.js";
 
 import {
@@ -15,39 +17,43 @@ import {
 
 const router = express.Router();
 
-// Register
 router.post(
     "/register",
     register
 );
 
-// Login
 router.post(
     "/login",
     login
 );
 
-// Logout
 router.post(
     "/logout",
     logout
 );
 
-// Get current logged-in user
 router.get(
     "/me",
     authenticate,
     getMe
 );
 
-// Update current user's profile
 router.patch(
     "/profile",
     authenticate,
     updateProfile
 );
 
-// Create admin account
+router.post(
+    "/forgot-password",
+    forgotPassword
+);
+
+router.post(
+    "/reset-password",
+    resetPassword
+);
+
 router.post(
     "/create-admin",
     createAdmin
