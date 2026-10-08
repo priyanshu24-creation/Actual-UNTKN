@@ -51,28 +51,27 @@ function ForgotPassword() {
     };
 
     return (
-        <div className="auth-page">
-            <div className="auth-container">
+        <div className="auth-page recovery-page">
+            <div className="auth-container recovery-container">
 
-                <div className="auth-header">
+                <div className="auth-header recovery-header">
                     <p className="eyebrow">
                         ACCOUNT RECOVERY
                     </p>
 
-                    <h1>
-                        FORGOT PASSWORD
+                    <h1 className="recovery-title">
+                        FORGOT PASSWORD?
                     </h1>
 
-                    <p>
-                        Enter the email address
-                        associated with your UNTKN
-                        account and we'll send you
-                        a password reset link.
+                    <p className="recovery-description">
+                        Enter the email address associated with
+                        your UNTKN account and we'll send you
+                        a secure password reset link.
                     </p>
                 </div>
 
                 <form
-                    className="auth-form"
+                    className="auth-form recovery-form"
                     onSubmit={handleSubmit}
                 >
                     {error && (
@@ -103,9 +102,7 @@ function ForgotPassword() {
                             type="email"
                             value={email}
                             onChange={(event) =>
-                                setEmail(
-                                    event.target.value
-                                )
+                                setEmail(event.target.value)
                             }
                             placeholder="ENTER YOUR EMAIL"
                             autoComplete="email"
@@ -116,7 +113,7 @@ function ForgotPassword() {
 
                     <button
                         type="submit"
-                        className="auth-submit"
+                        className="auth-submit recovery-submit"
                         disabled={loading}
                     >
                         {loading
@@ -125,7 +122,7 @@ function ForgotPassword() {
                     </button>
                 </form>
 
-                <div className="auth-switch">
+                <div className="auth-switch recovery-switch">
                     <p>
                         REMEMBERED YOUR PASSWORD?
                     </p>
