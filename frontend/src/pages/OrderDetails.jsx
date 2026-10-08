@@ -69,9 +69,7 @@ function OrderDetails() {
         return "CANCELLED";
 
       default:
-        return String(
-          status || "PENDING"
-        ).toUpperCase();
+        return String(status || "PENDING").toUpperCase();
     }
   };
 
@@ -92,7 +90,7 @@ function OrderDetails() {
   const canCancelOrder = [
     "pending",
     "confirmed",
-    "processing"
+    "processing",
   ].includes(
     String(order?.order_status || "")
       .trim()
@@ -143,7 +141,7 @@ function OrderDetails() {
         payment_status:
           response.data?.refund_processed
             ? "refunded"
-            : previous.payment_status
+            : previous.payment_status,
       }));
 
       setActionMessage(
@@ -151,7 +149,6 @@ function OrderDetails() {
           ? "Order cancelled successfully. Your refund has been initiated to your original payment method. It will appear in your account once your payment provider completes processing. No action is required from you."
           : "Order cancelled successfully."
       );
-
     } catch (requestError) {
       console.error(
         "Cancel order error:",
@@ -169,6 +166,15 @@ function OrderDetails() {
   };
 
   const openExchangeForm = (item) => {
+    if (
+      Number(item?.no_return_policy || 0) === 1
+    ) {
+      setActionError(
+        "This product is not eligible for return or exchange."
+      );
+      return;
+    }
+
     clearMessages();
     setExchangeItem(item);
     setExchangeReason("");
@@ -201,6 +207,15 @@ function OrderDetails() {
       return;
     }
 
+    if (
+      Number(exchangeItem.no_return_policy || 0) === 1
+    ) {
+      setActionError(
+        "This product is not eligible for return or exchange."
+      );
+      return;
+    }
+
     if (!exchangeReason) {
       setActionError(
         "Please select an exchange reason."
@@ -220,7 +235,7 @@ function OrderDetails() {
           reason: exchangeReason,
           details: exchangeDetails.trim(),
           requested_size:
-            requestedSize.trim()
+            requestedSize.trim(),
         }
       );
 
@@ -232,10 +247,10 @@ function OrderDetails() {
       }
 
       setExchangeSubmitted(true);
+
       setActionMessage(
         "Exchange request submitted successfully. We will review your request and contact you with the next update."
       );
-
     } catch (requestError) {
       console.error(
         "Exchange request error:",
@@ -260,12 +275,6 @@ function OrderDetails() {
         setLoading(true);
         setError("");
 
-        /*
-        ------------------------------------------------------
-        Validate database order ID
-        ------------------------------------------------------
-        */
-
         const orderId = Number(id);
 
         if (
@@ -276,12 +285,6 @@ function OrderDetails() {
             "Invalid order ID."
           );
         }
-
-        /*
-        ------------------------------------------------------
-        Get order directly
-        ------------------------------------------------------
-        */
 
         const response = await api.get(
           `/orders/${orderId}`
@@ -303,20 +306,8 @@ function OrderDetails() {
           );
         }
 
-        /*
-        ------------------------------------------------------
-        Load order items
-        ------------------------------------------------------
-        */
-
         const items =
           backendOrder.items || [];
-
-        /*
-        ------------------------------------------------------
-        Load real product images
-        ------------------------------------------------------
-        */
 
         const itemsWithImages =
           await Promise.all(
@@ -402,9 +393,7 @@ function OrderDetails() {
     if (id) {
       loadOrder();
     } else {
-      setError(
-        "Order ID is missing."
-      );
+      setError("Order ID is missing.");
       setLoading(false);
     }
 
@@ -412,12 +401,6 @@ function OrderDetails() {
       cancelled = true;
     };
   }, [id]);
-
-  /*
-  ==========================================================
-  LOADING
-  ==========================================================
-  */
 
   if (loading) {
     return (
@@ -433,12 +416,6 @@ function OrderDetails() {
       </div>
     );
   }
-
-  /*
-  ==========================================================
-  ERROR
-  ==========================================================
-  */
 
   if (error) {
     return (
@@ -488,12 +465,6 @@ function OrderDetails() {
     return null;
   }
 
-  /*
-  ==========================================================
-  ORDER DATA
-  ==========================================================
-  */
-
   const currentStatus =
     order.order_status || "pending";
 
@@ -511,12 +482,6 @@ function OrderDetails() {
 
   const totalAmount =
     Number(order.total_amount || 0);
-
-  /*
-  ==========================================================
-  PAYMENT
-  ==========================================================
-  */
 
   let paymentLabel =
     "PAYMENT PENDING";
@@ -537,16 +502,8 @@ function OrderDetails() {
       "PAYMENT FAILED";
   }
 
-  /*
-  ==========================================================
-  PAGE
-  ==========================================================
-  */
-
   return (
     <div className="order-details-page">
-
-      {/* HEADER */}
 
       <section className="order-details-header">
 
@@ -600,11 +557,17 @@ function OrderDetails() {
             padding: "16px 18px",
             border:
               "1px solid " +
-              (actionError ? "#c62828" : "#222"),
+              (actionError
+                ? "#c62828"
+                : "#222"),
             background:
-              actionError ? "#fff5f5" : "#f7f7f5",
+              actionError
+                ? "#fff5f5"
+                : "#f7f7f5",
             color:
-              actionError ? "#b71c1c" : "#111",
+              actionError
+                ? "#b71c1c"
+                : "#111",
             lineHeight: 1.6,
           }}
         >
@@ -613,8 +576,14 @@ function OrderDetails() {
               ? "ERROR"
               : "SUCCESS"}
           </strong>
-          <p style={{ margin: "6px 0 0" }}>
-            {actionError || actionMessage}
+
+          <p
+            style={{
+              margin: "6px 0 0",
+            }}
+          >
+            {actionError ||
+              actionMessage}
           </p>
         </section>
       )}
@@ -627,10 +596,13 @@ function OrderDetails() {
           marginTop: "20px",
         }}
       >
+
         {canCancelOrder && (
           <button
             type="button"
-            onClick={handleCancelOrder}
+            onClick={
+              handleCancelOrder
+            }
             disabled={actionLoading}
             style={{
               border: "1px solid #111",
@@ -642,7 +614,9 @@ function OrderDetails() {
                   ? "not-allowed"
                   : "pointer",
               opacity:
-                actionLoading ? 0.6 : 1,
+                actionLoading
+                  ? 0.6
+                  : 1,
               letterSpacing: "1px",
               fontSize: "12px",
             }}
@@ -662,7 +636,9 @@ function OrderDetails() {
               fontSize: "13px",
             }}
           >
-            This order can no longer be cancelled because it has been shipped.
+            This order can no longer be
+            cancelled because it has been
+            shipped.
           </p>
         )}
 
@@ -675,13 +651,12 @@ function OrderDetails() {
               fontSize: "13px",
             }}
           >
-            Exchange is available for delivered items.
+            Exchange is available for
+            eligible delivered items.
           </p>
         )}
+
       </section>
-
-
-      {/* ORDER STATUS */}
 
       <section className="order-status-section">
 
@@ -705,7 +680,6 @@ function OrderDetails() {
           />
 
         </div>
-
 
         {currentStatus ===
         "cancelled" ? (
@@ -777,12 +751,7 @@ function OrderDetails() {
 
       </section>
 
-
-      {/* MAIN CONTENT */}
-
       <section className="order-details-layout">
-
-        {/* ORDERED ITEMS */}
 
         <main className="order-items-section">
 
@@ -806,7 +775,6 @@ function OrderDetails() {
             />
 
           </div>
-
 
           <div className="ordered-items">
 
@@ -838,13 +806,16 @@ function OrderDetails() {
                         quantity
                   );
 
+                const isNonReturnable =
+                  Number(
+                    item.no_return_policy || 0
+                  ) === 1;
+
                 return (
                   <article
                     className="ordered-item"
                     key={item.id}
                   >
-
-                    {/* IMAGE */}
 
                     <div className="ordered-item-image">
 
@@ -889,9 +860,6 @@ function OrderDetails() {
 
                     </div>
 
-
-                    {/* PRODUCT INFO */}
-
                     <div className="ordered-item-info">
 
                       <h3>
@@ -929,23 +897,73 @@ function OrderDetails() {
                         {quantity}
                       </p>
 
+                      {isNonReturnable && (
+                        <div
+                          style={{
+                            marginTop:
+                              "12px",
+                            padding:
+                              "10px 12px",
+                            border:
+                              "1px solid #d8d8d8",
+                            background:
+                              "#fafafa",
+                            fontSize:
+                              "11px",
+                            lineHeight:
+                              1.5,
+                            color:
+                              "#555",
+                          }}
+                        >
+                          <strong
+                            style={{
+                              display:
+                                "block",
+                              marginBottom:
+                                "4px",
+                              color:
+                                "#111",
+                              letterSpacing:
+                                "0.06em",
+                            }}
+                          >
+                            NON-RETURNABLE
+                            PRODUCT
+                          </strong>
+
+                          This product
+                          cannot be
+                          returned or
+                          exchanged.
+                        </div>
+                      )}
+
                       {canExchangeOrder &&
-                        !exchangeSubmitted && (
+                        !exchangeSubmitted &&
+                        !isNonReturnable && (
                           <button
                             type="button"
                             onClick={() =>
-                              openExchangeForm(item)
+                              openExchangeForm(
+                                item
+                              )
                             }
                             style={{
-                              marginTop: "12px",
+                              marginTop:
+                                "12px",
                               border:
                                 "1px solid #111",
-                              background: "#fff",
-                              color: "#111",
+                              background:
+                                "#fff",
+                              color:
+                                "#111",
                               padding:
                                 "9px 14px",
-                              cursor: "pointer",
-                              fontSize: "11px",
+                              cursor:
+                                "pointer",
+                              fontSize:
+                                "11px",
                               letterSpacing:
                                 "1px",
                             }}
@@ -955,9 +973,6 @@ function OrderDetails() {
                         )}
 
                     </div>
-
-
-                    {/* PRICE */}
 
                     <div className="ordered-item-price">
 
@@ -990,9 +1005,6 @@ function OrderDetails() {
 
         </main>
 
-
-        {/* PAYMENT SUMMARY */}
-
         <aside className="order-payment-summary">
 
           <p className="eyebrow">
@@ -1002,7 +1014,6 @@ function OrderDetails() {
           <h2>
             ORDER TOTAL
           </h2>
-
 
           <div className="order-summary-row">
 
@@ -1019,7 +1030,6 @@ function OrderDetails() {
 
           </div>
 
-
           <div className="order-summary-row">
 
             <span>
@@ -1034,7 +1044,6 @@ function OrderDetails() {
             </strong>
 
           </div>
-
 
           {discount > 0 && (
             <div className="order-summary-row">
@@ -1053,7 +1062,6 @@ function OrderDetails() {
             </div>
           )}
 
-
           <div className="order-summary-total">
 
             <span>
@@ -1068,7 +1076,6 @@ function OrderDetails() {
             </strong>
 
           </div>
-
 
           <div className="order-payment-method">
 
@@ -1086,7 +1093,6 @@ function OrderDetails() {
 
           </div>
 
-
           <Link
             to="/shop"
             className="continue-shopping"
@@ -1097,9 +1103,6 @@ function OrderDetails() {
         </aside>
 
       </section>
-
-
-      {/* SHIPPING ADDRESS */}
 
       <section className="shipping-address-section">
 
@@ -1123,7 +1126,6 @@ function OrderDetails() {
           />
 
         </div>
-
 
         <div className="shipping-address">
 
@@ -1195,18 +1197,23 @@ function OrderDetails() {
             position: "fixed",
             inset: 0,
             zIndex: 1000,
-            background: "rgba(0,0,0,0.55)",
+            background:
+              "rgba(0,0,0,0.55)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             padding: "20px",
           }}
           onMouseDown={(event) => {
-            if (event.target === event.currentTarget) {
+            if (
+              event.target ===
+              event.currentTarget
+            ) {
               closeExchangeForm();
             }
           }}
         >
+
           <div
             style={{
               width: "100%",
@@ -1218,139 +1225,355 @@ function OrderDetails() {
               boxSizing: "border-box",
             }}
           >
-            <div style={{ display: "flex", justifyContent: "space-between", gap: "20px" }}>
+
+            <div
+              style={{
+                display: "flex",
+                justifyContent:
+                  "space-between",
+                gap: "20px",
+              }}
+            >
+
               <div>
-                <p className="eyebrow">ORDER EXCHANGE</p>
-                <h2 style={{ marginTop: "8px" }}>REQUEST EXCHANGE</h2>
+
+                <p className="eyebrow">
+                  ORDER EXCHANGE
+                </p>
+
+                <h2
+                  style={{
+                    marginTop: "8px",
+                  }}
+                >
+                  REQUEST EXCHANGE
+                </h2>
+
               </div>
+
               <button
                 type="button"
-                onClick={closeExchangeForm}
+                onClick={
+                  closeExchangeForm
+                }
                 disabled={actionLoading}
                 style={{
                   border: "0",
-                  background: "transparent",
+                  background:
+                    "transparent",
                   fontSize: "22px",
                   cursor: "pointer",
                 }}
               >
                 ×
               </button>
+
             </div>
 
             {exchangeSubmitted ? (
-              <div style={{ marginTop: "25px", padding: "20px", background: "#f7f7f5", lineHeight: 1.7 }}>
-                <strong>EXCHANGE REQUEST SUBMITTED</strong>
+
+              <div
+                style={{
+                  marginTop: "25px",
+                  padding: "20px",
+                  background:
+                    "#f7f7f5",
+                  lineHeight: 1.7,
+                }}
+              >
+
+                <strong>
+                  EXCHANGE REQUEST
+                  SUBMITTED
+                </strong>
+
                 <p>
                   Your request for{" "}
-                  <strong>{exchangeItem?.product_name || "this item"}</strong>{" "}
-                  has been submitted successfully.
+                  <strong>
+                    {
+                      exchangeItem?.product_name ||
+                      "this item"
+                    }
+                  </strong>{" "}
+                  has been submitted
+                  successfully.
                 </p>
+
                 <button
                   type="button"
-                  onClick={closeExchangeForm}
+                  onClick={
+                    closeExchangeForm
+                  }
                   style={{
                     marginTop: "10px",
-                    border: "1px solid #111",
+                    border:
+                      "1px solid #111",
                     background: "#111",
                     color: "#fff",
-                    padding: "12px 18px",
+                    padding:
+                      "12px 18px",
                     cursor: "pointer",
-                    letterSpacing: "1px",
+                    letterSpacing:
+                      "1px",
                   }}
                 >
                   CLOSE
                 </button>
+
               </div>
+
             ) : (
-              <form onSubmit={handleExchangeSubmit} style={{ marginTop: "25px" }}>
-                <div style={{ marginBottom: "20px", padding: "15px", background: "#f7f7f5" }}>
-                  <strong>{exchangeItem?.product_name || "UNTKN PRODUCT"}</strong>
-                  <p style={{ margin: "6px 0 0", color: "#666", fontSize: "13px" }}>
-                    Current size: {exchangeItem?.size_name || "Not specified"}
+
+              <form
+                onSubmit={
+                  handleExchangeSubmit
+                }
+                style={{
+                  marginTop: "25px",
+                }}
+              >
+
+                <div
+                  style={{
+                    marginBottom:
+                      "20px",
+                    padding: "15px",
+                    background:
+                      "#f7f7f5",
+                  }}
+                >
+
+                  <strong>
+                    {
+                      exchangeItem?.product_name ||
+                      "UNTKN PRODUCT"
+                    }
+                  </strong>
+
+                  <p
+                    style={{
+                      margin:
+                        "6px 0 0",
+                      color: "#666",
+                      fontSize: "13px",
+                    }}
+                  >
+                    Current size:{" "}
+                    {
+                      exchangeItem?.size_name ||
+                      "Not specified"
+                    }
                   </p>
+
                 </div>
 
-                <label style={{ display: "block", marginBottom: "8px", fontSize: "12px", letterSpacing: "1px" }}>
+                <label
+                  style={{
+                    display: "block",
+                    marginBottom:
+                      "8px",
+                    fontSize: "12px",
+                    letterSpacing:
+                      "1px",
+                  }}
+                >
                   REASON *
                 </label>
+
                 <select
-                  value={exchangeReason}
-                  onChange={(event) => setExchangeReason(event.target.value)}
+                  value={
+                    exchangeReason
+                  }
+                  onChange={(event) =>
+                    setExchangeReason(
+                      event.target.value
+                    )
+                  }
                   required
-                  style={{ width: "100%", padding: "12px", marginBottom: "18px", boxSizing: "border-box" }}
+                  style={{
+                    width: "100%",
+                    padding: "12px",
+                    marginBottom:
+                      "18px",
+                    boxSizing:
+                      "border-box",
+                  }}
                 >
-                  <option value="">SELECT REASON</option>
-                  <option value="Wrong Size">Wrong Size</option>
-                  <option value="Wrong Product">Wrong Product</option>
-                  <option value="Damaged Product">Damaged Product</option>
-                  <option value="Defective Product">Defective Product</option>
-                  <option value="Different from Description">Different from Description</option>
-                  <option value="Other">Other</option>
+
+                  <option value="">
+                    SELECT REASON
+                  </option>
+
+                  <option value="Wrong Size">
+                    Wrong Size
+                  </option>
+
+                  <option value="Wrong Product">
+                    Wrong Product
+                  </option>
+
+                  <option value="Damaged Product">
+                    Damaged Product
+                  </option>
+
+                  <option value="Defective Product">
+                    Defective Product
+                  </option>
+
+                  <option value="Different from Description">
+                    Different from
+                    Description
+                  </option>
+
+                  <option value="Other">
+                    Other
+                  </option>
+
                 </select>
 
-                <label style={{ display: "block", marginBottom: "8px", fontSize: "12px", letterSpacing: "1px" }}>
+                <label
+                  style={{
+                    display: "block",
+                    marginBottom:
+                      "8px",
+                    fontSize: "12px",
+                    letterSpacing:
+                      "1px",
+                  }}
+                >
                   REQUESTED SIZE
                 </label>
+
                 <input
                   type="text"
-                  value={requestedSize}
-                  onChange={(event) => setRequestedSize(event.target.value)}
+                  value={
+                    requestedSize
+                  }
+                  onChange={(event) =>
+                    setRequestedSize(
+                      event.target.value
+                    )
+                  }
                   maxLength={50}
                   placeholder="Example: L"
-                  style={{ width: "100%", padding: "12px", marginBottom: "18px", boxSizing: "border-box" }}
+                  style={{
+                    width: "100%",
+                    padding: "12px",
+                    marginBottom:
+                      "18px",
+                    boxSizing:
+                      "border-box",
+                  }}
                 />
 
-                <label style={{ display: "block", marginBottom: "8px", fontSize: "12px", letterSpacing: "1px" }}>
+                <label
+                  style={{
+                    display: "block",
+                    marginBottom:
+                      "8px",
+                    fontSize: "12px",
+                    letterSpacing:
+                      "1px",
+                  }}
+                >
                   ADDITIONAL DETAILS
                 </label>
+
                 <textarea
-                  value={exchangeDetails}
-                  onChange={(event) => setExchangeDetails(event.target.value)}
+                  value={
+                    exchangeDetails
+                  }
+                  onChange={(event) =>
+                    setExchangeDetails(
+                      event.target.value
+                    )
+                  }
                   maxLength={2000}
                   rows={5}
                   placeholder="Tell us anything else about the exchange..."
-                  style={{ width: "100%", padding: "12px", marginBottom: "8px", boxSizing: "border-box", resize: "vertical" }}
+                  style={{
+                    width: "100%",
+                    padding: "12px",
+                    marginBottom:
+                      "8px",
+                    boxSizing:
+                      "border-box",
+                    resize: "vertical",
+                  }}
                 />
 
-                <p style={{ margin: "0 0 20px", color: "#777", fontSize: "11px" }}>
-                  {exchangeDetails.length}/2000
+                <p
+                  style={{
+                    margin:
+                      "0 0 20px",
+                    color: "#777",
+                    fontSize: "11px",
+                  }}
+                >
+                  {
+                    exchangeDetails.length
+                  }
+                  /2000
                 </p>
 
                 {actionError && (
-                  <div style={{
-                    marginBottom: "18px",
-                    padding: "12px",
-                    background: "#fff5f5",
-                    color: "#b71c1c",
-                    border: "1px solid #c62828",
-                    fontSize: "13px",
-                  }}>
+                  <div
+                    style={{
+                      marginBottom:
+                        "18px",
+                      padding: "12px",
+                      background:
+                        "#fff5f5",
+                      color:
+                        "#b71c1c",
+                      border:
+                        "1px solid #c62828",
+                      fontSize: "13px",
+                    }}
+                  >
                     {actionError}
                   </div>
                 )}
 
                 <button
                   type="submit"
-                  disabled={actionLoading}
+                  disabled={
+                    actionLoading
+                  }
                   style={{
                     width: "100%",
-                    border: "1px solid #111",
-                    background: "#111",
+                    border:
+                      "1px solid #111",
+                    background:
+                      "#111",
                     color: "#fff",
                     padding: "14px",
-                    cursor: actionLoading ? "not-allowed" : "pointer",
-                    opacity: actionLoading ? 0.6 : 1,
-                    letterSpacing: "1px",
+                    cursor:
+                      actionLoading
+                        ? "not-allowed"
+                        : "pointer",
+                    opacity:
+                      actionLoading
+                        ? 0.6
+                        : 1,
+                    letterSpacing:
+                      "1px",
                   }}
                 >
-                  {actionLoading ? "SUBMITTING..." : "SUBMIT EXCHANGE REQUEST"}
+                  {actionLoading
+                    ? "SUBMITTING..."
+                    : "SUBMIT EXCHANGE REQUEST"}
                 </button>
+
               </form>
+
             )}
+
           </div>
+
         </div>
       )}
+
     </div>
   );
 }

@@ -1022,36 +1022,44 @@ export const getOrderById = async (
             orders[0];
 
         const [
-            items
-        ] = await pool.execute(
-            `
-            SELECT
-                id,
-                order_id,
-                product_id,
-                variant_id,
+    items
+] = await pool.execute(
+    `
+        SELECT
+            oi.id,
+            oi.order_id,
+            oi.product_id,
+            oi.variant_id,
 
-                product_name,
-                sku,
+            oi.product_name,
+            oi.sku,
 
-                size_name,
-                color_name,
+            oi.size_name,
+            oi.color_name,
 
-                quantity,
+            oi.quantity,
 
-                unit_price,
-                total_price,
+            oi.unit_price,
+            oi.total_price,
 
-                created_at
+            oi.created_at,
 
-            FROM order_items
+            COALESCE(
+                p.no_return_policy,
+                0
+            ) AS no_return_policy
 
-            WHERE order_id = ?
+        FROM order_items oi
 
-            ORDER BY id ASC
-            `,
-            [orderId]
-        );
+        LEFT JOIN products p
+            ON oi.product_id = p.id
+
+        WHERE oi.order_id = ?
+
+        ORDER BY oi.id ASC
+    `,
+    [orderId]
+);
 
         return res.status(200).json({
             success: true,

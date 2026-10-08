@@ -143,28 +143,31 @@ export const requestExchange = async (
             });
         }
 
-        const [
-            items
-        ] = await pool.execute(
-            `
-            SELECT
-                id,
-                order_id,
-                product_id,
-                product_name,
-                size_name,
-                color_name,
-                quantity
-            FROM order_items
-            WHERE id = ?
-            AND order_id = ?
-            LIMIT 1
-            `,
-            [
-                orderItemId,
-                orderId
-            ]
-        );
+       const [
+    items
+] = await pool.execute(
+    `
+        SELECT
+            oi.id,
+            oi.order_id,
+            oi.product_id,
+            oi.product_name,
+            oi.size_name,
+            oi.color_name,
+            oi.quantity,
+            COALESCE(p.no_return_policy, 0) AS no_return_policy
+        FROM order_items oi
+        LEFT JOIN products p
+            ON oi.product_id = p.id
+        WHERE oi.id = ?
+        AND oi.order_id = ?
+        LIMIT 1
+    `,
+    [
+        orderItemId,
+        orderId
+    ]
+);
 
         if (items.length === 0) {
             return res.status(404).json({
@@ -173,6 +176,19 @@ export const requestExchange = async (
                     "Selected product was not found in this order"
             });
         }
+
+        const selectedItem = items[0];
+
+if (
+    Number(selectedItem.no_return_policy || 0) === 1
+) {
+    return res.status(400).json({
+        success: false,
+        message:
+            "This product is not eligible for return or exchange."
+    });
+}
+
 
         const [
             existingRequests
