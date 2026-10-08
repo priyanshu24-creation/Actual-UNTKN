@@ -46,7 +46,10 @@ const getVariantSize = (variant) => {
     return String(variant.size_name);
   }
 
-  if (typeof variant.size === "object" && variant.size !== null) {
+  if (
+    typeof variant.size === "object" &&
+    variant.size !== null
+  ) {
     return String(
       variant.size.name ||
         variant.size.size_name ||
@@ -55,7 +58,11 @@ const getVariantSize = (variant) => {
     );
   }
 
-  return String(variant.size || variant.size_label || "");
+  return String(
+    variant.size ||
+      variant.size_label ||
+      ""
+  );
 };
 
 const getVariantColor = (variant) => {
@@ -67,7 +74,10 @@ const getVariantColor = (variant) => {
     return String(variant.color_name);
   }
 
-  if (typeof variant.color === "object" && variant.color !== null) {
+  if (
+    typeof variant.color === "object" &&
+    variant.color !== null
+  ) {
     return String(
       variant.color.name ||
         variant.color.color_name ||
@@ -76,7 +86,11 @@ const getVariantColor = (variant) => {
     );
   }
 
-  return String(variant.color || variant.color_label || "");
+  return String(
+    variant.color ||
+      variant.color_label ||
+      ""
+  );
 };
 
 const getVariantStock = (variant) => {
@@ -129,7 +143,9 @@ function ProductDetails() {
 
   const [addingToCart, setAddingToCart] = useState(false);
   const [bagNotification, setBagNotification] = useState(null);
-  const [actionNotification, setActionNotification] = useState(null);
+  const [actionNotification, setActionNotification] =
+    useState(null);
+
   const [sizeGuideOpen, setSizeGuideOpen] =
     useState(false);
 
@@ -144,7 +160,9 @@ function ProductDetails() {
         const routeValue = String(id || "").trim();
 
         if (!routeValue) {
-          throw new Error("Product ID or slug is missing.");
+          throw new Error(
+            "Product ID or slug is missing."
+          );
         }
 
         let fullProduct = null;
@@ -162,13 +180,22 @@ function ProductDetails() {
               null;
           }
         } catch (slugError) {
-          if (slugError.response?.status !== 404) {
-            console.warn("Product detail request failed:", slugError);
+          if (
+            slugError.response?.status !== 404
+          ) {
+            console.warn(
+              "Product detail request failed:",
+              slugError
+            );
           }
         }
 
-        if (!fullProduct && /^\d+$/.test(routeValue)) {
-          const productsResponse = await api.get("/products");
+        if (
+          !fullProduct &&
+          /^\d+$/.test(routeValue)
+        ) {
+          const productsResponse =
+            await api.get("/products");
 
           if (!productsResponse.data?.success) {
             throw new Error(
@@ -184,57 +211,94 @@ function ProductDetails() {
 
           fullProduct =
             initialProducts.find(
-              (item) => Number(item.id) === Number(routeValue)
+              (item) =>
+                Number(item.id) ===
+                Number(routeValue)
             ) || null;
         }
 
         if (!fullProduct) {
-          throw new Error("Product not found.");
+          throw new Error(
+            "Product not found."
+          );
         }
 
-        const numericProductId = Number(fullProduct.id);
+        const numericProductId =
+          Number(fullProduct.id);
 
         if (
-          !Number.isInteger(numericProductId) ||
+          !Number.isInteger(
+            numericProductId
+          ) ||
           numericProductId <= 0
         ) {
-          throw new Error("Invalid product ID.");
+          throw new Error(
+            "Invalid product ID."
+          );
         }
 
-        const embeddedImages = Array.isArray(fullProduct.images)
-          ? fullProduct.images
-          : [];
+        const embeddedImages =
+          Array.isArray(
+            fullProduct.images
+          )
+            ? fullProduct.images
+            : [];
 
-        const directImage = getImageUrl(fullProduct.image);
-
-        const initialImageUrls = embeddedImages
-          .map(getImageUrl)
-          .filter(
-            (url) =>
-              url &&
-              !url.includes("example.com")
+        const directImage =
+          getImageUrl(
+            fullProduct.image
           );
+
+        const initialImageUrls =
+          embeddedImages
+            .map(getImageUrl)
+            .filter(
+              (url) =>
+                url &&
+                !url.includes(
+                  "example.com"
+                )
+            );
 
         if (
           directImage &&
-          !directImage.includes("example.com") &&
-          !initialImageUrls.includes(directImage)
+          !directImage.includes(
+            "example.com"
+          ) &&
+          !initialImageUrls.includes(
+            directImage
+          )
         ) {
-          initialImageUrls.unshift(directImage);
+          initialImageUrls.unshift(
+            directImage
+          );
         }
 
-        if (!cancelled && initialImageUrls.length > 0) {
-          setProductImages(initialImageUrls);
-          setSelectedImage(initialImageUrls[0]);
+        if (
+          !cancelled &&
+          initialImageUrls.length > 0
+        ) {
+          setProductImages(
+            initialImageUrls
+          );
+          setSelectedImage(
+            initialImageUrls[0]
+          );
         }
 
         const imagesPromise =
           initialImageUrls.length > 0
-            ? Promise.resolve(initialImageUrls)
+            ? Promise.resolve(
+                initialImageUrls
+              )
             : api
-                .get(`/products/${numericProductId}/images`)
+                .get(
+                  `/products/${numericProductId}/images`
+                )
                 .then((response) => {
-                  if (!response.data?.success) {
+                  if (
+                    !response.data?.success
+                  ) {
                     return [];
                   }
 
@@ -247,7 +311,9 @@ function ProductDetails() {
                     .filter(
                       (url) =>
                         url &&
-                        !url.includes("example.com")
+                        !url.includes(
+                          "example.com"
+                        )
                     );
                 })
                 .catch((imageError) => {
@@ -255,39 +321,54 @@ function ProductDetails() {
                     "Product images could not be loaded:",
                     imageError
                   );
+
                   return [];
                 });
 
-        const variantsPromise = Array.isArray(fullProduct.variants)
-          ? Promise.resolve(fullProduct.variants)
-          : api
-              .get(`/products/${numericProductId}/variants`)
-              .then((response) => {
-                if (!response.data?.success) {
-                  return [];
-                }
+        const variantsPromise =
+          Array.isArray(
+            fullProduct.variants
+          )
+            ? Promise.resolve(
+                fullProduct.variants
+              )
+            : api
+                .get(
+                  `/products/${numericProductId}/variants`
+                )
+                .then((response) => {
+                  if (
+                    !response.data?.success
+                  ) {
+                    return [];
+                  }
 
-                return (
-                  response.data.variants ||
-                  response.data.data ||
-                  []
-                );
-              })
-              .catch((variantError) => {
-                console.warn(
-                  "Product variants could not be loaded:",
-                  variantError
-                );
-                return [];
-              });
+                  return (
+                    response.data.variants ||
+                    response.data.data ||
+                    []
+                  );
+                })
+                .catch((variantError) => {
+                  console.warn(
+                    "Product variants could not be loaded:",
+                    variantError
+                  );
+
+                  return [];
+                });
 
         const productsPromise =
           initialProducts.length > 0
-            ? Promise.resolve(initialProducts)
+            ? Promise.resolve(
+                initialProducts
+              )
             : api
                 .get("/products")
                 .then((response) => {
-                  if (!response.data?.success) {
+                  if (
+                    !response.data?.success
+                  ) {
                     return [];
                   }
 
@@ -302,40 +383,55 @@ function ProductDetails() {
                     "Related products could not be loaded:",
                     productsError
                   );
+
                   return [];
                 });
 
-        const [loadedImages, loadedVariants, loadedProducts] =
-          await Promise.all([
-            imagesPromise,
-            variantsPromise,
-            productsPromise,
-          ]);
+        const [
+          loadedImages,
+          loadedVariants,
+          loadedProducts,
+        ] = await Promise.all([
+          imagesPromise,
+          variantsPromise,
+          productsPromise,
+        ]);
 
         if (cancelled) {
           return;
         }
 
-        const validImages = loadedImages.filter(Boolean);
+        const validImages =
+          loadedImages.filter(Boolean);
 
         if (validImages.length > 0) {
-          setProductImages(validImages);
-          setSelectedImage((current) =>
-            current && validImages.includes(current)
-              ? current
-              : validImages[0]
+          setProductImages(
+            validImages
+          );
+
+          setSelectedImage(
+            (current) =>
+              current &&
+              validImages.includes(
+                current
+              )
+                ? current
+                : validImages[0]
           );
         } else {
           setProductImages([]);
           setSelectedImage("");
         }
 
-        const productVariants = loadedVariants.filter(
-          isVariantActive
-        );
+        const productVariants =
+          loadedVariants.filter(
+            isVariantActive
+          );
 
         setVariants(productVariants);
-        setAllProducts(loadedProducts);
+        setAllProducts(
+          loadedProducts
+        );
 
         const basePrice = Number(
           fullProduct.base_price ??
@@ -345,57 +441,92 @@ function ProductDetails() {
         );
 
         const salePrice =
-          fullProduct.sale_price !== null &&
-          fullProduct.sale_price !== undefined
-            ? Number(fullProduct.sale_price)
+          fullProduct.sale_price !==
+            null &&
+          fullProduct.sale_price !==
+            undefined
+            ? Number(
+                fullProduct.sale_price
+              )
             : null;
 
         const finalPrice =
-          salePrice !== null && salePrice < basePrice
+          salePrice !== null &&
+          salePrice < basePrice
             ? salePrice
             : basePrice;
 
         const normalizedProduct = {
           ...fullProduct,
+
           id: numericProductId,
+
           name:
             fullProduct.name ||
             fullProduct.product_name ||
             "UNTKN Product",
-          slug: fullProduct.slug || "",
+
+          slug:
+            fullProduct.slug || "",
+
           category:
             fullProduct.category_name ||
             fullProduct.category ||
             "",
+
           collection:
             fullProduct.collection_name ||
             fullProduct.collection ||
             "",
+
           description:
             fullProduct.description ||
             "Designed for everyday movement and built with a relaxed streetwear fit. Detailed construction and premium materials make this piece part of the collection.",
+
           price: finalPrice,
+
           base_price: basePrice,
+
           sale_price: salePrice,
+
           images: validImages,
+
           variants: productVariants,
         };
 
-        setProduct(normalizedProduct);
+        setProduct(
+          normalizedProduct
+        );
 
-        if (productVariants.length > 0) {
+        if (
+          productVariants.length > 0
+        ) {
           const firstAvailableVariant =
             productVariants.find(
-              (variant) => getVariantStock(variant) > 0
-            ) || productVariants[0];
+              (variant) =>
+                getVariantStock(
+                  variant
+                ) > 0
+            ) ||
+            productVariants[0];
 
           if (firstAvailableVariant) {
             setSelectedSize(
-              String(getVariantSize(firstAvailableVariant) || "")
+              String(
+                getVariantSize(
+                  firstAvailableVariant
+                ) || ""
+              )
             );
+
             setSelectedColor(
-              String(getVariantColor(firstAvailableVariant) || "")
+              String(
+                getVariantColor(
+                  firstAvailableVariant
+                ) || ""
+              )
             );
+
             setQuantity(1);
           }
         }
@@ -404,10 +535,14 @@ function ProductDetails() {
           return;
         }
 
-        console.error("Failed to load product:", requestError);
+        console.error(
+          "Failed to load product:",
+          requestError
+        );
 
         setError(
-          requestError.response?.data?.message ||
+          requestError.response?.data
+            ?.message ||
             requestError.message ||
             "Unable to load product."
         );
@@ -427,15 +562,13 @@ function ProductDetails() {
     };
   }, [id]);
 
-  
-
   const sizes = useMemo(() => {
     const sizeSet = new Set();
 
-    
-
     if (
-      Array.isArray(product?.sizes)
+      Array.isArray(
+        product?.sizes
+      )
     ) {
       product.sizes.forEach(
         (size) => {
@@ -455,12 +588,12 @@ function ProductDetails() {
       );
     }
 
-    
-
     variants.forEach(
       (variant) => {
         const value =
-          getVariantSize(variant);
+          getVariantSize(
+            variant
+          );
 
         if (value) {
           sizeSet.add(
@@ -470,23 +603,19 @@ function ProductDetails() {
       }
     );
 
-    return Array.from(
-      sizeSet
-    );
+    return Array.from(sizeSet);
   }, [
     product,
     variants,
   ]);
 
-  
-
   const colors = useMemo(() => {
     const colorSet = new Set();
 
-    
-
     if (
-      Array.isArray(product?.colors)
+      Array.isArray(
+        product?.colors
+      )
     ) {
       product.colors.forEach(
         (color) => {
@@ -505,8 +634,6 @@ function ProductDetails() {
         }
       );
     }
-
-    
 
     variants.forEach(
       (variant) => {
@@ -531,16 +658,12 @@ function ProductDetails() {
     variants,
   ]);
 
-  
-
   const selectedVariant = useMemo(() => {
     if (
       variants.length === 0
     ) {
       return null;
     }
-
-    
 
     if (
       sizes.length > 0 &&
@@ -608,8 +731,6 @@ function ProductDetails() {
     selectedColor,
   ]);
 
-  
-
   const stock = selectedVariant
     ? getVariantStock(
         selectedVariant
@@ -649,8 +770,6 @@ function ProductDetails() {
     isOutOfStock ||
     addingToCart;
 
-  
-
   const currentPrice =
     selectedVariant?.price !==
       null &&
@@ -685,16 +804,12 @@ function ProductDetails() {
         )
       : 0;
 
-  
-
   const wishlistActive =
     product
       ? isInWishlist(
           product.id
         )
       : false;
-
-  
 
   const increaseQuantity = () => {
     if (
@@ -733,14 +848,10 @@ function ProductDetails() {
     );
   };
 
-  
-
   const handleColorChange = (
     color
   ) => {
     setSelectedColor(color);
-
-    
 
     if (
       selectedSize &&
@@ -784,8 +895,6 @@ function ProductDetails() {
     setQuantity(1);
   };
 
-  
-
   const handleSizeChange = (
     size
   ) => {
@@ -793,51 +902,78 @@ function ProductDetails() {
     setQuantity(1);
   };
 
-  
+  const isAuthenticationError = (
+    requestError
+  ) => {
+    const status =
+      requestError?.response
+        ?.status;
 
-  const isAuthenticationError = (requestError) => {
-    const status = requestError?.response?.status;
-
-    if (status === 401 || status === 403) {
+    if (
+      status === 401 ||
+      status === 403
+    ) {
       return true;
     }
 
     const message = String(
-      requestError?.response?.data?.message ||
+      requestError?.response
+        ?.data?.message ||
         requestError?.message ||
         ""
     ).toLowerCase();
 
     return (
-      message.includes("authentication required") ||
-      message.includes("authentication is required") ||
-      message.includes("login required") ||
-      message.includes("log in required") ||
-      message.includes("not authenticated") ||
-      message.includes("unauthorized") ||
-      message.includes("token is required") ||
-      message.includes("token required")
+      message.includes(
+        "authentication required"
+      ) ||
+      message.includes(
+        "authentication is required"
+      ) ||
+      message.includes(
+        "login required"
+      ) ||
+      message.includes(
+        "log in required"
+      ) ||
+      message.includes(
+        "not authenticated"
+      ) ||
+      message.includes(
+        "unauthorized"
+      ) ||
+      message.includes(
+        "token is required"
+      ) ||
+      message.includes(
+        "token required"
+      )
     );
   };
 
-  const redirectToLoginForBuyNow = () => {
-    navigate("/login", {
-      replace: false,
-      state: {
-        redirectTo: "/checkout",
-        buyNow: true,
-      },
-    });
-  };
+  const redirectToLoginForBuyNow =
+    () => {
+      navigate("/login", {
+        replace: false,
+        state: {
+          redirectTo:
+            "/checkout",
+          buyNow: true,
+        },
+      });
+    };
 
-  const handleAddToBag = async (redirectOnAuthentication = false) => {
+  const handleAddToBag = async (
+    redirectOnAuthentication = false
+  ) => {
     if (
       sizes.length > 0 &&
       !selectedSize
     ) {
       setActionNotification({
         type: "warning",
-        message: "Please select a size.",
+        message:
+          "Please select a size.",
       });
 
       return false;
@@ -849,7 +985,8 @@ function ProductDetails() {
     ) {
       setActionNotification({
         type: "warning",
-        message: "Please select a color.",
+        message:
+          "Please select a color.",
       });
 
       return false;
@@ -892,13 +1029,16 @@ function ProductDetails() {
         product,
         selectedSize,
         quantity,
-        selectedVariant?.id ?? null
+        selectedVariant?.id ??
+          null
       );
 
       setBagNotification({
         name: product.name,
-        size: selectedSize || "",
-        color: selectedColor || "",
+        size:
+          selectedSize || "",
+        color:
+          selectedColor || "",
         image:
           selectedImage ||
           product.image ||
@@ -914,16 +1054,20 @@ function ProductDetails() {
 
       if (
         redirectOnAuthentication &&
-        isAuthenticationError(addError)
+        isAuthenticationError(
+          addError
+        )
       ) {
         redirectToLoginForBuyNow();
+
         return false;
       }
 
       setActionNotification({
         type: "error",
         message:
-          addError.response?.data?.message ||
+          addError.response?.data
+            ?.message ||
           addError.message ||
           "Unable to add product to bag.",
       });
@@ -934,77 +1078,100 @@ function ProductDetails() {
     }
   };
 
-  const handleBuyNow = async () => {
-    if (
-      cannotAddToCart ||
-      addingToCart ||
-      !product
-    ) {
-      return;
-    }
+  const handleBuyNow =
+    async () => {
+      if (
+        cannotAddToCart ||
+        addingToCart ||
+        !product
+      ) {
+        return;
+      }
 
-    setActionNotification(null);
+      setActionNotification(null);
 
-    try {
-      const response = await api.get("/auth/me", {
-        validateStatus: (status) =>
-          status >= 200 && status < 500,
-      });
+      try {
+        const response =
+          await api.get(
+            "/auth/me",
+            {
+              validateStatus: (
+                status
+              ) =>
+                status >= 200 &&
+                status < 500,
+            }
+          );
 
-      const authenticated =
-        response.status >= 200 &&
-        response.status < 300 &&
-        response.data?.success === true &&
-        !!response.data?.user;
+        const authenticated =
+          response.status >=
+            200 &&
+          response.status < 300 &&
+          response.data?.success ===
+            true &&
+          !!response.data?.user;
 
-      if (!authenticated) {
+        if (!authenticated) {
+          if (
+            response.status ===
+              401 ||
+            response.status ===
+              403
+          ) {
+            redirectToLoginForBuyNow();
+
+            return;
+          }
+
+          setActionNotification({
+            type: "error",
+            message:
+              response.data
+                ?.message ||
+              "Unable to verify your account. Please try again.",
+          });
+
+          return;
+        }
+
+        const added =
+          await handleAddToBag(
+            true
+          );
+
+        if (added) {
+          navigate(
+            "/checkout",
+            {
+              replace: true,
+            }
+          );
+        }
+      } catch (authError) {
+        console.error(
+          "Buy Now authentication check failed:",
+          authError
+        );
+
         if (
-          response.status === 401 ||
-          response.status === 403
+          isAuthenticationError(
+            authError
+          )
         ) {
           redirectToLoginForBuyNow();
+
           return;
         }
 
         setActionNotification({
           type: "error",
           message:
-            response.data?.message ||
+            authError.response
+              ?.data?.message ||
             "Unable to verify your account. Please try again.",
         });
-
-        return;
       }
-
-      const added = await handleAddToBag(true);
-
-      if (added) {
-        navigate("/checkout", {
-          replace: true,
-        });
-      }
-    } catch (authError) {
-      console.error(
-        "Buy Now authentication check failed:",
-        authError
-      );
-
-      if (isAuthenticationError(authError)) {
-        redirectToLoginForBuyNow();
-        return;
-      }
-
-      setActionNotification({
-        type: "error",
-        message:
-          authError.response?.data?.message ||
-          "Unable to verify your account. Please try again.",
-      });
-    }
-  };
-
-
-  
+    };
 
   const handleImageError = (
     event
@@ -1013,86 +1180,130 @@ function ProductDetails() {
       "none";
   };
 
-  
+  const getCurrentImageIndex =
+    () => {
+      const index =
+        productImages.indexOf(
+          selectedImage
+        );
 
-  const getCurrentImageIndex = () => {
-    const index = productImages.indexOf(
-      selectedImage
-    );
-
-    return index >= 0 ? index : 0;
-  };
+      return index >= 0
+        ? index
+        : 0;
+    };
 
   const showNextImage = () => {
-    if (productImages.length <= 1) {
-      return;
-    }
-
-    const currentIndex = getCurrentImageIndex();
-    const nextIndex =
-      (currentIndex + 1) % productImages.length;
-
-    setSelectedImage(productImages[nextIndex]);
-  };
-
-  const showPreviousImage = () => {
-    if (productImages.length <= 1) {
-      return;
-    }
-
-    const currentIndex = getCurrentImageIndex();
-    const previousIndex =
-      (currentIndex - 1 + productImages.length) %
-      productImages.length;
-
-    setSelectedImage(productImages[previousIndex]);
-  };
-
-  const handleGalleryTouchStart = (event) => {
-    const touch = event.touches?.[0];
-
-    if (!touch) {
-      return;
-    }
-
-    galleryTouchStartX.current = touch.clientX;
-    galleryTouchStartY.current = touch.clientY;
-  };
-
-  const handleGalleryTouchEnd = (event) => {
-    if (galleryTouchStartX.current === null) {
-      return;
-    }
-
-    const touch = event.changedTouches?.[0];
-
-    if (!touch) {
-      galleryTouchStartX.current = null;
-      galleryTouchStartY.current = null;
-      return;
-    }
-
-    const deltaX =
-      touch.clientX - galleryTouchStartX.current;
-    const deltaY =
-      touch.clientY - galleryTouchStartY.current;
-
-    galleryTouchStartX.current = null;
-    galleryTouchStartY.current = null;
-
     if (
-      Math.abs(deltaX) <= Math.abs(deltaY) ||
-      Math.abs(deltaX) < 45
+      productImages.length <=
+      1
     ) {
       return;
     }
 
-    if (deltaX < 0) {
-      showNextImage();
-    } else {
-      showPreviousImage();
-    }
+    const currentIndex =
+      getCurrentImageIndex();
+
+    const nextIndex =
+      (currentIndex + 1) %
+      productImages.length;
+
+    setSelectedImage(
+      productImages[
+        nextIndex
+      ]
+    );
   };
+
+  const showPreviousImage =
+    () => {
+      if (
+        productImages.length <=
+        1
+      ) {
+        return;
+      }
+
+      const currentIndex =
+        getCurrentImageIndex();
+
+      const previousIndex =
+        (currentIndex - 1 +
+          productImages.length) %
+        productImages.length;
+
+      setSelectedImage(
+        productImages[
+          previousIndex
+        ]
+      );
+    };
+
+  const handleGalleryTouchStart =
+    (event) => {
+      const touch =
+        event.touches?.[0];
+
+      if (!touch) {
+        return;
+      }
+
+      galleryTouchStartX.current =
+        touch.clientX;
+
+      galleryTouchStartY.current =
+        touch.clientY;
+    };
+
+  const handleGalleryTouchEnd =
+    (event) => {
+      if (
+        galleryTouchStartX.current ===
+        null
+      ) {
+        return;
+      }
+
+      const touch =
+        event.changedTouches?.[0];
+
+      if (!touch) {
+        galleryTouchStartX.current =
+          null;
+
+        galleryTouchStartY.current =
+          null;
+
+        return;
+      }
+
+      const deltaX =
+        touch.clientX -
+        galleryTouchStartX.current;
+
+      const deltaY =
+        touch.clientY -
+        galleryTouchStartY.current;
+
+      galleryTouchStartX.current =
+        null;
+
+      galleryTouchStartY.current =
+        null;
+
+      if (
+        Math.abs(deltaX) <=
+          Math.abs(deltaY) ||
+        Math.abs(deltaX) < 45
+      ) {
+        return;
+      }
+
+      if (deltaX < 0) {
+        showNextImage();
+      } else {
+        showPreviousImage();
+      }
+    };
 
   if (loading) {
     return (
@@ -1114,8 +1325,6 @@ function ProductDetails() {
       </div>
     );
   }
-
-  
 
   if (!product) {
     return (
@@ -1145,8 +1354,6 @@ function ProductDetails() {
     );
   }
 
-  
-
   const relatedProducts =
     allProducts
       .filter(
@@ -1156,115 +1363,197 @@ function ProductDetails() {
       )
       .slice(0, 4);
 
-  
-
   return (
     <div className="product-details-page">
+
       {bagNotification && (
         <div className="untkn-toast-stack">
-          <div className="untkn-bag-toast" role="status" aria-live="polite">
+
+          <div
+            className="untkn-bag-toast"
+            role="status"
+            aria-live="polite"
+          >
+
             <div className="untkn-toast-topline">
+
               <div className="untkn-toast-success">
+
                 <span className="untkn-toast-check">
-                  <Check size={14} strokeWidth={2.6} />
+                  <Check
+                    size={14}
+                    strokeWidth={2.6}
+                  />
                 </span>
-                <span>ADDED TO BAG</span>
+
+                <span>
+                  ADDED TO BAG
+                </span>
+
               </div>
 
               <button
                 type="button"
                 className="untkn-toast-close"
-                onClick={() => setBagNotification(null)}
+                onClick={() =>
+                  setBagNotification(
+                    null
+                  )
+                }
                 aria-label="Close notification"
               >
-                <X size={16} strokeWidth={1.8} />
+                <X
+                  size={16}
+                  strokeWidth={1.8}
+                />
               </button>
+
             </div>
 
             <div className="untkn-toast-product">
+
               <div className="untkn-toast-product-image">
+
                 {bagNotification.image ? (
                   <img
-                    src={bagNotification.image}
-                    alt={bagNotification.name}
+                    src={
+                      bagNotification.image
+                    }
+                    alt={
+                      bagNotification.name
+                    }
                     loading="lazy"
                     decoding="async"
-                    onError={(event) => {
-                      event.currentTarget.style.display = "none";
+                    onError={(
+                      event
+                    ) => {
+                      event.currentTarget.style.display =
+                        "none";
                     }}
                   />
                 ) : (
-                  <span>UNTKN</span>
+                  <span>
+                    UNTKN
+                  </span>
                 )}
+
               </div>
 
               <div className="untkn-toast-details">
-                <strong>{bagNotification.name}</strong>
+
+                <strong>
+                  {
+                    bagNotification.name
+                  }
+                </strong>
+
                 <span>
-                  {[bagNotification.color, bagNotification.size]
+                  {[
+                    bagNotification.color,
+                    bagNotification.size,
+                  ]
                     .filter(Boolean)
-                    .join(" / ") || "Ready for checkout"}
+                    .join(" / ") ||
+                    "Ready for checkout"}
                 </span>
+
               </div>
+
             </div>
 
             <Link
               to="/cart"
               className="untkn-toast-view-bag"
-              onClick={() => setBagNotification(null)}
+              onClick={() =>
+                setBagNotification(
+                  null
+                )
+              }
             >
-              <span>VIEW BAG</span>
-              <span aria-hidden="true">→</span>
+              <span>
+                VIEW BAG
+              </span>
+
+              <span aria-hidden="true">
+                →
+              </span>
             </Link>
 
             <div className="untkn-toast-progress" />
+
           </div>
+
         </div>
       )}
 
       {actionNotification && (
         <div className="untkn-toast-stack untkn-toast-stack-action">
+
           <div
             className={`untkn-action-toast ${actionNotification.type}`}
             role="alert"
             aria-live="assertive"
           >
+
             <div className="untkn-action-icon">
-              <X size={15} strokeWidth={2.4} />
+
+              <X
+                size={15}
+                strokeWidth={2.4}
+              />
+
             </div>
 
             <div className="untkn-action-content">
+
               <span>
-                {actionNotification.type === "warning"
+                {actionNotification.type ===
+                "warning"
                   ? "PLEASE CHECK"
                   : "UNABLE TO ADD"}
               </span>
-              <strong>{actionNotification.message}</strong>
+
+              <strong>
+                {
+                  actionNotification.message
+                }
+              </strong>
+
             </div>
 
             <button
               type="button"
               className="untkn-action-close"
-              onClick={() => setActionNotification(null)}
+              onClick={() =>
+                setActionNotification(
+                  null
+                )
+              }
               aria-label="Close notification"
             >
-              <X size={15} strokeWidth={1.8} />
+              <X
+                size={15}
+                strokeWidth={1.8}
+              />
             </button>
+
           </div>
+
         </div>
       )}
 
-
       <section className="product-details">
-
 
         <div className="product-gallery">
 
-
           <div
             className="main-product-image"
-            onTouchStart={handleGalleryTouchStart}
-            onTouchEnd={handleGalleryTouchEnd}
+            onTouchStart={
+              handleGalleryTouchStart
+            }
+            onTouchEnd={
+              handleGalleryTouchEnd
+            }
           >
 
             {selectedImage ? (
@@ -1275,7 +1564,9 @@ function ProductDetails() {
                 fetchPriority="high"
                 decoding="async"
                 draggable="false"
-                onError={handleImageError}
+                onError={
+                  handleImageError
+                }
               />
             ) : (
               <div className="product-image-placeholder" />
@@ -1287,12 +1578,15 @@ function ProductDetails() {
               </span>
             )}
 
-            {productImages.length > 1 && (
+            {productImages.length >
+              1 && (
               <>
                 <button
                   type="button"
                   className="product-gallery-arrow product-gallery-prev"
-                  onClick={showPreviousImage}
+                  onClick={
+                    showPreviousImage
+                  }
                   aria-label="Previous product image"
                 >
                   <ChevronLeft
@@ -1304,7 +1598,9 @@ function ProductDetails() {
                 <button
                   type="button"
                   className="product-gallery-arrow product-gallery-next"
-                  onClick={showNextImage}
+                  onClick={
+                    showNextImage
+                  }
                   aria-label="Next product image"
                 >
                   <ChevronRight
@@ -1317,31 +1613,45 @@ function ProductDetails() {
                   className="product-image-dots"
                   aria-label="Product image navigation"
                 >
-                  {productImages.map((image, index) => (
-                    <button
-                      key={`dot-${index}`}
-                      type="button"
-                      className={
-                        selectedImage === image
-                          ? "product-image-dot active"
-                          : "product-image-dot"
-                      }
-                      onClick={() => setSelectedImage(image)}
-                      aria-label={`View image ${index + 1}`}
-                    />
-                  ))}
+                  {productImages.map(
+                    (
+                      image,
+                      index
+                    ) => (
+                      <button
+                        key={`dot-${index}`}
+                        type="button"
+                        className={
+                          selectedImage ===
+                          image
+                            ? "product-image-dot active"
+                            : "product-image-dot"
+                        }
+                        onClick={() =>
+                          setSelectedImage(
+                            image
+                          )
+                        }
+                        aria-label={`View image ${
+                          index + 1
+                        }`}
+                      />
+                    )
+                  )}
                 </div>
 
                 <span className="product-image-counter">
-                  {getCurrentImageIndex() + 1}
+                  {getCurrentImageIndex() +
+                    1}
                   {" / "}
-                  {productImages.length}
+                  {
+                    productImages.length
+                  }
                 </span>
               </>
             )}
 
           </div>
-
 
           {productImages.length >
             0 && (
@@ -1372,10 +1682,20 @@ function ProductDetails() {
                       alt={`${product.name} view ${
                         index + 1
                       }`}
-                      loading={index === 0 ? "eager" : "lazy"}
-                      fetchPriority={index === 0 ? "high" : "auto"}
+                      loading={
+                        index === 0
+                          ? "eager"
+                          : "lazy"
+                      }
+                      fetchPriority={
+                        index === 0
+                          ? "high"
+                          : "auto"
+                      }
                       decoding="async"
-                      onError={handleImageError}
+                      onError={
+                        handleImageError
+                      }
                     />
                   </button>
                 )
@@ -1385,7 +1705,6 @@ function ProductDetails() {
           )}
 
         </div>
-
 
         <div className="product-details-info">
 
@@ -1397,7 +1716,6 @@ function ProductDetails() {
           <h1>
             {product.name}
           </h1>
-
 
           <div className="details-price">
 
@@ -1431,7 +1749,6 @@ function ProductDetails() {
             Inclusive of all taxes
           </p>
 
-
           {colors.length > 0 && (
             <div className="size-section">
 
@@ -1449,7 +1766,9 @@ function ProductDetails() {
                   (color) => {
                     const colorHasStock =
                       variants.some(
-                        (variant) => {
+                        (
+                          variant
+                        ) => {
                           const variantColor =
                             String(
                               getVariantColor(
@@ -1506,7 +1825,6 @@ function ProductDetails() {
             </div>
           )}
 
-
           {sizes.length > 0 && (
             <div className="size-section">
 
@@ -1519,7 +1837,9 @@ function ProductDetails() {
                 <button
                   type="button"
                   onClick={() =>
-                    setSizeGuideOpen(true)
+                    setSizeGuideOpen(
+                      true
+                    )
                   }
                   aria-haspopup="dialog"
                   aria-expanded={
@@ -1537,7 +1857,9 @@ function ProductDetails() {
                   (size) => {
                     const sizeHasStock =
                       variants.some(
-                        (variant) => {
+                        (
+                          variant
+                        ) => {
                           const variantSize =
                             String(
                               getVariantSize(
@@ -1612,7 +1934,6 @@ function ProductDetails() {
             </div>
           )}
 
-
           {hasVariants &&
             selectedVariant && (
               <p className="tax-note">
@@ -1628,7 +1949,6 @@ function ProductDetails() {
               </p>
             )}
 
-
           {hasVariants &&
             !missingSelection &&
             !selectedVariant && (
@@ -1637,7 +1957,6 @@ function ProductDetails() {
                 UNAVAILABLE
               </p>
             )}
-
 
           <div className="quantity-section">
 
@@ -1689,7 +2008,6 @@ function ProductDetails() {
 
           </div>
 
-
           <div className="product-actions">
 
             <button
@@ -1735,18 +2053,20 @@ function ProductDetails() {
 
           </div>
 
-
           <button
             type="button"
             className="buy-now"
-            disabled={cannotAddToCart}
-            onClick={handleBuyNow}
+            disabled={
+              cannotAddToCart
+            }
+            onClick={
+              handleBuyNow
+            }
           >
             {addingToCart
               ? "ADDING..."
               : "BUY NOW →"}
           </button>
-
 
           <div className="delivery-box">
 
@@ -1784,7 +2104,8 @@ function ProductDetails() {
                 <strong>
                   {Boolean(
                     Number(
-                      product?.no_return_policy || 0
+                      product?.no_return_policy ||
+                        0
                     )
                   )
                     ? "NO RETURNS"
@@ -1794,7 +2115,8 @@ function ProductDetails() {
                 <p>
                   {Boolean(
                     Number(
-                      product?.no_return_policy || 0
+                      product?.no_return_policy ||
+                        0
                     )
                   )
                     ? "This product is not eligible for return or exchange."
@@ -1809,22 +2131,29 @@ function ProductDetails() {
 
           {Boolean(
             Number(
-              product?.no_return_policy || 0
+              product?.no_return_policy ||
+                0
             )
           ) && (
             <div
               className="product-no-return-policy"
               style={{
-                marginTop: "20px",
-                padding: "16px 18px",
-                border: "1px solid #d9d9d9",
-                background: "#fafafa",
+                marginTop:
+                  "20px",
+                padding:
+                  "16px 18px",
+                border:
+                  "1px solid #d9d9d9",
+                background:
+                  "#fafafa",
               }}
             >
+
               <p
                 className="eyebrow"
                 style={{
-                  marginBottom: "7px",
+                  marginBottom:
+                    "7px",
                 }}
               >
                 RETURN POLICY
@@ -1832,9 +2161,12 @@ function ProductDetails() {
 
               <strong
                 style={{
-                  display: "block",
-                  fontSize: "13px",
-                  letterSpacing: "0.06em",
+                  display:
+                    "block",
+                  fontSize:
+                    "13px",
+                  letterSpacing:
+                    "0.06em",
                 }}
               >
                 NO RETURN POLICY
@@ -1842,15 +2174,23 @@ function ProductDetails() {
 
               <p
                 style={{
-                  marginTop: "7px",
+                  marginTop:
+                    "7px",
                   marginBottom: 0,
-                  fontSize: "13px",
-                  lineHeight: 1.6,
-                  color: "#666",
+                  fontSize:
+                    "13px",
+                  lineHeight:
+                    1.6,
+                  color:
+                    "#666",
                 }}
               >
-                This product cannot be returned or exchanged.
+                This product
+                cannot be
+                returned or
+                exchanged.
               </p>
+
             </div>
           )}
 
@@ -1870,28 +2210,35 @@ function ProductDetails() {
 
       </section>
 
-
       {sizeGuideOpen && (
         <div
           className="size-guide-overlay"
           role="presentation"
-          onMouseDown={(event) => {
+          onMouseDown={(
+            event
+          ) => {
             if (
               event.target ===
               event.currentTarget
             ) {
-              setSizeGuideOpen(false);
+              setSizeGuideOpen(
+                false
+              );
             }
           }}
         >
+
           <div
             className="size-guide-modal"
             role="dialog"
             aria-modal="true"
             aria-labelledby="size-guide-title"
           >
+
             <div className="size-guide-header">
+
               <div>
+
                 <p className="eyebrow">
                   FIT GUIDE
                 </p>
@@ -1899,13 +2246,16 @@ function ProductDetails() {
                 <h2 id="size-guide-title">
                   SIZE CHART
                 </h2>
+
               </div>
 
               <button
                 type="button"
                 className="size-guide-close"
                 onClick={() =>
-                  setSizeGuideOpen(false)
+                  setSizeGuideOpen(
+                    false
+                  )
                 }
                 aria-label="Close size guide"
               >
@@ -1914,6 +2264,7 @@ function ProductDetails() {
                   strokeWidth={1.7}
                 />
               </button>
+
             </div>
 
             <p className="size-guide-note">
@@ -1923,63 +2274,149 @@ function ProductDetails() {
             </p>
 
             <div className="size-guide-table-wrap">
+
               <table className="size-guide-table">
+
                 <thead>
+
                   <tr>
-                    <th>SIZE</th>
-                    <th>CHEST (IN)</th>
-                    <th>CHEST (CM)</th>
-                    <th>WAIST (IN)</th>
+                    <th>
+                      SIZE
+                    </th>
+
+                    <th>
+                      CHEST (IN)
+                    </th>
+
+                    <th>
+                      CHEST (CM)
+                    </th>
+
+                    <th>
+                      WAIST (IN)
+                    </th>
                   </tr>
+
                 </thead>
 
                 <tbody>
+
                   <tr>
-                    <td>XS</td>
-                    <td>34–36</td>
-                    <td>86–91</td>
-                    <td>28–30</td>
+                    <td>
+                      XS
+                    </td>
+
+                    <td>
+                      34–36
+                    </td>
+
+                    <td>
+                      86–91
+                    </td>
+
+                    <td>
+                      28–30
+                    </td>
                   </tr>
 
                   <tr>
-                    <td>S</td>
-                    <td>36–38</td>
-                    <td>91–97</td>
-                    <td>30–32</td>
+                    <td>
+                      S
+                    </td>
+
+                    <td>
+                      36–38
+                    </td>
+
+                    <td>
+                      91–97
+                    </td>
+
+                    <td>
+                      30–32
+                    </td>
                   </tr>
 
                   <tr>
-                    <td>M</td>
-                    <td>38–40</td>
-                    <td>97–102</td>
-                    <td>32–34</td>
+                    <td>
+                      M
+                    </td>
+
+                    <td>
+                      38–40
+                    </td>
+
+                    <td>
+                      97–102
+                    </td>
+
+                    <td>
+                      32–34
+                    </td>
                   </tr>
 
                   <tr>
-                    <td>L</td>
-                    <td>40–42</td>
-                    <td>102–107</td>
-                    <td>34–36</td>
+                    <td>
+                      L
+                    </td>
+
+                    <td>
+                      40–42
+                    </td>
+
+                    <td>
+                      102–107
+                    </td>
+
+                    <td>
+                      34–36
+                    </td>
                   </tr>
 
                   <tr>
-                    <td>XL</td>
-                    <td>42–44</td>
-                    <td>107–112</td>
-                    <td>36–38</td>
+                    <td>
+                      XL
+                    </td>
+
+                    <td>
+                      42–44
+                    </td>
+
+                    <td>
+                      107–112
+                    </td>
+
+                    <td>
+                      36–38
+                    </td>
                   </tr>
 
                   <tr>
-                    <td>XXL</td>
-                    <td>44–46</td>
-                    <td>112–117</td>
-                    <td>38–40</td>
+                    <td>
+                      XXL
+                    </td>
+
+                    <td>
+                      44–46
+                    </td>
+
+                    <td>
+                      112–117
+                    </td>
+
+                    <td>
+                      38–40
+                    </td>
                   </tr>
+
                 </tbody>
+
               </table>
+
             </div>
 
             <div className="size-guide-measure">
+
               <strong>
                 HOW TO MEASURE
               </strong>
@@ -1991,6 +2428,7 @@ function ProductDetails() {
                 For waist, measure around your
                 natural waistline.
               </p>
+
             </div>
 
             <p className="size-guide-footnote">
@@ -1998,7 +2436,9 @@ function ProductDetails() {
               not a product-specific garment
               measurement chart.
             </p>
+
           </div>
+
         </div>
       )}
 
@@ -2007,7 +2447,6 @@ function ProductDetails() {
           product.id
         }
       />
-
 
       {relatedProducts.length >
         0 && (
@@ -2029,9 +2468,16 @@ function ProductDetails() {
 
             {relatedProducts.map(
               (item) => {
+
                 const itemImage =
                   getImageUrl(
+                    item.image_url
+                  ) ||
+                  getImageUrl(
                     item.image
+                  ) ||
+                  getImageUrl(
+                    item.primary_image
                   ) ||
                   (Array.isArray(
                     item.images
@@ -2044,7 +2490,10 @@ function ProductDetails() {
                 return (
                   <Link
                     key={item.id}
-                    to={`/product/${item.slug || item.id}`}
+                    to={`/product/${
+                      item.slug ||
+                      item.id
+                    }`}
                     className="related-card"
                   >
 
@@ -2053,10 +2502,14 @@ function ProductDetails() {
                       {itemImage ? (
                         <img
                           src={itemImage}
-                          alt={item.name}
+                          alt={
+                            item.name
+                          }
                           loading="lazy"
                           decoding="async"
-                          onError={handleImageError}
+                          onError={
+                            handleImageError
+                          }
                         />
                       ) : (
                         <div className="product-image-placeholder" />
@@ -2092,5 +2545,6 @@ function ProductDetails() {
 
     </div>
   );
-} 
+}
+
 export default ProductDetails;
