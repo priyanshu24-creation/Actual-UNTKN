@@ -14,8 +14,6 @@ export function CartProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  
-
   const loadCart = async () => {
     try {
       setLoading(true);
@@ -33,15 +31,12 @@ export function CartProvider({ children }) {
       const items =
         response.data?.cart?.items || [];
 
-      
       const normalizedItems = items.map(
         (item) => ({
-          
           id: Number(
             item.product_id
           ),
 
-          
           cartItemId: Number(
             item.id ??
               item.cart_item_id ??
@@ -49,12 +44,10 @@ export function CartProvider({ children }) {
               item.item_id
           ),
 
-          
           product_id: Number(
             item.product_id
           ),
 
-          
           variant_id:
             item.variant_id !== null &&
             item.variant_id !== undefined
@@ -63,7 +56,27 @@ export function CartProvider({ children }) {
                 )
               : null,
 
-          
+          /*
+           * IMPORTANT:
+           * These two fields are required
+           * for collection/category coupons.
+           */
+          category_id:
+            item.category_id !== null &&
+            item.category_id !== undefined
+              ? Number(
+                  item.category_id
+                )
+              : null,
+
+          collection_id:
+            item.collection_id !== null &&
+            item.collection_id !== undefined
+              ? Number(
+                  item.collection_id
+                )
+              : null,
+
           name:
             item.product_name ||
             "UNTKN Product",
@@ -76,7 +89,6 @@ export function CartProvider({ children }) {
             item.product_slug ||
             "",
 
-          
           image:
             item.image_url ||
             "",
@@ -85,7 +97,6 @@ export function CartProvider({ children }) {
             item.image_url ||
             "",
 
-          
           sku:
             item.sku ||
             "",
@@ -102,12 +113,10 @@ export function CartProvider({ children }) {
             item.hex_code ||
             "",
 
-          
           quantity: Number(
             item.quantity || 1
           ),
 
-          
           price: Number(
             item.unit_price || 0
           ),
@@ -120,7 +129,6 @@ export function CartProvider({ children }) {
             item.total_price || 0
           ),
 
-          
           stock_quantity:
             item.stock_quantity !== null &&
             item.stock_quantity !== undefined
@@ -129,7 +137,6 @@ export function CartProvider({ children }) {
                 )
               : null,
 
-          
           currency:
             item.currency ||
             "INR",
@@ -140,18 +147,25 @@ export function CartProvider({ children }) {
         normalizedItems
       );
     } catch (requestError) {
-      if (requestError.response?.status === 401) {
+      if (
+        requestError.response?.status ===
+        401
+      ) {
         setCartItems([]);
         setError("");
         return;
       }
 
-      console.error("Failed to load cart:", requestError);
+      console.error(
+        "Failed to load cart:",
+        requestError
+      );
 
       setCartItems([]);
 
       setError(
-        requestError.response?.data?.message ||
+        requestError.response?.data
+          ?.message ||
           requestError.message ||
           "Unable to load cart."
       );
@@ -160,13 +174,9 @@ export function CartProvider({ children }) {
     }
   };
 
-  
-
   useEffect(() => {
     loadCart();
   }, []);
-
-  
 
   const addToCart = async (
     product,
@@ -177,7 +187,6 @@ export function CartProvider({ children }) {
     try {
       setError("");
 
-      
       const productId = Number(
         product?.id ??
           product?.product_id
@@ -194,7 +203,6 @@ export function CartProvider({ children }) {
         );
       }
 
-      
       const requestedQuantity =
         Number(quantity);
 
@@ -209,11 +217,9 @@ export function CartProvider({ children }) {
         );
       }
 
-      
       let resolvedVariantId =
         variantId;
 
-      
       if (
         resolvedVariantId === null ||
         resolvedVariantId === undefined
@@ -229,15 +235,20 @@ export function CartProvider({ children }) {
               (variant) => {
                 const variantSize =
                   variant?.size_name ||
-                  (typeof variant?.size === "object"
+                  (typeof variant?.size ===
+                  "object"
                     ? variant?.size?.name
                     : variant?.size) ||
                   variant?.size_label ||
                   "";
 
                 return (
-                  String(variantSize).toLowerCase() ===
-                  String(size || "").toLowerCase()
+                  String(
+                    variantSize
+                  ).toLowerCase() ===
+                  String(
+                    size || ""
+                  ).toLowerCase()
                 );
               }
             );
@@ -253,7 +264,6 @@ export function CartProvider({ children }) {
         }
       }
 
-      
       const response =
         await api.post(
           "/cart/items",
@@ -285,7 +295,6 @@ export function CartProvider({ children }) {
         );
       }
 
-      
       await loadCart();
 
       return {
@@ -312,14 +321,11 @@ export function CartProvider({ children }) {
     }
   };
 
-  
-
   const findCartItem = (
     productId,
     size = "",
     variantId = null
   ) => {
-    
     if (
       variantId !== null &&
       variantId !== undefined
@@ -346,7 +352,6 @@ export function CartProvider({ children }) {
       }
     }
 
-    
     return cartItems.find(
       (item) =>
         Number(
@@ -364,8 +369,6 @@ export function CartProvider({ children }) {
     );
   };
 
-  
-
   const updateQuantity = async (
     id,
     size,
@@ -379,7 +382,6 @@ export function CartProvider({ children }) {
       const newQuantity =
         Number(quantity);
 
-      
       if (
         !Number.isInteger(
           newQuantity
@@ -390,11 +392,9 @@ export function CartProvider({ children }) {
         );
       }
 
-      
       let actualCartItemId =
         cartItemId;
 
-      
       if (!actualCartItemId) {
         const matchingItem =
           findCartItem(
@@ -407,11 +407,9 @@ export function CartProvider({ children }) {
           matchingItem?.cartItemId;
       }
 
-      
-      actualCartItemId =
-        Number(
-          actualCartItemId
-        );
+      actualCartItemId = Number(
+        actualCartItemId
+      );
 
       if (
         !actualCartItemId ||
@@ -424,7 +422,6 @@ export function CartProvider({ children }) {
         );
       }
 
-      
       if (
         newQuantity < 1
       ) {
@@ -438,7 +435,6 @@ export function CartProvider({ children }) {
         return;
       }
 
-      
       const response =
         await api.put(
           `/cart/items/${actualCartItemId}`,
@@ -457,7 +453,6 @@ export function CartProvider({ children }) {
         );
       }
 
-      
       await loadCart();
     } catch (requestError) {
       console.error(
@@ -479,8 +474,6 @@ export function CartProvider({ children }) {
     }
   };
 
-  
-
   const removeFromCart = async (
     id,
     size = "",
@@ -490,11 +483,9 @@ export function CartProvider({ children }) {
     try {
       setError("");
 
-      
       let actualCartItemId =
         cartItemId;
 
-      
       if (!actualCartItemId) {
         const matchingItem =
           findCartItem(
@@ -507,13 +498,10 @@ export function CartProvider({ children }) {
           matchingItem?.cartItemId;
       }
 
-      
-      actualCartItemId =
-        Number(
-          actualCartItemId
-        );
+      actualCartItemId = Number(
+        actualCartItemId
+      );
 
-      
       if (
         !actualCartItemId ||
         !Number.isInteger(
@@ -525,9 +513,6 @@ export function CartProvider({ children }) {
         );
       }
 
-      
-
-      
       const response =
         await api.delete(
           `/cart/items/${actualCartItemId}`
@@ -542,7 +527,6 @@ export function CartProvider({ children }) {
         );
       }
 
-      
       await loadCart();
     } catch (requestError) {
       console.error(
@@ -564,8 +548,6 @@ export function CartProvider({ children }) {
     }
   };
 
-  
-
   const clearCart = async () => {
     try {
       setError("");
@@ -584,7 +566,6 @@ export function CartProvider({ children }) {
         );
       }
 
-      
       setCartItems([]);
     } catch (requestError) {
       console.error(
@@ -606,8 +587,6 @@ export function CartProvider({ children }) {
     }
   };
 
-  
-
   const totalItems =
     cartItems.reduce(
       (total, item) =>
@@ -617,8 +596,6 @@ export function CartProvider({ children }) {
         ),
       0
     );
-
-  
 
   const subtotal =
     cartItems.reduce(
@@ -643,29 +620,18 @@ export function CartProvider({ children }) {
       0
     );
 
-  
-
   return (
     <CartContext.Provider
       value={{
         cartItems,
-
         addToCart,
-
         updateQuantity,
-
         removeFromCart,
-
         clearCart,
-
         totalItems,
-
         subtotal,
-
         loading,
-
         error,
-
         refreshCart:
           loadCart,
       }}
